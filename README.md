@@ -97,16 +97,17 @@ El objetivo funcional es ofrecer un laboratorio web local que permita pasar de u
 
 El objetivo técnico es construir una aplicación web mantenible y reproducible, con una interfaz visual específica, una API REST y un motor de ejecución local seguro.
 
-- Desarrollar la interfaz como una SPA con React, TypeScript, Vite y React Router, utilizando Tailwind CSS, shadcn/ui, React Flow, Motion for React y Lucide React. La librería para representar los gráficos queda pendiente de selección, con Recharts como candidato inicial.
+- Desarrollar la interfaz como una SPA con React, TypeScript, Vite y React Router, utilizando Tailwind CSS, shadcn/ui, React Flow, Motion for React, Lucide React y Recharts para las gráficas de métricas.
 - Implementar con Java y Spring Boot una API REST versionada y una arquitectura de monolito modular.
-- Persistir las entidades de dominio en MySQL mediante Spring Data JPA y versionar el esquema con migraciones de Flyway.
+- Persistir las entidades de dominio en PostgreSQL mediante Spring Data JPA, utilizar `jsonb` para snapshots y configuraciones variables cuando aporte valor, y versionar el esquema con migraciones de Flyway.
 - Ejecutar la plataforma localmente con Docker Compose, controlar Docker Engine desde el backend mediante docker-java encapsulado detrás de una interfaz propia, implementar el Load Generator sobre Grafana k6 y gestionar la latencia reproducible con Toxiproxy a través de su API HTTP.
 - Utilizar un catálogo cerrado de imágenes y configuraciones para evitar que el usuario introduzca comandos o imágenes arbitrarias.
 - Utilizar MinIO localmente para almacenar avatares, portadas e iconos de las plantillas del catálogo.
 - Utilizar Spring Security y JWT para autenticación y autorización, incluyendo control por roles y propiedad de los recursos.
 - Utilizar Server-Sent Events (SSE) para actualizar estados, eventos y logs resumidos durante una ejecución.
 - Integrar el profesor de IA mediante una API externa detrás de una interfaz independiente del proveedor; la API y el proveedor concretos quedan pendientes de selección.
-- Aplicar una estrategia de pruebas con JUnit, Spring Boot Test, Mockito, REST Assured y Testcontainers en el backend; Vitest y React Testing Library en el frontend; y Playwright para las pruebas de sistema. Automatizar mediante GitHub Actions la integración y la entrega continuas, la cobertura mínima exigida, la construcción y la publicación de imágenes Docker y paquetes versionados. La herramienta de análisis estático queda pendiente de selección, con SonarQube y SonarQube Cloud como candidatos.
+- Aplicar una estrategia de pruebas con JUnit, Spring Boot Test, Mockito, REST Assured y Testcontainers en el backend; Vitest y React Testing Library en el frontend; y Playwright para las pruebas de sistema. Automatizar mediante GitHub Actions la integración y la entrega continuas, la cobertura mínima exigida, el análisis estático con SonarQube Cloud, la construcción y la publicación de imágenes Docker y paquetes versionados.
+
 
 ## 5. Metodología
 
@@ -171,7 +172,7 @@ Las funcionalidades se agrupan en tres niveles de prioridad. En cada tabla se in
 | Registro, acceso y perfil | Registrado y administrador | Crear una cuenta, iniciar sesión con correo y contraseña, cerrar sesión, editar el perfil y subir un avatar. |
 | Gestión de proyectos | Registrado y administrador | Crear, consultar, editar y eliminar proyectos propios. Serán privados por defecto y podrán publicarse voluntariamente. |
 | Escenarios y canvas | Registrado y administrador | Crear escenarios dentro de un proyecto y guardar su definición antes de ejecutar. |
-| Catálogo de componentes | Registrado y administrador | Utilizar exclusivamente seis plantillas controladas: HTTP Service, Worker, Load Generator, MySQL, Redis y RabbitMQ. |
+| Catálogo de componentes | Registrado y administrador | Utilizar exclusivamente seis plantillas controladas: HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ. |
 | Conexiones y validación | Registrado y administrador | Conectar componentes compatibles y detectar configuraciones incompletas o inválidas. |
 | Ejecución local | Registrado y administrador | Ejecutar un escenario validado sobre Docker en una red aislada y detenerlo con limpieza de recursos. Solo habrá una ejecución activa en la instancia local. |
 | Observación e historial | Registrado y administrador | Consultar estados, logs resumidos, eventos, métricas y el historial de las ejecuciones propias. |
@@ -360,24 +361,24 @@ La propuesta técnica completa del catálogo, los perfiles, la validación, la g
 
 | Plantilla | Comportamiento previsto | Configuración permitida al usuario | Conexiones compatibles | Evidencias principales |
 | --- | --- | --- | --- | --- |
-| HTTP Service | Recibir peticiones HTTP y ejecutar un comportamiento reproducible que pueda utilizar caché, base de datos o mensajería. | Nombre, perfil de comportamiento y parámetros acotados del perfil. | Recibe tráfico de Load Generator u otro HTTP Service; puede depender de HTTP Service, MySQL, Redis y RabbitMQ. | Estado de salud, peticiones, errores, latencia de respuesta y consumo del contenedor. |
-| Worker | Consumir tareas de una cola y procesarlas con un comportamiento controlado. | Nombre, cola seleccionada, perfil de procesamiento y política de reintento acotada. | Consume de RabbitMQ y puede utilizar MySQL o Redis. | Estado, tareas procesadas o fallidas, tiempo de procesamiento y consumo del contenedor. |
+| HTTP Service | Recibir peticiones HTTP y ejecutar un comportamiento reproducible que pueda utilizar caché, base de datos o mensajería. | Nombre, perfil de comportamiento y parámetros acotados del perfil. | Recibe tráfico de Load Generator u otro HTTP Service; puede depender de HTTP Service, PostgreSQL, Redis y RabbitMQ. | Estado de salud, peticiones, errores, latencia de respuesta y consumo del contenedor. |
+| Worker | Consumir tareas de una cola y procesarlas con un comportamiento controlado. | Nombre, cola seleccionada, perfil de procesamiento y política de reintento acotada. | Consume de RabbitMQ y puede utilizar PostgreSQL o Redis. | Estado, tareas procesadas o fallidas, tiempo de procesamiento y consumo del contenedor. |
 | Load Generator | Generar carga HTTP limitada y reproducible contra un servicio del escenario. | Destino, peticiones por segundo, duración y concurrencia dentro de límites globales. | Se conecta únicamente a un HTTP Service compatible. | Peticiones enviadas y completadas, errores y distribución de latencia. |
-| MySQL | Proporcionar persistencia relacional a los servicios del escenario. | Nombre lógico y conjunto de datos inicial elegido entre perfiles permitidos. | Acepta conexiones de HTTP Service y Worker. | Disponibilidad, conexiones activas y consumo del contenedor. |
+| PostgreSQL | Proporcionar persistencia relacional a los servicios del escenario. | Nombre lógico y conjunto de datos inicial elegido entre perfiles permitidos. | Acepta conexiones de HTTP Service y Worker. | Disponibilidad, conexiones activas y consumo del contenedor. |
 | Redis | Proporcionar caché o almacenamiento temporal de clave-valor. | Nombre lógico y política elegida entre configuraciones seguras. | Acepta conexiones de HTTP Service y Worker. | Disponibilidad, memoria, claves y aciertos o fallos de caché cuando estén disponibles. |
 | RabbitMQ | Gestionar la publicación, acumulación y consumo de tareas. | Nombre lógico y topología de cola elegida entre perfiles controlados. | Recibe mensajes de HTTP Service y entrega trabajo a Worker. | Disponibilidad, mensajes en cola y tasas de publicación y consumo. |
 
 ##### Perfiles, capacidades y validación
 
-No se programará cada escenario de forma independiente. Las plantillas ofrecerán perfiles reutilizables. Por ejemplo, un HTTP Service podrá responder sin dependencias, utilizar MySQL, aplicar el patrón de caché `cache-aside`, publicar tareas en RabbitMQ o invocar otro servicio. Cada perfil declarará las dependencias que necesita y las capacidades públicas que ofrece.
+No se programará cada escenario de forma independiente. Las plantillas ofrecerán perfiles reutilizables. Por ejemplo, un HTTP Service podrá responder sin dependencias, utilizar PostgreSQL, aplicar el patrón de caché `cache-aside`, publicar tareas en RabbitMQ o invocar otro servicio. Cada perfil declarará las dependencias que necesita y las capacidades públicas que ofrece.
 
-El Load Generator solo generará peticiones contra una capacidad HTTP compatible; no conocerá Redis, MySQL, RabbitMQ ni Worker. Por ejemplo, un perfil de lecturas repetidas podrá apuntar a un HTTP Service configurado con `CACHE_ASIDE`. El servicio, y no el generador, consultará Redis y recurrirá a MySQL cuando sea necesario.
+El Load Generator solo generará peticiones contra una capacidad HTTP compatible; no conocerá Redis, PostgreSQL, RabbitMQ ni Worker. Por ejemplo, un perfil de lecturas repetidas podrá apuntar a un HTTP Service configurado con `CACHE_ASIDE`. El servicio, y no el generador, consultará Redis y recurrirá a PostgreSQL cuando sea necesario.
 
 ```mermaid
 flowchart LR
     Load["Load Generator<br/>REPEATED_READ"] -->|"LOAD_TARGET"| Api["HTTP Service<br/>CACHE_ASIDE"]
     Api -->|"CACHE"| Redis["Redis"]
-    Api -->|"DATABASE"| MySQL["MySQL"]
+    Api -->|"DATABASE"| PostgreSQL["PostgreSQL"]
 ```
 
 Antes de permitir la ejecución mediante `Run`, `ScenarioValidator` comprobará la compatibilidad de los tipos de conexión, los requisitos del perfil, sus cardinalidades y las capacidades requeridas por la carga. Un escenario podrá guardarse incompleto, pero los errores bloquearán la ejecución. Las situaciones deliberadamente experimentales que sigan siendo ejecutables producirán advertencias; por ejemplo, RabbitMQ con productores pero sin Worker podrá acumular mensajes en un canvas libre.
@@ -546,6 +547,8 @@ La pantalla de ejecución utilizará gráficos para mostrar información produci
 - una gráfica de líneas para CPU y memoria a lo largo del tiempo;
 - una línea temporal de estados, eventos y fallos aplicados;
 - una gráfica de barras para comparar los componentes afectados por un fallo.
+
+Recharts representará las gráficas de métricas y comparaciones. La línea temporal será un componente React específico de Infracture, porque combina navegación, estados y acciones de dominio que no corresponden a una gráfica estadística convencional.
 
 ### Tecnología complementaria
 

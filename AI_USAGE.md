@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **7 de agosto de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **9 de agosto de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -184,6 +184,20 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Decisiones consolidadas:** Grafana k6 como motor controlado del Load Generator; Vite y React Router para la SPA; Spring Data JPA para la persistencia; JUnit, Spring Boot Test, Mockito, REST Assured y Testcontainers para las pruebas del backend; Vitest y React Testing Library para las pruebas del frontend; Playwright para las pruebas de sistema; y GitHub Actions para la integración y la entrega continuas.
 - **Resultado:** objetivos técnicos actualizados sin superar el límite de diez; anexo de ejecución y checklist sincronizados; changelog reducido a la especificación consolidada de la aplicación; y CHANGELOG y AI_USAGE actualizados hasta la fecha de la revisión.
 - **Revisión del alumno:** la revisión personal del README se considera completada. Las selecciones que permanecen expresamente abiertas son la librería de gráficos, la herramienta de análisis estático y la API, el proveedor y el modelo del profesor de IA.
+
+## AI-2026-08-09-010 - Revisión técnica posterior a la tutoría y decisiones para la Fase 2
+
+- **Fecha:** 9 de agosto de 2026.
+- **Fase:** transición de la Fase 1 a la Fase 2.
+- **Objetivo:** revisar en profundidad la arquitectura y las tecnologías documentadas antes de iniciar la configuración e implementación de la aplicación.
+- **Contexto aportado por el alumno:** Fase 1 terminada y reunión con el tutor completada; apoyo del tutor al uso de PostgreSQL y aceptación de Playwright; interés en cerrar la librería de gráficos y el mecanismo de análisis estático antes de comenzar la Fase 2.
+- **Modelo y configuración:** configuración principal descrita al inicio del documento.
+- **Forma de uso:** revisión cruzada del README, el anexo de ejecución, el PDF de la guía del TFG, los documentos técnicos auxiliares y el prototipo visual; contraste con la documentación vigente de las tecnologías; y evaluación de las consecuencias sobre persistencia, canvas, pruebas y CI.
+- **Decisiones adoptadas:** PostgreSQL sustituye a MySQL tanto en la persistencia permanente de la plataforma como en el componente relacional de los escenarios; Recharts se utilizará para las gráficas de métricas; SonarQube Cloud realizará el análisis estático desde GitHub Actions; Playwright se mantiene como herramienta E2E ratificada por el tutor; y Spring Security con JWT se conserva para autenticación y autorización.
+- **Criterio de modelado:** el dominio seguirá siendo relacional y normalizado; `jsonb` se reservará para snapshots inmutables, configuraciones variables y documentos controlados. La instancia PostgreSQL de la plataforma y las instancias efímeras del canvas permanecerán aisladas aunque compartan tecnología.
+- **Ficheros actualizados:** `README.md`, `CHANGELOG.md`, `docs/EXECUTION_ARCHITECTURE.md` y `docs/TECHNOLOGY_DECISIONS_PHASE_2.md`, junto con los documentos auxiliares que conservan la trazabilidad de la Fase 1.
+- **Decisión aplazada:** el almacenamiento de imágenes no se modifica hasta recibir la respuesta del tutor sobre MinIO y la alternativa de almacenarlas en PostgreSQL.
+- **Revisión del alumno:** el alumno confirmó PostgreSQL para la plataforma y para los componentes del canvas, Recharts, SonarQube Cloud, Playwright y el mantenimiento de JWT, y pidió excluir por ahora cualquier cambio en el almacenamiento de imágenes.
 
 ## Plantilla para nuevas entradas
 

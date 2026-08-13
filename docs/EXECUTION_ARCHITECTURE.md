@@ -53,7 +53,7 @@ flowchart TB
     subgraph PLATFORM["Plataforma Infracture Local"]
         React["React"]
         Backend["Spring Boot"]
-        PlatformDb["MySQL de la plataforma"]
+        PlatformDb["PostgreSQL de la plataforma"]
         MinIO["MinIO"]
         Docker["Docker Engine"]
 
@@ -67,7 +67,7 @@ flowchart TB
         Load["Load Generator"]
         Http["HTTP Service"]
         Redis["Redis"]
-        ScenarioDb["MySQL del escenario"]
+        ScenarioDb["PostgreSQL del escenario"]
         Rabbit["RabbitMQ"]
         Worker["Worker"]
     end
@@ -75,12 +75,12 @@ flowchart TB
     Docker --> EXECUTION
 ```
 
-El MySQL de la plataforma almacena usuarios, proyectos, escenarios y ejecuciones. Una instancia de MySQL arrastrada al canvas será otro contenedor, creado únicamente para el experimento. MinIO pertenece a la plataforma y no aparece como componente del escenario. Toxiproxy también será infraestructura interna del motor de ejecución, aunque sus efectos se controlen desde el canvas.
+El PostgreSQL de la plataforma almacena usuarios, proyectos, escenarios y ejecuciones. Una instancia de PostgreSQL arrastrada al canvas será otro contenedor, creado únicamente para el experimento. Ambos utilizan la misma tecnología para reducir la variedad operativa, pero sus datos, credenciales, redes y ciclos de vida permanecen completamente separados. MinIO pertenece a la plataforma y no aparece como componente del escenario. Toxiproxy también será infraestructura interna del motor de ejecución, aunque sus efectos se controlen desde el canvas.
 
 Durante una ejecución existen dos planos:
 
 - **Plano de control:** Spring Boot crea recursos, aplica fallos, recopila datos y actualiza la interfaz.
-- **Plano de datos:** Load Generator, HTTP Service, Redis, MySQL, RabbitMQ y Worker intercambian peticiones y mensajes.
+- **Plano de datos:** Load Generator, HTTP Service, Redis, PostgreSQL, RabbitMQ y Worker intercambian peticiones y mensajes.
 
 El backend de Infracture no realiza las operaciones de negocio del escenario; las organiza y observa.
 
@@ -113,10 +113,10 @@ El usuario solo manejará opciones de dominio mediante formularios controlados. 
 
 | Plantilla | Responsabilidad | Configuración visible | Dependencias y conexiones | Evidencias principales |
 | --- | --- | --- | --- | --- |
-| HTTP Service | Recibir peticiones HTTP y ejecutar comportamientos reproducibles. | Nombre, perfil y parámetros acotados. | Puede depender de HTTP Service, MySQL, Redis o RabbitMQ. | Salud, peticiones, errores, latencia y contadores del comportamiento. |
-| Worker | Consumir tareas y procesarlas en segundo plano. | Cola, perfil de procesamiento y reintentos acotados. | Depende de RabbitMQ y puede utilizar MySQL o Redis. | Tareas procesadas o fallidas, tiempo de procesamiento y estado. |
+| HTTP Service | Recibir peticiones HTTP y ejecutar comportamientos reproducibles. | Nombre, perfil y parámetros acotados. | Puede depender de HTTP Service, PostgreSQL, Redis o RabbitMQ. | Salud, peticiones, errores, latencia y contadores del comportamiento. |
+| Worker | Consumir tareas y procesarlas en segundo plano. | Cola, perfil de procesamiento y reintentos acotados. | Depende de RabbitMQ y puede utilizar PostgreSQL o Redis. | Tareas procesadas o fallidas, tiempo de procesamiento y estado. |
 | Load Generator | Producir tráfico HTTP controlado y reproducible. | Objetivo, perfil de carga, frecuencia, concurrencia, datos y semilla. | Solo apunta a un HTTP Service que exponga capacidades compatibles. | Peticiones, errores, latencia y rendimiento. |
-| MySQL | Proporcionar persistencia relacional durante el experimento. | Nombre lógico y conjunto inicial de datos. | Acepta conexiones de HTTP Service y Worker. | Salud, conexiones y consumo del contenedor. |
+| PostgreSQL | Proporcionar persistencia relacional durante el experimento. | Nombre lógico y conjunto inicial de datos. | Acepta conexiones de HTTP Service y Worker. | Salud, conexiones y consumo del contenedor. |
 | Redis | Proporcionar caché o almacenamiento temporal de clave-valor. | Nombre lógico y política segura. | Acepta conexiones de HTTP Service y Worker. | Salud, memoria, claves y datos de caché disponibles. |
 | RabbitMQ | Almacenar y distribuir tareas entre productores y consumidores. | Nombre lógico y topología de cola controlada. | Recibe publicaciones de HTTP Service y es consumido por Worker. | Mensajes preparados, no confirmados, publicados y consumidos. |
 
@@ -131,8 +131,8 @@ No se programará cada escenario por separado. Se programarán perfiles reutiliz
 | Perfil | Comportamiento | Dependencias requeridas | Capacidades expuestas |
 | --- | --- | --- | --- |
 | `STATELESS` | Responder sin consultar otra dependencia. | Ninguna. | Petición HTTP básica. |
-| `DATABASE_CRUD` | Consultar y modificar información persistente. | Una conexión `DATABASE` con MySQL. | Lectura, creación y actualización de recursos. |
-| `CACHE_ASIDE` | Consultar Redis y recurrir a MySQL cuando no exista una copia válida. | Una conexión `CACHE` con Redis y una conexión `DATABASE` con MySQL. | Lectura y modificación de recursos con caché. |
+| `DATABASE_CRUD` | Consultar y modificar información persistente. | Una conexión `DATABASE` con PostgreSQL. | Lectura, creación y actualización de recursos. |
+| `CACHE_ASIDE` | Consultar Redis y recurrir a PostgreSQL cuando no exista una copia válida. | Una conexión `CACHE` con Redis y una conexión `DATABASE` con PostgreSQL. | Lectura y modificación de recursos con caché. |
 | `QUEUE_PRODUCER` | Convertir peticiones HTTP en tareas asíncronas. | Una conexión `PUBLISHES_TO` con RabbitMQ. | Creación de tareas. |
 | `DOWNSTREAM_HTTP` | Invocar otro servicio HTTP. | Una conexión `HTTP_CALL` con otro HTTP Service. | Operación HTTP compuesta. |
 
@@ -151,7 +151,7 @@ Los parámetros controlados podrán incluir:
 
 ### 5.3 Perfiles del Load Generator
 
-El Load Generator no necesita saber si el HTTP Service utiliza Redis, MySQL o RabbitMQ. Solo conoce la API pública y las capacidades que expone su objetivo.
+El Load Generator no necesita saber si el HTTP Service utiliza Redis, PostgreSQL o RabbitMQ. Solo conoce la API pública y las capacidades que expone su objetivo.
 
 | Perfil | Comportamiento de carga | Capacidad requerida en el objetivo |
 | --- | --- | --- |
@@ -189,11 +189,11 @@ En el modelo de dependencias, una flecha `A -> B` significa que A depende de B p
 | --- | --- | --- | --- |
 | Load Generator | HTTP Service | `LOAD_TARGET` | Genera peticiones contra la API. |
 | HTTP Service | HTTP Service | `HTTP_CALL` | Invoca otro servicio. |
-| HTTP Service | MySQL | `DATABASE` | Consulta o modifica datos persistentes. |
+| HTTP Service | PostgreSQL | `DATABASE` | Consulta o modifica datos persistentes. |
 | HTTP Service | Redis | `CACHE` | Consulta o actualiza la caché. |
 | HTTP Service | RabbitMQ | `PUBLISHES_TO` | Publica tareas. |
 | Worker | RabbitMQ | `CONSUMES_FROM` | Consume tareas. |
-| Worker | MySQL | `DATABASE` | Guarda resultados persistentes. |
+| Worker | PostgreSQL | `DATABASE` | Guarda resultados persistentes. |
 | Worker | Redis | `CACHE` | Consulta o guarda información temporal. |
 
 Esta dirección representa dependencia y no siempre coincide con el recorrido visual de los datos. En mensajería:
@@ -228,7 +228,7 @@ Ejemplo válido:
 flowchart LR
     Load["Load Generator<br/>REPEATED_READ"] -->|"LOAD_TARGET"| Api["HTTP Service<br/>CACHE_ASIDE"]
     Api -->|"CACHE"| Redis["Redis"]
-    Api -->|"DATABASE"| MySQL["MySQL"]
+    Api -->|"DATABASE"| PostgreSQL["PostgreSQL"]
 ```
 
 Resultado:
@@ -237,7 +237,7 @@ Resultado:
 HTTP Service orders-api
   OK: perfil CACHE_ASIDE reconocido
   OK: conexión CACHE con Redis
-  OK: conexión DATABASE con MySQL
+  OK: conexión DATABASE con PostgreSQL
   OK: capacidad de lectura compatible con REPEATED_READ
 
 Scenario ready to run
@@ -269,7 +269,7 @@ Una vez validado el escenario, el backend lo traducirá a un `ExecutionPlan`. El
 2. crear una red Docker aislada;
 3. generar nombres, alias, credenciales y etiquetas;
 4. crear los proxies necesarios para las conexiones compatibles con latencia;
-5. iniciar las instancias de MySQL, Redis y RabbitMQ;
+5. iniciar las instancias de PostgreSQL, Redis y RabbitMQ;
 6. esperar a que las dependencias superen sus comprobaciones de salud;
 7. iniciar las instancias de HTTP Service y Worker;
 8. esperar a que los servicios superen sus comprobaciones de salud;
@@ -298,7 +298,7 @@ Load Generator
   RANDOM_SEED=48372
 ```
 
-El Load Generator no recibe direcciones de Redis ni de MySQL. El HTTP Service no inspecciona el grafo en tiempo de ejecución: utiliza la configuración que Infracture ha generado después de validarlo.
+El Load Generator no recibe direcciones de Redis ni de PostgreSQL. El HTTP Service no inspecciona el grafo en tiempo de ejecución: utiliza la configuración que Infracture ha generado después de validarlo.
 
 ## 9. Generación continua de carga
 
@@ -364,14 +364,14 @@ El canvas libre podrá ejecutar un escenario sin Load Generator para observar la
 
 ### 10.1 Caché mediante `CACHE_ASIDE`
 
-Redis no se conecta directamente a MySQL. El HTTP Service coordina ambos:
+Redis no se conecta directamente a PostgreSQL. El HTTP Service coordina ambos:
 
 ```mermaid
 sequenceDiagram
     participant L as Load Generator
     participant H as HTTP Service
     participant R as Redis
-    participant M as MySQL
+    participant M as PostgreSQL
 
     L->>H: GET /orders/42
     H->>R: GET order:42
@@ -386,7 +386,7 @@ sequenceDiagram
     H-->>L: HTTP 200
 ```
 
-Para modificar un dato, la primera estrategia será actualizar MySQL y eliminar la entrada de Redis. La siguiente lectura volverá a poblar la caché.
+Para modificar un dato, la primera estrategia será actualizar PostgreSQL y eliminar la entrada de Redis. La siguiente lectura volverá a poblar la caché.
 
 El servicio expondrá contadores como `cache_hits`, `cache_misses` y `database_queries`. El Load Generator únicamente conocerá el código HTTP y la latencia de la respuesta.
 
@@ -415,10 +415,10 @@ Sin Worker, las tareas permanecen preparadas en la cola. Durante el procesamient
 ### 10.3 Llamadas entre servicios
 
 ```text
-Load Generator -> HTTP Service A -> HTTP Service B -> MySQL
+Load Generator -> HTTP Service A -> HTTP Service B -> PostgreSQL
 ```
 
-El generador solo conoce A. El servicio A conoce a B mediante la configuración generada, y B conoce MySQL. Esto permite estudiar propagación de latencia y fallos en cadena.
+El generador solo conoce A. El servicio A conoce a B mediante la configuración generada, y B conoce PostgreSQL. Esto permite estudiar propagación de latencia y fallos en cadena.
 
 ## 11. Fallos controlados
 
@@ -449,7 +449,7 @@ Debe distinguirse entre un contenedor en ejecución y un servicio preparado:
 | --- | --- |
 | HTTP Service | Endpoint de salud. |
 | Worker | Endpoint o señal de salud controlada. |
-| MySQL | Comprobación de disponibilidad del servidor. |
+| PostgreSQL | Comprobación de disponibilidad del servidor. |
 | Redis | Comando `PING`. |
 | RabbitMQ | Diagnóstico del broker. |
 | Load Generator | Estado y progreso de la carga. |
@@ -512,16 +512,16 @@ La carga permanece activa y el usuario detiene el único servicio. Aumentan las 
 
 ```text
 Load Generator -> HTTP Service -> Redis
-                              -> MySQL
+                              -> PostgreSQL
 ```
 
-El perfil de carga repite lecturas sobre un conjunto de datos frecuentes. Antes del fallo aumentan los aciertos de caché. Al detener Redis, el servicio recurre a MySQL si su comportamiento de recuperación es correcto; aumentan las consultas y la latencia. Después de reiniciar Redis, la caché vuelve a poblarse.
+El perfil de carga repite lecturas sobre un conjunto de datos frecuentes. Antes del fallo aumentan los aciertos de caché. Al detener Redis, el servicio recurre a PostgreSQL si su comportamiento de recuperación es correcto; aumentan las consultas y la latencia. Después de reiniciar Redis, la caché vuelve a poblarse.
 
 ### 14.3 Worker Recovery
 
 ```text
 Load Generator -> HTTP Service -> RabbitMQ <- Worker
-                                          Worker -> MySQL
+                                          Worker -> PostgreSQL
 ```
 
 El generador crea tareas continuamente. Al detener el Worker, crece la cola. Al reiniciarlo, el número de mensajes pendientes disminuye hasta que se recupera el ritmo normal.
@@ -553,7 +553,7 @@ Antes de desarrollar todo el catálogo se validará el recorrido de extremo a ex
 Load Generator
     -> HTTP Service con CACHE_ASIDE
         -> Toxiproxy -> Redis
-        -> MySQL
+        -> PostgreSQL
 ```
 
 El prototipo deberá demostrar:
@@ -594,8 +594,8 @@ Estos elementos no impiden presentar la Fase 1; son decisiones técnicas razonad
 - [Docker Compose: servicios y comprobaciones de salud](https://docs.docker.com/reference/compose-file/services/)
 - [Spring: construcción de un servicio REST](https://spring.io/guides/gs/rest-service/)
 - [Spring Boot Actuator: salud y métricas](https://docs.spring.io/spring-boot/reference/actuator/endpoints.html)
-- [Spring: acceso a MySQL](https://spring.io/guides/gs/accessing-data-mysql/)
-- [MySQL: tutorial oficial](https://dev.mysql.com/doc/refman/8.0/en/tutorial.html)
+- [Spring Data JPA: acceso a datos relacionales](https://spring.io/guides/gs/accessing-data-jpa/)
+- [PostgreSQL: tutorial oficial](https://www.postgresql.org/docs/current/tutorial.html)
 - [Redis: tipos de datos](https://redis.io/docs/latest/develop/data-types/)
 - [Spring: uso de caché](https://spring.io/guides/gs/caching/)
 - [RabbitMQ: Work Queues con Java](https://www.rabbitmq.com/tutorials/tutorial-two-java)
