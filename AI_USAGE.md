@@ -199,6 +199,13 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Decisión aplazada:** el almacenamiento de imágenes no se modifica hasta recibir la respuesta del tutor sobre MinIO y la alternativa de almacenarlas en PostgreSQL.
 - **Revisión del alumno:** el alumno confirmó PostgreSQL para la plataforma y para los componentes del canvas, Recharts, SonarQube Cloud, Playwright y el mantenimiento de JWT, y pidió excluir por ahora cualquier cambio en el almacenamiento de imágenes.
 
+## AI-2026-08-13-011 - Preparación operativa de la Fase 2
+
+- **Fecha y fase:** 13-18 de agosto de 2026; inicio de la Fase 2.
+- **Objetivo y uso:** convertir la guía académica, la rúbrica y la arquitectura aprobada en un backlog ejecutable, revisando el repositorio y documentación oficial para definir dependencias, criterios de aceptación y evidencias.
+- **Resultado:** estructuración de los issues y sub-issues de Fase 2, configuración guiada de las vistas, campos y automatizaciones del GitHub Project, y planificación de la vertical mínima con Java 21 LTS y Node.js 24 LTS. Las notas auxiliares se conservan en `.local-docs/`, excluida del control de versiones, y no forman parte de la documentación oficial.
+- **Límites y revisión:** el alumno revisó las decisiones y ejecutó la configuración del Project; todavía no se ha iniciado el código, README y CHANGELOG no se han modificado, SonarQube Cloud depende del tutor y el almacenamiento de imágenes continúa pendiente.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.

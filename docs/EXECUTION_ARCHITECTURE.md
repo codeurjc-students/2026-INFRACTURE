@@ -168,7 +168,7 @@ Por ejemplo, `REPEATED_READ` puede utilizarse con `CACHE_ASIDE` porque el primer
 HTTP profile CACHE_ASIDE
   requires:
     CACHE -> REDIS
-    DATABASE -> MYSQL
+    DATABASE -> POSTGRESQL
   exposes:
     RESOURCE_READ
     RESOURCE_CREATE
@@ -288,7 +288,7 @@ Para un escenario con `CACHE_ASIDE`, el backend podría generar:
 HTTP Service
   APP_MODE=CACHE_ASIDE
   REDIS_URL=redis-proxy:6379
-  DATABASE_URL=mysql-proxy:3306
+  DATABASE_URL=postgresql-proxy:5432
   CACHE_TTL=60
 
 Load Generator
