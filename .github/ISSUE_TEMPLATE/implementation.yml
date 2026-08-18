@@ -1,6 +1,5 @@
 name: Implementation task
 description: Plan a concrete implementation or configuration change.
-title: ""
 type: Task
 body:
   - type: markdown
