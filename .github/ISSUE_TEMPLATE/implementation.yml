@@ -1,0 +1,71 @@
+name: Implementation task
+description: Plan a concrete implementation or configuration change.
+title: ""
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe one verifiable unit of work. Split the issue if it cannot be reviewed in a small pull request.
+
+  - type: textarea
+    id: expected-outcome
+    attributes:
+      label: Expected outcome
+      description: State the observable result, not the implementation steps.
+      placeholder: Describe what will be true when this issue is complete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: List the work included in this issue.
+      placeholder: |
+        - Add ...
+        - Configure ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: Add objective conditions that can be checked before closing the issue.
+      placeholder: |
+        - [ ] The expected behavior is implemented.
+        - [ ] The relevant tests pass.
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Explain the commands or manual checks that will prove completion.
+      placeholder: |
+        - `command --to-verify`
+        - Manual check: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Link blocking issues or write "None".
+      placeholder: "Depends on #123, or None."
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: Clarify nearby work that this issue deliberately excludes.
+      placeholder: |
+        - Refactoring unrelated modules.
+        - Updating final documentation.
+    validations:
+      required: false
