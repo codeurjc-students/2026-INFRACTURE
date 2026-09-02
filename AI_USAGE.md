@@ -2,14 +2,14 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **9 de agosto de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **2 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
 ## Herramienta y configuración general
 
 - **Herramienta:** OpenAI Codex, aplicación de escritorio.
-- **Versión actual de la aplicación:** 26.731.11130.
+- **Versión de la aplicación declarada al iniciar el registro:** 26.731.11130.
 - **Configuración principal:** modo agéntico con GPT-5.6 Sol y nivel de razonamiento `high`.
 - **Configuración secundaria:** GPT-5.6 Luna, nivel de razonamiento `max` y modo `fast`.
 - **Criterio de uso:** GPT-5.6 Sol se utilizó principalmente para investigación, análisis, arquitectura, evaluación de alternativas y toma de decisiones. GPT-5.6 Luna se utilizó en algunas tareas centradas en redacción, reorganización y edición extensa de documentación.
@@ -27,6 +27,8 @@ Cada entrada temática incluye:
 - Forma de uso y herramientas auxiliares.
 - Decisiones o resultados obtenidos.
 - Revisión y decisiones adoptadas por el alumno.
+
+Este documento se mantiene como un registro vivo. Debe revisarse durante el trabajo y actualizarse en cuanto exista una entrada relevante: una nueva finalidad de uso de IA, una decisión o resultado material, un cambio de modelo o configuración, una herramienta auxiliar significativa o una intervención que deba conservarse para la trazabilidad académica. Las correcciones menores de una misma finalidad pueden agruparse en su entrada temática; no es necesario registrar cada mensaje por separado.
 
 Las fechas iniciales se han comprobado con las marcas temporales del historial de la tarea: ideación y primeras propuestas el 27 de julio, aclaración de la ejecución local y en la nube el 28 de julio, fichas formales y trabajo de marca el 31 de julio, y análisis de la guía v4 y documentación de la Fase 1 el 1 de agosto.
 
@@ -201,10 +203,52 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 
 ## AI-2026-08-13-011 - Preparación operativa de la Fase 2
 
-- **Fecha y fase:** 13-18 de agosto de 2026; inicio de la Fase 2.
+- **Fecha y fase:** 13-19 de agosto de 2026; inicio de la Fase 2.
 - **Objetivo y uso:** convertir la guía académica, la rúbrica y la arquitectura aprobada en un backlog ejecutable, revisando el repositorio y documentación oficial para definir dependencias, criterios de aceptación y evidencias.
-- **Resultado:** estructuración de los issues y sub-issues de Fase 2, configuración guiada de las vistas, campos y automatizaciones del GitHub Project, y planificación de la vertical mínima con Java 21 LTS y Node.js 24 LTS. Las notas auxiliares se conservan en `.local-docs/`, excluida del control de versiones, y no forman parte de la documentación oficial.
-- **Límites y revisión:** el alumno revisó las decisiones y ejecutó la configuración del Project; todavía no se ha iniciado el código, README y CHANGELOG no se han modificado, SonarQube Cloud depende del tutor y el almacenamiento de imágenes continúa pendiente.
+- **Resultado:** estructuración de los issues y sub-issues de Fase 2, configuración guiada de las vistas, campos y automatizaciones del GitHub Project, planificación de la vertical mínima, fijación de Java 21 LTS y Node.js 24 LTS mediante `.java-version` y `.nvmrc`, y creación de plantillas de issues y pull requests para conservar la relación con el parent issue, los criterios de aceptación y las evidencias. Las notas auxiliares se conservan en `.local-docs/`, excluida del control de versiones, y no forman parte de la documentación oficial.
+- **Límites y revisión:** el alumno revisó las decisiones, creó y gestionó las ramas sin automatizar las operaciones Git, y ejecutó la configuración del Project. Al cerrar este bloque todavía no se había iniciado el código; SonarQube Cloud dependía del tutor y el almacenamiento de imágenes continuaba pendiente.
+
+## AI-2026-09-01-012 - Criterio de mantenimiento continuo del registro de IA
+
+- **Fecha:** 1 de septiembre de 2026.
+- **Fase:** Fase 2 - Desarrollo y documentación continua.
+- **Objetivo:** evitar que el registro de uso de IA quede desactualizado mientras avanza el proyecto.
+- **Contexto aportado:** el alumno indicó que `AI_USAGE.md` debe actualizarse continuamente siempre que aparezca información relevante que deba conservarse.
+- **Forma de uso:** revisión del estado del propio registro e incorporación de un criterio explícito de mantenimiento dentro del documento.
+- **Resultado:** se establece que cada bloque de trabajo deberá valorar si genera una entrada necesaria y, en ese caso, actualizar `AI_USAGE.md` como parte de la misma tarea, agrupando las interacciones menores por finalidad.
+- **Revisión del alumno:** el criterio procede de una instrucción directa del alumno. La recuperación posterior de esta entrada se ha contrastado con el historial de la sesión y con el estado del repositorio.
+
+## AI-2026-09-01-013 - Creación del backend y persistencia con PostgreSQL y Flyway
+
+- **Fecha o periodo:** 1 y 2 de septiembre de 2026.
+- **Fase:** Fase 2 - Primera vertical del backend.
+- **Objetivo:** crear la base ejecutable del backend de Infracture y conectarla a una base de datos PostgreSQL local reproducible.
+- **Contexto aportado por el alumno:** Java 21 y Maven ya estaban instalados; el alumno no había utilizado antes PostgreSQL, DBeaver ni Flyway y pidió realizar el proceso de forma guiada, comprendiendo para qué servía cada herramienta antes de continuar.
+- **Modelo y configuración:** configuración principal descrita al inicio del documento.
+- **Forma de uso:** explicación interactiva de Spring Initializr, Maven Wrapper, dependencias de Spring Boot, perfiles de configuración, PostgreSQL, Docker Compose, DBeaver, JPA y migraciones Flyway. La IA propuso comandos, revisó las salidas aportadas por el alumno, ayudó a diagnosticar los errores de entorno y creó o ajustó ficheros concretos cuando el alumno lo solicitó expresamente.
+- **Herramientas auxiliares:** Spring Initializr, Java 21, Maven y Maven Wrapper, `jenv`, Docker Desktop, Docker Compose, PostgreSQL 18.6 Alpine, DBeaver, Flyway, Spring Data JPA, Spring Boot Actuator, Bean Validation y Spring Boot DevTools.
+- **Decisiones técnicas:** el backend se ubica en `backend/`; PostgreSQL se ejecuta como servicio de infraestructura en Docker Compose y no como parte del contenedor de la aplicación; Maven gestiona las librerías Java y Flyway, por lo que no es necesaria una instalación independiente de Flyway; Hibernate valida el esquema mediante `ddl-auto=validate` y Flyway conserva su evolución mediante migraciones versionadas.
+- **Configuración reproducible:** se fijó Java 21 para el repositorio mediante `jenv` y `.java-version`; el servicio `platform-postgres` utiliza una imagen fijada, variables con valores locales por defecto, publicación exclusiva en `127.0.0.1`, volumen persistente y comprobación de salud. La aplicación admite sobrescribir por variables de entorno la URL y credenciales de conexión.
+- **Ficheros principales:** `backend/pom.xml`, `backend/mvnw`, `backend/mvnw.cmd`, `backend/src/main/resources/application.properties`, `backend/src/main/resources/db/migration/V1__initialize_platform_database.sql`, `backend/src/test/java/es/codeurjc/infracture/InfractureBackendApplicationTests.java` y `compose.yaml`.
+- **Resultado y verificación:** el alumno descargó y colocó el proyecto generado, revisó los `.gitignore`, configuró `jenv`, levantó PostgreSQL, comprobó su estado y accedió visualmente desde DBeaver. Maven compiló el backend, el contexto de Spring arrancó conectado a PostgreSQL y Flyway validó y aplicó la migración inicial.
+- **Revisión del alumno:** el alumno ejecutó los comandos, compartió sus salidas, confirmó la conexión desde DBeaver y decidió aplazar un perfil específico de configuración al no ser necesario todavía. La rama y las operaciones Git permanecieron bajo su control explícito.
+
+## AI-2026-09-02-014 - Implementación del catálogo de componentes y su API de lectura
+
+- **Fecha:** 2 de septiembre de 2026.
+- **Fase:** Fase 2 - Catálogo controlado de componentes.
+- **Objetivo:** implementar conjuntamente los issues del modelo persistente `ComponentTemplate`, sus seis datos iniciales y el endpoint público de lectura del catálogo.
+- **Contexto aportado por el alumno:** el alumno quiso desarrollar personalmente la estructura y las clases, solicitando explicaciones sobre la organización por funcionalidad, la clave estable del catálogo, los identificadores de base de datos, las migraciones acumulativas de Flyway, `GenerationType.IDENTITY`, repositorios, servicios, streams, DTO, MapStruct e inyección de dependencias.
+- **Modelo y configuración:** configuración principal descrita al inicio del documento.
+- **Forma de uso:** acompañamiento paso a paso y revisión del código creado por el alumno. La IA redactó la migración `V2`, añadió la configuración de MapStruct al `pom.xml`, realizó correcciones menores de formato y ejecutó las comprobaciones de compilación, arranque y API solicitadas. No se utilizaron las skills metodológicas instaladas porque el alumno pidió no invocarlas automáticamente.
+- **Diseño implementado:** paquete funcional `catalog` con entidad JPA, enum de tipos, repositorio, servicio, DTO, mapper y controlador. La clave textual identifica cada plantilla de manera estable fuera de la base de datos; el `id` numérico `IDENTITY` queda como identidad interna. El servicio devuelve solo plantillas habilitadas y las ordena de forma estable según el enum.
+- **Persistencia:** `V2__create_component_template_catalogue.sql` crea `component_template` con restricciones de clave, tipo y valores permitidos, e introduce de forma idempotente HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ.
+- **API:** `GET /api/v1/component-templates` devuelve únicamente `key`, `name` y `type` mediante `ComponentTemplateDTO`; MapStruct genera el mapper como componente de Spring y el controlador utiliza inyección por constructor.
+- **Herramientas auxiliares:** Maven Wrapper, Flyway, PostgreSQL, Hibernate/JPA, MapStruct 1.6.3, Spring MVC, `curl`, `javap` y el servidor de lenguaje Java de VS Code.
+- **Resultado y verificación:** `./mvnw clean verify` compiló las ocho clases del backend y superó la prueba de contexto; Flyway validó dos migraciones y dejó el esquema `public` en la versión 2; el arranque posterior respondió `HTTP 200` con los seis componentes esperados, en orden estable y sin exponer `id` ni `enabled`. El alumno repitió y confirmó manualmente la consulta del endpoint.
+- **Alcance de las pruebas:** no se añadieron todavía pruebas específicas con Mockito o Testcontainers porque están previstas en issues posteriores; la verificación actual cubre compilación, contexto Spring, migraciones reales y comprobación manual del contrato HTTP.
+- **Ficheros principales:** `backend/pom.xml`, `backend/src/main/java/es/codeurjc/infracture/catalog/` y `backend/src/main/resources/db/migration/V2__create_component_template_catalogue.sql`.
+- **Revisión del alumno:** el alumno decidió agrupar los dos issues en una misma rama, eligió MapStruct y el nombre visual `ComponentTemplateDTO`, creó las clases siguiendo la guía, confirmó el resultado JSON y mantuvo el control de las decisiones y de todas las operaciones Git.
 
 ## Plantilla para nuevas entradas
 
