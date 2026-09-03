@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **2 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **3 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -249,6 +249,42 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Alcance de las pruebas:** no se añadieron todavía pruebas específicas con Mockito o Testcontainers porque están previstas en issues posteriores; la verificación actual cubre compilación, contexto Spring, migraciones reales y comprobación manual del contrato HTTP.
 - **Ficheros principales:** `backend/pom.xml`, `backend/src/main/java/es/codeurjc/infracture/catalog/` y `backend/src/main/resources/db/migration/V2__create_component_template_catalogue.sql`.
 - **Revisión del alumno:** el alumno decidió agrupar los dos issues en una misma rama, eligió MapStruct y el nombre visual `ComponentTemplateDTO`, creó las clases siguiendo la guía, confirmó el resultado JSON y mantuvo el control de las decisiones y de todas las operaciones Git.
+
+## AI-2026-09-03-015 - Documentación y exportación reproducible de OpenAPI
+
+- **Fecha:** 3 de septiembre de 2026.
+- **Fase:** Fase 2 - Contrato de la API mínima.
+- **Objetivo:** completar el issue de OpenAPI documentando el endpoint del catálogo y generando especificaciones YAML y HTML versionables y reproducibles.
+- **Contexto aportado por el alumno:** el alumno pidió terminar el último issue del bloque actual, correspondiente a OpenAPI. Se mantuvo el alcance mínimo de Fase 2 y el control explícito del alumno sobre las operaciones Git.
+- **Modelo y configuración:** configuración principal descrita al inicio del documento.
+- **Forma de uso:** revisión del código, del plan de Fase 2 y del issue P2-09 en GitHub, selección de las versiones compatibles ya disponibles para Spring Boot 4 y configuración de un perfil Maven que arranca la aplicación, descarga la especificación viva y genera la documentación HTML. Se añadieron inicialmente anotaciones descriptivas y una prueba MVC contractual; ambas se retiraron después por indicación del alumno al no formar parte del alcance solicitado. No se invocaron skills metodológicas instaladas.
+- **Herramientas auxiliares:** Springdoc OpenAPI 3.0.0, Swagger UI, Springdoc OpenAPI Maven Plugin 1.5, OpenAPI Generator 7.17.0, Maven Wrapper y Java 21.
+- **Resultado:** la API expone `/v3/api-docs`, `/v3/api-docs.yaml` y `/swagger-ui.html`; `GET /api/v1/component-templates` queda descrito con su respuesta `200`, su colección y el esquema público `ComponentTemplateDTO`, y declara explícitamente `application/json` como representación producida. El perfil `openapi` actualiza `docs/api/api-docs.yaml` y `docs/api/api-docs.html` mediante `./mvnw verify -Popenapi`. La compilación y el test general finalizaron correctamente. El alumno ejecutó la exportación final dos veces con PostgreSQL disponible y comprobó que tanto el YAML como el HTML conservaron hashes idénticos.
+- **Ficheros principales:** `backend/pom.xml`, `backend/src/main/java/es/codeurjc/infracture/catalog/api/ComponentTemplateController.java`, `backend/src/main/resources/application.properties`, `backend/README.md` y `docs/api/`.
+- **Revisión del alumno:** el alumno revisó el alcance del issue, pidió retirar las anotaciones y la prueba contractual que no consideró necesarias, confirmó la declaración explícita de JSON, ejecutó la verificación reproducible con PostgreSQL y autorizó la publicación mediante pull request y el cierre del issue.
+
+## AI-2026-09-03-016 - Estabilización de la compilación Java en VS Code
+
+- **Fecha:** 3 de septiembre de 2026.
+- **Fase:** Fase 2 - Entorno de desarrollo reproducible.
+- **Objetivo:** impedir que la compilación automática del workspace sobrescriba las clases generadas por Maven y provoque fallos intermitentes al arrancar el backend.
+- **Contexto aportado por el alumno:** durante la exportación de OpenAPI, el alumno identificó que el error de `target/` estaba relacionado con el workspace y pidió corregir la rotura recurrente.
+- **Modelo y configuración:** configuración principal descrita al inicio del documento.
+- **Forma de uso:** aplicación de un bucle de diagnóstico que ejecutó `mvn clean compile`, inspeccionó el bytecode generado con `javap` y detectó si aparecía `Unresolved compilation problems`. Se revisaron los procesos y metadatos del Java Language Server y se contrastó la opción de configuración con la documentación oficial de la extensión. Se utilizó la skill `diagnosing-bugs` como guía metodológica.
+- **Herramientas auxiliares:** Maven Wrapper, `javap`, `ps`, Eclipse JDT Language Server y la extensión Language Support for Java by Red Hat.
+- **Resultado:** se confirmó que JDT Auto Build recompilaba `target/generated-sources/annotations` después de Maven y reemplazaba `ComponentTemplateMapperImpl.class` con bytecode inválido. Se añadió localmente `.vscode/settings.json` con `java.autobuild.enabled=false`, dejando Maven como compilador del proyecto. El bucle mínimo permaneció verde y `./mvnw clean verify -Popenapi` completó correctamente con PostgreSQL, conservando los hashes reproducibles de YAML y HTML. La configuración de VS Code quedó excluida del repositorio para no imponer una preferencia local al resto del equipo.
+- **Ficheros principales:** `.gitignore` y `.vscode/settings.json` (configuración local ignorada).
+- **Revisión del alumno:** el alumno relacionó el fallo con el workspace, autorizó su corrección y decidió excluir `.vscode/` del control de versiones antes de publicar.
+
+## AI-2026-09-03-017 - Organización interna del módulo de catálogo
+
+- **Fecha:** 3 de septiembre de 2026.
+- **Fase:** Fase 2 - Estructura del backend.
+- **Objetivo:** preparar el módulo `catalog` para crecer sin mezclar su interfaz HTTP, casos de uso, dominio y persistencia.
+- **Forma de uso:** análisis de la estructura existente con la skill `codebase-design` y aplicación de una reorganización exclusivamente estructural, conservando el comportamiento y los cambios locales de OpenAPI que ya estaban en curso.
+- **Resultado:** las clases del catálogo se distribuyeron en los paquetes internos `api`, `application`, `domain` y `persistence`. Se actualizaron las declaraciones de paquete e imports sin introducir nuevas abstracciones ni modificar el contrato `GET /api/v1/component-templates`.
+- **Ficheros principales:** `backend/src/main/java/es/codeurjc/infracture/catalog/`.
+- **Revisión del alumno:** el alumno planteó y autorizó expresamente la reorganización y posteriormente autorizó su publicación junto con el trabajo local previo.
 
 ## Plantilla para nuevas entradas
 

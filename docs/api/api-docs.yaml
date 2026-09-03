@@ -1,0 +1,40 @@
+openapi: 3.1.0
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+paths:
+  /api/v1/component-templates:
+    get:
+      tags:
+      - component-template-controller
+      operationId: getComponentTemplates
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ComponentTemplateDTO"
+components:
+  schemas:
+    ComponentTemplateDTO:
+      type: object
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - HTTP_SERVICE
+          - WORKER
+          - LOAD_GENERATOR
+          - POSTGRESQL
+          - REDIS
+          - RABBITMQ
