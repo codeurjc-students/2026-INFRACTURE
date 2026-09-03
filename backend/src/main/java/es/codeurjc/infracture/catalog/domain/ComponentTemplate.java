@@ -1,4 +1,4 @@
-package es.codeurjc.infracture.catalog;
+package es.codeurjc.infracture.catalog.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

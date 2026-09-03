@@ -27,6 +27,22 @@ Check the application health from another terminal:
 curl http://localhost:8080/actuator/health
 ```
 
+The live OpenAPI contract and its interactive Swagger UI are available at:
+
+- `http://localhost:8080/v3/api-docs.yaml`
+- `http://localhost:8080/swagger-ui.html`
+
+To reproduce the versioned YAML and standalone HTML documentation, keep the
+development PostgreSQL service running and execute:
+
+```bash
+./mvnw verify -Popenapi
+```
+
+The command updates `docs/api/api-docs.yaml` and `docs/api/api-docs.html` from
+the running application. Both files document the actual controller contract;
+they are not maintained by hand.
+
 The local defaults connect to the `infracture` database at `localhost:5432`
 with the `infracture` user. They can be replaced without editing tracked files:
 

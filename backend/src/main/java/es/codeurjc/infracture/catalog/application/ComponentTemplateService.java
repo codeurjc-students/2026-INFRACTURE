@@ -1,9 +1,12 @@
-package es.codeurjc.infracture.catalog;
+package es.codeurjc.infracture.catalog.application;
 
 import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+
+import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
+import es.codeurjc.infracture.catalog.persistence.ComponentTemplateRepository;
 
 @Service
 public class ComponentTemplateService {
