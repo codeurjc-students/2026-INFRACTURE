@@ -98,6 +98,8 @@ payments-api
 
 Los tres componentes comparten el contrato de HTTP Service, pero poseen nombre, posición, perfil y configuración propios.
 
+`Scenario` mantiene la coherencia del grafo editable. Las claves de sus componentes y conexiones son estables y únicas dentro del escenario. Toda conexión une componentes de ese mismo escenario; eliminar un componente elimina sus conexiones en la misma operación. Cada guardado incrementa una revisión utilizada para detectar ediciones concurrentes y para asegurar que se ejecuta exactamente el contenido validado.
+
 El usuario solo manejará opciones de dominio mediante formularios controlados. Infracture generará internamente:
 
 - nombres de contenedor y red;
@@ -180,6 +182,10 @@ Workload REPEATED_READ
 ```
 
 Los perfiles podrán formar parte del catálogo controlado y de su esquema de configuración, definidos mediante reglas tipadas en el backend. No es necesario introducir una entidad independiente para cada perfil en la primera propuesta.
+
+`TemplateContractRegistry` resolverá una versión concreta del contrato de cada plantilla. El resultado reunirá la configuración admitida, capacidades, dependencias y cardinalidades, conectores, comprobación de salud y fallos compatibles. Al crear un componente, este conservará `templateKey` y `contractVersion`; los metadatos actuales del catálogo podrán cambiar, mientras que una ejecución conservará la versión de contrato resuelta en su snapshot.
+
+Los documentos persistidos como `jsonb` tendrán tipos de dominio y validadores explícitos, por ejemplo `ComponentConfiguration`, `ExecutionSnapshot`, `LabObjective` y `SuccessRule`. La persistencia serializa esos valores; los casos de uso no intercambian mapas o cadenas sin validar. Protocolo, puerto y obligatoriedad se obtendrán del conector resuelto y no serán propiedades libres de una conexión dibujada por el usuario.
 
 ## 6. Conexiones y significado de las flechas
 
@@ -265,18 +271,19 @@ Una topología estáticamente válida no garantiza que todos los procesos arranq
 
 Una vez validado el escenario, el backend lo traducirá a un `ExecutionPlan`. El proceso propuesto será el siguiente:
 
-1. crear un snapshot inmutable del escenario y su configuración;
-2. crear una red Docker aislada;
-3. generar nombres, alias, credenciales y etiquetas;
-4. crear los proxies necesarios para las conexiones compatibles con latencia;
-5. iniciar las instancias de PostgreSQL, Redis y RabbitMQ;
-6. esperar a que las dependencias superen sus comprobaciones de salud;
-7. iniciar las instancias de HTTP Service y Worker;
-8. esperar a que los servicios superen sus comprobaciones de salud;
-9. iniciar la instancia de Load Generator, si existe;
-10. comenzar la recopilación de métricas, eventos y logs resumidos;
-11. habilitar las acciones de fallo;
-12. limpiar todos los recursos al finalizar.
+1. capturar y validar una revisión exacta del escenario;
+2. crear un snapshot inmutable y sus identidades `ExecutedComponent` y `ExecutedConnection`;
+3. crear una red Docker aislada;
+4. generar nombres, alias, credenciales y etiquetas;
+5. crear los proxies necesarios para las conexiones compatibles con latencia;
+6. iniciar las instancias de PostgreSQL, Redis y RabbitMQ;
+7. esperar a que las dependencias superen sus comprobaciones de salud;
+8. iniciar las instancias de HTTP Service y Worker;
+9. esperar a que los servicios superen sus comprobaciones de salud;
+10. iniciar la instancia de Load Generator, si existe;
+11. comenzar la recopilación de métricas, eventos y logs resumidos;
+12. habilitar las acciones de fallo;
+13. limpiar todos los recursos al finalizar.
 
 La plataforma Infracture se iniciará con Docker Compose. Los recursos variables de cada escenario se crearán mediante `docker-java` sobre Docker Engine.
 
@@ -428,6 +435,8 @@ Las acciones iniciales serán:
 - pausar y reanudar un componente;
 - introducir y retirar latencia en una conexión compatible.
 
+Cada petición se guardará como `FaultAction`, incluyendo quién la solicitó, su objetivo, sus parámetros y si terminó aplicada o fallida. Las acciones sobre procesos apuntarán a `ExecutedComponent`; las acciones de latencia apuntarán a `ExecutedConnection`.
+
 La parada y la pausa se aplicarán al contenedor mediante Docker Engine. La latencia se introducirá interponiendo Toxiproxy en la conexión:
 
 ```text
@@ -460,6 +469,8 @@ Las evidencias procederán de dos niveles:
 - **Aplicación:** peticiones, errores, aciertos de caché, consultas, mensajes y tareas.
 
 No se persistirá una entidad por cada petición. El generador y los componentes agregarán los resultados por intervalos, que se convertirán en `MetricSample`. Los cambios de estado, los fallos y las acciones significativas serán `ExecutionEvent`.
+
+Las métricas y eventos se vincularán a las identidades inmutables `ExecutedComponent` y `ExecutedConnection`, no a los elementos editables del escenario. Así, el historial permanece válido aunque el usuario cambie después el canvas.
 
 Ejemplo de muestra agregada:
 
@@ -499,6 +510,8 @@ Secuencia de parada:
 La instancia local permitirá una sola ejecución activa, lo que simplifica el control de recursos y la recuperación después de errores.
 
 ## 14. Aplicación a los laboratorios
+
+Cada publicación de un laboratorio conservará una revisión inmutable con su escenario inicial, objetivos, pistas, reglas, puntuación y conceptos. Un intento quedará vinculado a esa revisión y utilizará una única ejecución como evidencia al completarse. Así, una edición posterior del laboratorio no cambia el resultado ni los conceptos acreditados por intentos anteriores.
 
 ### 14.1 Single Point of Failure
 

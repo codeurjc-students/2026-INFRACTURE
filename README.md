@@ -308,7 +308,7 @@ classDiagram
         -Long id
         -String name
         -String description
-        -Integer version
+        -Long revision
         -ScenarioStatus status
         -Instant createdAt
         -Instant updatedAt
@@ -320,25 +320,26 @@ classDiagram
         -String name
         -ComponentType type
         -String imageReference
-        -JSON configurationSchema
+        -String currentContractVersion
+        -ConfigurationSchema configurationSchema
         -String iconKey
         -Boolean enabled
     }
 
     class Component {
         -Long id
+        -String key
         -String name
-        -JSON configuration
+        -String contractVersion
+        -ComponentConfiguration configuration
         -Double positionX
         -Double positionY
     }
 
     class Connection {
         -Long id
+        -String key
         -ConnectionType type
-        -String protocol
-        -Integer port
-        -Boolean required
     }
 
     Project "1" *-- "0..*" Scenario : contiene
@@ -351,7 +352,9 @@ classDiagram
 
 Un escenario puede guardarse vacío o incompleto, por lo que admite cero componentes y conexiones. Antes de ejecutarlo deberá superar la validación y contener al menos un componente. Las coordenadas pertenecen al componente porque conservan su posición en el canvas. La topología actual se obtiene de `Component` y `Connection`.
 
-Las seis opciones iniciales son tipos de plantilla reutilizables, no un máximo de seis nodos. Un mismo `ComponentTemplate` puede originar varias instancias de `Component` dentro de un escenario, siempre dentro de los límites locales configurados.
+`Scenario` controla la consistencia de todo su grafo. Las claves de componentes y conexiones son estables y únicas dentro del escenario. Los dos extremos de una conexión deben pertenecer a ese mismo escenario y, al eliminar un componente, también se eliminan sus conexiones. Cada cambio incrementa `revision`: si dos pestañas intentan guardar sobre la misma revisión, la segunda deberá recargar o resolver el conflicto en lugar de sobrescribir silenciosamente la primera. Al pulsar `Run`, el backend validará y ejecutará una copia exacta de una revisión concreta.
+
+Las seis opciones iniciales son tipos de plantilla reutilizables, no un máximo de seis nodos. Un mismo `ComponentTemplate` puede originar varias instancias de `Component` dentro de un escenario, siempre dentro de los límites locales configurados. Al añadirlo, el componente conserva la versión concreta del contrato que recibió de la plantilla.
 
 #### Contratos iniciales del catálogo controlado
 
@@ -389,7 +392,9 @@ El generador repetirá operaciones permitidas —fijas, ponderadas o encadenadas
 
 Después de validar, el backend traducirá el grafo a nombres de red, variables y credenciales generadas internamente, creará una red Docker aislada y configurará Toxiproxy cuando una conexión admita latencia controlada. La carga se detendrá antes de desmontar los demás componentes y la limpieza eliminará los contenedores, los proxies y la red.
 
-El administrador podrá mantener los metadatos, formularios y disponibilidad de las plantillas. La incorporación de un nuevo perfil ejecutable deberá respetar el contrato controlado y ser validada por el backend; nunca se traducirá texto libre del usuario en comandos Docker. Estos contratos se comprobarán al comienzo de la Fase 2 mediante un prototipo vertical antes de desarrollar el motor completo.
+El administrador podrá mantener los metadatos, formularios y disponibilidad de las plantillas. La lógica ejecutable se identificará mediante una versión de contrato y se resolverá en el backend. La configuración, los objetivos y las reglas se representarán con tipos de dominio validados, aunque algunos se persistan como `jsonb`; no se compartirán mapas JSON sin contrato entre módulos. Protocolo, puerto, obligatoriedad y demás detalles técnicos de una conexión se derivarán del conector autorizado, sin admitir texto libre del usuario. Una plantilla deshabilitada no podrá añadirse a nuevos diseños; los escenarios anteriores seguirán siendo consultables y solo podrán volver a ejecutarse si su versión de contrato continúa habilitada para ejecución.
+
+La incorporación de un nuevo perfil ejecutable deberá respetar el contrato controlado y ser validada por el backend; nunca se traducirá texto libre del usuario en comandos Docker. Estos contratos se comprobarán al comienzo de la Fase 2 mediante un prototipo vertical antes de desarrollar el motor completo.
 
 #### Ejecución y observabilidad
 
@@ -405,18 +410,29 @@ classDiagram
     class Scenario {
         -Long id
         -String name
-        -Integer version
+        -Long revision
     }
 
-    class Component {
+    class ExecutedComponent {
         -Long id
+        -String componentKey
+        -String templateKey
+        -String contractVersion
         -String name
+        -ComponentType type
+        -ComponentConfiguration configuration
+    }
+
+    class ExecutedConnection {
+        -Long id
+        -String connectionKey
+        -ConnectionType type
     }
 
     class Execution {
         -Long id
         -ExecutionStatus status
-        -JSON snapshot
+        -ExecutionSnapshot snapshot
         -Instant startedAt
         -Instant endedAt
         -String resultSummary
@@ -425,8 +441,17 @@ classDiagram
     class ExecutionEvent {
         -Long id
         -ExecutionEventType type
-        -JSON payload
+        -ExecutionEventPayload payload
         -Instant createdAt
+    }
+
+    class FaultAction {
+        -Long id
+        -FaultActionType type
+        -FaultActionStatus status
+        -FaultParameters parameters
+        -Instant requestedAt
+        -Instant appliedAt
     }
 
     class MetricSample {
@@ -439,13 +464,24 @@ classDiagram
 
     Execution "0..*" --> "1" User : startedBy
     Execution "0..*" --> "1" Scenario : scenario
+    Execution "1" *-- "1..*" ExecutedComponent : conserva
+    Execution "1" *-- "0..*" ExecutedConnection : conserva
+    Execution "1" *-- "0..*" FaultAction : recibe
     Execution "1" *-- "0..*" ExecutionEvent : registra
     Execution "1" *-- "0..*" MetricSample : mide
-    ExecutionEvent "0..*" --> "0..1" Component : afecta
-    MetricSample "0..*" --> "1" Component : pertenece a
+    ExecutedConnection "0..*" --> "1" ExecutedComponent : origen
+    ExecutedConnection "0..*" --> "1" ExecutedComponent : destino
+    FaultAction "0..*" --> "1" User : requestedBy
+    FaultAction "0..*" --> "0..1" ExecutedComponent : componentTarget
+    FaultAction "0..*" --> "0..1" ExecutedConnection : connectionTarget
+    ExecutionEvent "0..*" --> "0..1" ExecutedComponent : componentTarget
+    ExecutionEvent "0..*" --> "0..1" ExecutedConnection : connectionTarget
+    MetricSample "0..*" --> "1" ExecutedComponent : pertenece a
 ```
 
-Cada ejecución guarda un `snapshot` inmutable de la topología y de la configuración utilizada. Así, editar posteriormente el escenario no altera el historial. Un evento puede referirse a un componente concreto o a la ejecución completa; una muestra de métricas pertenece a un componente del escenario ejecutado. Los eventos conservan cambios de estado, fallos aplicados y logs resumidos, mientras que `MetricSample` contiene los valores temporales utilizados por las gráficas.
+Cada ejecución guarda un `snapshot` inmutable de la revisión validada. A partir de él crea sus propios `ExecutedComponent` y `ExecutedConnection`, que conservan la identidad y los datos utilizados durante el experimento. Por ello, editar o eliminar después un `Component` o una `Connection` del canvas no altera el historial.
+
+`FaultAction` registra una petición de parada, reinicio, pausa, reanudación o latencia. Una acción afecta a un componente ejecutado o a una conexión ejecutada, nunca a ambos, y diferencia entre lo solicitado y lo aplicado realmente. Los eventos pueden pertenecer a la ejecución completa o señalar uno de esos objetivos; las métricas pertenecen al componente ejecutado que las produjo.
 
 #### Laboratorios, intentos y conceptos
 
@@ -458,11 +494,6 @@ classDiagram
         -String username
     }
 
-    class Scenario {
-        -Long id
-        -String name
-    }
-
     class Execution {
         -Long id
         -ExecutionStatus status
@@ -473,19 +504,27 @@ classDiagram
         -String title
         -String description
         -LabDifficulty difficulty
-        -JSON objectives
-        -JSON hints
-        -JSON successRules
-        -Integer baseScore
         -Boolean published
         -Instant createdAt
         -Instant updatedAt
     }
 
+    class GuidedLabRevision {
+        -Long id
+        -Long revision
+        -ScenarioSnapshot initialScenario
+        -List~LabObjective~ objectives
+        -List~LabHint~ hints
+        -List~SuccessRule~ successRules
+        -List~ConceptSnapshot~ concepts
+        -Integer baseScore
+        -Instant publishedAt
+    }
+
     class LabAttempt {
         -Long id
         -LabAttemptStatus status
-        -JSON objectiveProgress
+        -ObjectiveProgress objectiveProgress
         -Integer score
         -Integer hintCount
         -Instant startedAt
@@ -503,14 +542,16 @@ classDiagram
         -Instant updatedAt
     }
 
-    GuidedLab "0..*" --> "1" Scenario : scenario
-    LabAttempt "0..*" --> "1" GuidedLab : guidedLab
+    GuidedLab "1" *-- "0..*" GuidedLabRevision : publica
+    GuidedLab "0..*" -- "0..*" Concept : clasifica
+    LabAttempt "0..*" --> "1" GuidedLabRevision : realiza
     LabAttempt "0..*" --> "1" User : user
     LabAttempt "0..1" --> "0..1" Execution : usa como evidencia
-    GuidedLab "0..*" -- "0..*" Concept : trabaja
 ```
 
-Cada laboratorio utiliza un escenario controlado y puede asociarse con varios conceptos. Los conceptos visibles en el perfil se calculan reuniendo, sin duplicados, los asociados a los intentos completados. Un intento puede existir brevemente sin ejecución mientras se prepara el entorno, pero, para completarse, debe disponer de exactamente una ejecución como evidencia.
+`GuidedLab` conserva la identidad editorial del laboratorio y su clasificación actual. Cada publicación crea una `GuidedLabRevision` inmutable con el escenario inicial, objetivos, pistas, reglas, puntuación y una copia de los conceptos de esa edición. `LabAttempt` queda unido a esa revisión exacta, por lo que editar después el laboratorio o un concepto no cambia lo que realizó ni acreditó el alumno.
+
+Los conceptos visibles en el perfil se calculan reuniendo, sin duplicados, los asociados a las revisiones de los intentos completados. Un intento puede existir brevemente sin ejecución mientras se prepara el entorno, pero, para completarse, debe disponer de exactamente una ejecución como evidencia. Repetir el laboratorio crea otro intento.
 
 `ProjectStar` y `UserFollow` se modelarán como entidades asociativas explícitas con identificador y fecha de creación. Esta decisión permite expresar restricciones únicas, conservar cuándo se creó cada relación y ampliar sus metadatos sin modificar posteriormente una relación `@ManyToMany` directa.
 
