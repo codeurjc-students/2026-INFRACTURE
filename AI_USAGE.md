@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **3 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **5 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -296,6 +296,19 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Forma de uso:** inspección de la estructura versionada, Maven, Docker Compose, el código Java, las pruebas, las plantillas de GitHub y el historial de commits; redacción posterior mediante la skill `writing-for-agents`.
 - **Resultado:** se añadió `AGENTS.md` con los comandos comprobables del backend, las convenciones observadas, los criterios para pruebas y pull requests, y las reglas ya acordadas de mantenimiento de este registro y control humano de las operaciones Git.
 - **Revisión del alumno:** pendiente de revisión antes de incorporar los cambios al historial Git.
+
+## AI-2026-09-05-019 - Revisión del modelo de clases y relaciones
+
+- **Fecha:** 5 de septiembre de 2026.
+- **Fase:** revisión de la base de arquitectura antes del desarrollo funcional.
+- **Objetivo:** evaluar la definición de clases y relaciones del README, detectar carencias y proponer una arquitectura mantenible y desacoplada.
+- **Contexto aportado:** el alumno solicitó una revisión de alto nivel y autorizó utilizar las skills pertinentes.
+- **Modelo y configuración:** revisión inicial con un agente basado en GPT-6 y continuación documental con GPT-5; no se atribuye esta sesión a la configuración histórica de GPT-5.6 Sol.
+- **Forma de uso:** aplicación de las skills `domain-modeling` y `codebase-design`, junto con las pautas Mermaid de `figma-generate-diagram`; lectura del README oficial del repositorio, de la arquitectura de ejecución, del catálogo Java y de su migración, y contraste de criterios con fuentes primarias de Spring Modulith, PostgreSQL, Docker y Martin Fowler.
+- **Herramientas auxiliares:** lectura y comparación de archivos, búsqueda web y comprobación documental con `git diff --check`.
+- **Resultado:** informe auxiliar `.local-docs/CLASS_MODEL_REVIEW.md` con hallazgos priorizados. Tras la revisión del alumno se aceptaron y documentaron los cinco primeros puntos: identidades históricas `ExecutedComponent` y `ExecutedConnection`, registro `FaultAction`, control del grafo y de su revisión por `Scenario`, revisiones inmutables de laboratorios y contratos de dominio tipados. Se actualizó el README oficial, se amplió la guía local `.local-docs/SCENARIO_EXECUTION_MODEL.md` con diagramas sencillos, se añadió el glosario `CONTEXT.md` y se ajustó `docs/EXECUTION_ARCHITECTURE.md`. Los archivos de `.local-docs/` están excluidos del control de versiones y no son fuentes oficiales. Los cambios realizados durante esta revisión sobre el antiguo README externo se revirtieron al indicar el alumno que dejó de ser una fuente del proyecto. La regla quedó incorporada a `AGENTS.md`. No se modificaron el modelo Java ni las migraciones porque estas áreas todavía no están implementadas.
+- **Verificación:** `git diff --check`, comprobación de enlaces locales y de bloques Mermaid equilibrados. No se ejecutó la suite del backend ni se atribuyó cobertura a funcionalidades aún no implementadas.
+- **Revisión del alumno:** el alumno confirmó que comprendía y aceptaba los puntos 1 a 5, solicitó aplicarlos y pidió mantener el README breve y con su formato actual. Posteriormente autorizó crear una rama específica, organizar el trabajo en dos commits y abrir una pull request.
 
 ## Plantilla para nuevas entradas
 
