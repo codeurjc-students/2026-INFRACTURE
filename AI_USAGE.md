@@ -286,6 +286,17 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Ficheros principales:** `backend/src/main/java/es/codeurjc/infracture/catalog/`.
 - **Revisión del alumno:** el alumno planteó y autorizó expresamente la reorganización y posteriormente autorizó su publicación junto con el trabajo local previo.
 
+## AI-2026-09-03-018 - Guía de contribución para personas y agentes
+
+- **Fecha:** 3 de septiembre de 2026.
+- **Fase:** Fase 2 - Documentación del flujo de contribución.
+- **Objetivo:** crear una guía breve y específica del repositorio que permita realizar cambios coherentes y verificables.
+- **Contexto aportado por el alumno:** se solicitó un `AGENTS.md` de 200 a 400 palabras con la estructura del proyecto, comandos de desarrollo, estilo, pruebas y normas de commits y pull requests.
+- **Modelo y configuración:** configuración principal descrita al inicio del documento.
+- **Forma de uso:** inspección de la estructura versionada, Maven, Docker Compose, el código Java, las pruebas, las plantillas de GitHub y el historial de commits; redacción posterior mediante la skill `writing-for-agents`.
+- **Resultado:** se añadió `AGENTS.md` con los comandos comprobables del backend, las convenciones observadas, los criterios para pruebas y pull requests, y las reglas ya acordadas de mantenimiento de este registro y control humano de las operaciones Git.
+- **Revisión del alumno:** pendiente de revisión antes de incorporar los cambios al historial Git.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
