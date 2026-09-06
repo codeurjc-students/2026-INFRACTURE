@@ -310,6 +310,19 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Verificación:** `git diff --check`, comprobación de enlaces locales y de bloques Mermaid equilibrados. No se ejecutó la suite del backend ni se atribuyó cobertura a funcionalidades aún no implementadas.
 - **Revisión del alumno:** el alumno confirmó que comprendía y aceptaba los puntos 1 a 5, solicitó aplicarlos y pidió mantener el README breve y con su formato actual. Posteriormente autorizó crear una rama específica, organizar el trabajo en dos commits y abrir una pull request.
 
+## AI-2026-09-05-020 - Base reproducible del frontend
+
+- **Fecha:** 5 de septiembre de 2026.
+- **Fase:** Fase 2 - Vertical mínima del frontend.
+- **Objetivo:** crear el proyecto React y TypeScript y preparar sus controles básicos de calidad.
+- **Contexto aportado por el alumno:** el alumno creó la rama y el proyecto con React Router Framework, decidió mantener ese modo sin renderizado en servidor y ejecutó manualmente la configuración inicial de ESLint.
+- **Modelo y configuración:** configuración principal descrita al inicio del documento.
+- **Forma de uso:** explicación comparada de los modos de React Router, revisión del proyecto anterior del alumno como referencia, diagnóstico del conflicto entre ESLint 10 y los plugins de React todavía limitados a ESLint 9, y configuración de Vitest como ejecutor de pruebas del frontend. Se mantuvo ESLint 10, que es la versión con soporte, con las reglas recomendadas de JavaScript y TypeScript; las reglas específicas de React se aplazaron hasta disponer de plugins compatibles.
+- **Herramientas auxiliares:** React Router 8, React 19, TypeScript, Vite 8, ESLint 10 y Vitest.
+- **Resultado:** el frontend queda configurado como SPA mediante `ssr: false`, con scripts reproducibles de lint, comprobación de tipos, pruebas y construcción. El comando de pruebas acepta temporalmente que no existan casos hasta implementar la prueba unitaria prevista en P2-16.
+- **Ficheros principales:** `frontend/package.json`, `frontend/package-lock.json`, `frontend/react-router.config.ts` y `frontend/eslint.config.js`.
+- **Revisión del alumno:** el alumno ejecutó el scaffold, activó el modo SPA, configuró ESLint, corrigió el import sin uso detectado y autorizó añadir Vitest.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
