@@ -45,6 +45,16 @@ export default function App() {
   return <Outlet />;
 }
 
+export function HydrateFallback() {
+  return (
+    <main className="mx-auto min-h-screen max-w-5xl px-6 py-12">
+      <p role="status" className="text-gray-600 dark:text-gray-300">
+        Loading component catalogue…
+      </p>
+    </main>
+  );
+}
+
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Oops!";
   let details = "An unexpected error occurred.";

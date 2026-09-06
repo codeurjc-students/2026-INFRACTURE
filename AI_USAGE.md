@@ -335,6 +335,19 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Ficheros principales:** `frontend/vite.config.ts`, `frontend/.env.example` y `frontend/app/features/component-catalogue/`.
 - **Revisión del alumno:** el alumno definió la estructura, creó el modelo y el servicio, añadió el control de errores HTTP y de red y revisó la función del proxy y de los archivos de entorno antes de preparar el primer commit.
 
+## AI-2026-09-06-022 - Visualización del catálogo real en la página inicial
+
+- **Fecha:** 6 de septiembre de 2026.
+- **Fase:** Fase 2 - Vertical mínima del frontend.
+- **Objetivo:** completar el issue P2-12 mostrando en React las plantillas persistidas que devuelve el backend y representando explícitamente los estados de carga, éxito y error.
+- **Contexto aportado por el alumno:** el alumno creó la primera versión de `ComponentCatalogue` con un `clientLoader` y solicitó completar el código necesario para el issue.
+- **Forma de uso:** revisión de la separación entre rutas y componentes; traslado del `clientLoader` a la ruta inicial; creación de un componente visual tipado y sin transporte HTTP; implementación de estados accesibles de carga y error; retirada de la pantalla inicial del scaffold; y verificación en navegador real. Se aplicaron las skills `vercel-react-best-practices`, `frontend-design` y `playwright`.
+- **Herramientas auxiliares:** React Router en modo SPA, React, TypeScript, Tailwind CSS, Vite, Playwright CLI, Spring Boot, PostgreSQL mediante Docker Compose y Java 21.
+- **Resultado:** la ruta inicial carga el catálogo mediante `getComponentTemplates`, muestra un fallback durante la hidratación, deriva los fallos a una vista controlada y entrega seis plantillas reales a `ComponentCatalogue`. Cada entrada presenta `name`, `type` y `key`; también existe un estado vacío. La ejecución real confirmó HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ, y al detener Spring Boot apareció el mensaje de indisponibilidad esperado. La comprobación detectó que React Router SPA solo permite `HydrateFallback` en la ruta raíz, por lo que el fallback se ubicó en `root.tsx`.
+- **Verificación:** `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` y `git diff --check` finalizaron correctamente. Vitest sigue sin casos porque las pruebas del componente pertenecen al issue P2-16.
+- **Ficheros principales:** `frontend/app/root.tsx`, `frontend/app/routes/home.tsx` y `frontend/app/features/component-catalogue/components/component-catalogue.tsx`.
+- **Revisión del alumno:** pendiente de revisar visualmente el resultado y autorizar su incorporación al historial Git.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
