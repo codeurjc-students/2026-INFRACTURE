@@ -323,6 +323,18 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Ficheros principales:** `frontend/package.json`, `frontend/package-lock.json`, `frontend/react-router.config.ts` y `frontend/eslint.config.js`.
 - **Revisión del alumno:** el alumno ejecutó el scaffold, activó el modo SPA, configuró ESLint, corrigió el import sin uso detectado y autorizó añadir Vitest.
 
+## AI-2026-09-06-021 - Inicio del cliente tipado y proxy de desarrollo
+
+- **Fecha:** 6 de septiembre de 2026.
+- **Fase:** Fase 2 - Vertical mínima del frontend.
+- **Objetivo:** preparar el acceso del frontend al endpoint real del catálogo sin acoplar los componentes React al transporte HTTP.
+- **Contexto aportado por el alumno:** el alumno propuso la organización por `api`, `model` y `components`, eligió denominar `service` al límite HTTP y creó personalmente el modelo TypeScript y el servicio inicial.
+- **Forma de uso:** revisión guiada de las responsabilidades de rutas, componentes, modelo y acceso a la API; comprobación del contrato público existente; y configuración solicitada del proxy de desarrollo de Vite.
+- **Herramientas auxiliares:** React Router, TypeScript, Vite, ESLint y los comandos `npm run typecheck`, `npm run lint` y `npm run build`.
+- **Resultado:** `vite.config.ts` reenvía las peticiones con prefijo `/api` al destino configurable mediante `VITE_API_BASE_URL`, con `http://localhost:8080` como valor predeterminado. `.env.example` documenta la variable y el servicio utiliza la ruta relativa `/api/v1/component-templates`. El servicio devuelve el modelo TypeScript del contrato público, rechaza respuestas HTTP no exitosas y transforma los fallos de red en un error controlado. La comprobación de tipos, el lint, la construcción y `git diff --check` finalizaron correctamente; las pruebas automatizadas permanecen separadas en los issues posteriores previstos para pruebas del frontend.
+- **Ficheros principales:** `frontend/vite.config.ts`, `frontend/.env.example` y `frontend/app/features/component-catalogue/`.
+- **Revisión del alumno:** el alumno definió la estructura, creó el modelo y el servicio, añadió el control de errores HTTP y de red y revisó la función del proxy y de los archivos de entorno antes de preparar el primer commit.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
