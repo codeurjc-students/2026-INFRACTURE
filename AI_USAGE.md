@@ -348,6 +348,30 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Ficheros principales:** `frontend/app/root.tsx`, `frontend/app/routes/home.tsx` y `frontend/app/features/component-catalogue/components/component-catalogue.tsx`.
 - **Revisión del alumno:** pendiente de revisar visualmente el resultado y autorizar su incorporación al historial Git.
 
+## AI-2026-09-07-023 - Hoja de ruta de pruebas de la Fase 2
+
+- **Fecha:** 7 de septiembre de 2026.
+- **Fase:** Fase 2 - Pruebas automáticas y cobertura.
+- **Objetivo:** convertir el issue padre P2-08 y sus siete sub-issues en una guía gradual que permita aprender y completar la pirámide de pruebas sin mezclar herramientas ni responsabilidades.
+- **Contexto aportado por el alumno:** el alumno indicó que todavía no domina las pruebas y pidió contrastar el issue y la guía PDF del TFG antes de proponer instalaciones, orden de trabajo y criterios de cierre.
+- **Modelo y configuración:** configuración principal descrita al inicio del documento.
+- **Forma de uso:** lectura del issue #8 y de los issues #19 a #25, inspección del código y dependencias actuales, extracción y revisión visual de las páginas relevantes del PDF del TFG, comprobación de versiones locales y contraste con documentación oficial de Spring Boot, Testcontainers, Testing Library, Vitest y Playwright. Se utilizó la skill `pdf` para revisar el documento académico.
+- **Herramientas auxiliares:** GitHub CLI, Maven Wrapper, npm, Docker, `pdfplumber`, Poppler y documentación oficial de las herramientas de prueba.
+- **Resultado:** se creó la hoja de ruta con el modelo mental de cada nivel, inventario de herramientas ya disponibles y pendientes, orden P2-13/P2-16/P2-14/P2-15/P2-17/P2-18/P2-19, comandos objetivo, criterios de finalización y una política inicial recomendada del 70 % de líneas por aplicación. Posteriormente se trasladó a `.local-docs/PHASE_2_TESTING_ROADMAP.md` como material local de aprendizaje no versionado. No se instalaron dependencias ni se implementaron pruebas en este bloque.
+- **Revisión del alumno:** pendiente de revisión antes de comenzar el issue P2-13.
+
+## AI-2026-09-12-024 - Primera prueba unitaria del servicio backend
+
+- **Fecha:** 12 de septiembre de 2026.
+- **Fase:** Fase 2 - Pruebas automáticas del backend.
+- **Objetivo:** implementar el issue P2-13 sobre la regla de negocio del catálogo y utilizarlo como introducción práctica a JUnit, Mockito, AssertJ y Arrange-Act-Assert.
+- **Contexto aportado por el alumno:** después de revisar la hoja de ruta, el significado de una prueba unitaria de servicio y la función de Mockito, el alumno autorizó implementar los casos acordados sobre `ComponentTemplateService#getEnabledTemplates()`.
+- **Forma de uso:** aplicación guiada de TDD sobre el límite público del servicio, utilizando el servicio real y un doble de `ComponentTemplateRepository`. Se comprobó la sensibilidad del caso principal retirando temporalmente la ordenación, observando el fallo esperado y restaurando la implementación existente.
+- **Herramientas auxiliares:** Java 21, Maven Wrapper, JUnit Jupiter, Mockito, Byte Buddy y AssertJ. Durante el diagnóstico se probó temporalmente el generador clásico de mocks para aislar una restricción de autoacoplamiento de agentes; con acceso completo se confirmó que el motor normal de Mockito funciona y se retiró aquella extensión especial.
+- **Resultado:** `ComponentTemplateServiceTests` comprueba que una respuesta desordenada del repositorio se devuelve ordenada por `ComponentType`, conserva campos representativos, consulta una vez el repositorio y devuelve una lista vacía cuando no hay plantillas habilitadas. La prueba no arranca Spring, JDBC, Flyway ni Docker y no requirió nuevas dependencias. El comando focalizado superó 2 pruebas y la suite completa superó 3 pruebas con PostgreSQL local disponible. Para eliminar el aviso de autoacoplamiento en Java 21 y mantener compatibilidad futura, el `pom.xml` resuelve el JAR de Mockito mediante `maven-dependency-plugin` y lo carga explícitamente como `-javaagent` en Maven Surefire, preservando `argLine` para su futura convivencia con JaCoCo. Se añadió `.local-docs/MOCKITO_UNIT_TEST_GUIDE.md` como explicación local no versionada de la estructura, métodos, flujo y límites del test.
+- **Ficheros principales:** `backend/pom.xml` y `backend/src/test/java/es/codeurjc/infracture/catalog/application/ComponentTemplateServiceTests.java`; como apoyo local ignorado, `.local-docs/MOCKITO_UNIT_TEST_GUIDE.md` y `.local-docs/PHASE_2_TESTING_ROADMAP.md`.
+- **Revisión del alumno:** el alumno revisó la explicación del test y autorizó crear la rama `test/component-template-service-tests`, preparar el commit, publicarla y abrir la PR; el merge y el cierre manual del issue siguen pendientes de autorización separada.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
