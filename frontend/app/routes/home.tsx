@@ -36,7 +36,9 @@ export function ErrorBoundary() {
   );
 }
 
-export default function Home({ loaderData }: Route.ComponentProps) {
+export default function Home({
+  loaderData,
+}: Pick<Route.ComponentProps, "loaderData">) {
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-12">
       <ComponentCatalogue

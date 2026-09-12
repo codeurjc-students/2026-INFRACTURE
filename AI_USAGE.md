@@ -372,6 +372,19 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Ficheros principales:** `backend/pom.xml` y `backend/src/test/java/es/codeurjc/infracture/catalog/application/ComponentTemplateServiceTests.java`; como apoyo local ignorado, `.local-docs/MOCKITO_UNIT_TEST_GUIDE.md` y `.local-docs/PHASE_2_TESTING_ROADMAP.md`.
 - **Revisión del alumno:** el alumno revisó la explicación del test y autorizó crear la rama `test/component-template-service-tests`, preparar el commit, publicarla y abrir la PR; el merge y el cierre manual del issue siguen pendientes de autorización separada.
 
+## AI-2026-09-12-025 - Prueba unitaria de la ruta del catálogo en React
+
+- **Fecha:** 12 de septiembre de 2026.
+- **Fase:** Fase 2 - Pruebas automáticas del frontend.
+- **Objetivo:** implementar el issue P2-16 comprobando los estados observables de carga, éxito y error de la vista del catálogo.
+- **Contexto aportado por el alumno:** tras aclarar la diferencia entre el DOM virtual de React y un DOM simulado para pruebas, el alumno autorizó crear una rama específica e instalar las dependencias necesarias.
+- **Forma de uso:** revisión del modo SPA y de la documentación instalada de React Router; configuración de Vitest con `jsdom`; composición de la ruta real mediante un router en memoria; y sustitución exclusiva del servicio HTTP por un doble controlable.
+- **Herramientas auxiliares:** React Router, Vitest, React Testing Library, DOM Testing Library, `jest-dom` y `jsdom`.
+- **Resultado:** la prueba comprueba que el estado de carga aparece antes de resolverse la petición, que los datos devueltos se muestran y que un rechazo activa el límite de error accesible. Las aserciones consultan roles y texto visibles. El comando de pruebas deja de aceptar una suite vacía mediante `--passWithNoTests`. Por decisión del alumno, las pruebas se agrupan bajo `frontend/test/` para mantener separado el código de producción; se añadió además una guía local de aprendizaje sobre Vitest y el flujo completo del test.
+- **Verificación:** `npm test` superó 3 pruebas; `npm run typecheck`, `npm run lint`, `npm run build` y `git diff --check` finalizaron correctamente.
+- **Ficheros principales:** `frontend/vitest.config.ts`, `frontend/test/setup.ts`, `frontend/test/routes/home.test.tsx`, `frontend/package.json` y `frontend/package-lock.json`; como apoyo local ignorado, `.local-docs/VITEST_FRONTEND_TEST_GUIDE.md`.
+- **Revisión del alumno:** el alumno pidió separar las pruebas en `frontend/test/`, revisó la explicación de Vitest y autorizó preparar el commit, publicar la rama y abrir la pull request. El merge y el cierre del issue permanecen pendientes de autorización separada.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
