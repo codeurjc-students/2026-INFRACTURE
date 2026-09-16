@@ -409,6 +409,18 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Ficheros principales:** `backend/pom.xml` y `backend/src/test/java/es/codeurjc/infracture/catalog/persistence/ComponentTemplateRepositoryTests.java`; se retiró `backend/src/test/java/es/codeurjc/infracture/InfractureBackendApplicationTests.java`.
 - **Revisión del alumno:** el alumno autorizó la implementación y, posteriormente, la creación de la rama de pruebas, el commit, la publicación y la apertura del pull request.
 
+## AI-2026-09-16-028 - Reestructuración del changelog y reglas de mantenimiento
+
+- **Fecha:** 16 de septiembre de 2026.
+- **Fase:** Fase 2 - Documentación y trazabilidad continua.
+- **Objetivo:** poner al día el changelog, distinguir los cambios incorporados al repositorio de las funcionalidades planificadas y conservar criterios uniformes de mantenimiento y nombrado de ramas.
+- **Contexto aportado por el alumno:** el alumno indicó que todavía no existe una versión publicada de la aplicación, decidió mantener todos los cambios bajo `Unreleased` hasta una fase posterior y pidió registrar como reglas permanentes la actualización pertinente del changelog y el formato de las ramas.
+- **Forma de uso:** revisión del historial Git y de la documentación activa, clasificación de las entregas de las Fases 1 y 2, reescritura de las entradas conforme a las categorías de Keep a Changelog y contraste de los nombres de ramas recientes. Se aplicó la skill `ponytail` para evitar duplicar el README y conservar únicamente reglas relevantes.
+- **Resultado:** `CHANGELOG.md` conserva una única sección `Unreleased`, resume la Fase 1 como documentación, incorpora las entregas reales del backend, frontend, API y pruebas, e identifica expresamente las tecnologías decididas cuya integración todavía está pendiente. `AGENTS.md` exige revisar el changelog en cada bloque de trabajo y fija las ramas como `<type>/<short-kebab-case-description>` en inglés, sin prefijo `codex/`.
+- **Ficheros principales:** `CHANGELOG.md`, `AGENTS.md` y `AI_USAGE.md`.
+- **Verificación:** revisión del diff, contraste con los commits no mergeados y comprobación mediante `git diff --check`; no se ejecutaron suites de código porque el cambio afecta únicamente a documentación.
+- **Revisión del alumno:** el alumno solicitó explícitamente la reestructuración completa, confirmó que `Unreleased` debe mantenerse mientras no exista una versión publicada y pidió convertir la actualización pertinente del changelog y el formato de las ramas en instrucciones permanentes para los agentes.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.

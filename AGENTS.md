@@ -37,6 +37,10 @@ Tests use JUnit 5 and Spring Boot Test. Name classes `*Tests` and methods after 
 
 History follows Conventional Commit prefixes such as `feat:`, `fix:`, and `chore:` with short imperative summaries. Keep each pull request small and linked to its issue. Complete `.github/pull_request_template.md`: explain the outcome, list changes, report exact test and manual-verification results, and disclose risks, migrations, limitations, or follow-up work. Include screenshots for visible UI changes when a frontend is added.
 
+Name working branches in English as `<type>/<short-kebab-case-description>`, using `feat`, `fix`, `test`, `docs`, or `chore` for the main purpose, for example `test/component-template-integration-tests`. Do not add a `codex/` prefix.
+
 ## Agent-Specific Instructions
 
 Review `AI_USAGE.md` during every work block and add one grouped entry when AI produced a material decision, result, configuration change, or notable tool use. Leave changes unstaged, and obtain the student's explicit approval before staging, committing, pushing, opening a pull request, or closing an issue.
+
+Review `CHANGELOG.md` during every work block and update `Unreleased` when the work introduces a relevant change. Record only changes already incorporated into the repository, identify documentation and decisions explicitly, and never present planned functionality as implemented.
