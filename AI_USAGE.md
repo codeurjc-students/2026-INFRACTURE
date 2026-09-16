@@ -397,6 +397,18 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Ficheros principales:** `.java-version`, `backend/pom.xml`, `backend/README.md`, `README.md`, `CHANGELOG.md`, `AGENTS.md` y `docs/adr/0001-minio-para-almacenamiento-de-imagenes.md`.
 - **Revisión del alumno:** el alumno comunicó directamente ambas decisiones acordadas con el tutor y solicitó documentarlas y aplicar la migración.
 
+## AI-2026-09-16-027 - Pruebas de integración del catálogo con Testcontainers
+
+- **Fecha:** 16 de septiembre de 2026.
+- **Fase:** Fase 2 - Pruebas automáticas del backend.
+- **Objetivo:** implementar el issue P2-14 verificando la integración entre la lógica de negocio, JPA, Flyway y el catálogo contra un PostgreSQL real y desechable.
+- **Contexto aportado por el alumno:** tras cerrar las pruebas unitarias P2-13 y P2-16, el alumno pidió identificar e implementar el siguiente issue de la hoja de ruta.
+- **Forma de uso:** aplicación guiada de TDD sobre la interfaz pública de `ComponentTemplateService`; comprobación inicial de que la prueba no compilaba sin Testcontainers; incorporación de las dependencias mínimas; conexión automática mediante `@ServiceConnection`; comprobación roja de que consultar directamente el repositorio no aplica el orden de negocio; ejecución repetida con un contenedor nuevo; y aislamiento de cada caso mediante transacciones revertidas.
+- **Herramientas auxiliares:** Java 25, Maven Wrapper, Spring Boot Test, Spring Data JPA, Flyway, Testcontainers 2.0.5, PostgreSQL 18.6 y Docker Desktop.
+- **Resultado:** `ComponentTemplateRepositoryTests` inicia automáticamente PostgreSQL 18.6, deja que Flyway aplique V1 y V2 sobre un esquema vacío, comprueba las seis plantillas sembradas y verifica que `ComponentTemplateService#getEnabledTemplates()` obtiene del repositorio real únicamente los datos habilitados y los ordena por tipo. La anterior comprobación vacía de contexto se sustituyó por esta prueba, que también arranca el contexto completo. Dos ejecuciones consecutivas utilizaron contenedores y puertos distintos; la ejecución focalizada superó 2 pruebas y `./mvnw verify` superó las 4 pruebas del backend.
+- **Ficheros principales:** `backend/pom.xml` y `backend/src/test/java/es/codeurjc/infracture/catalog/persistence/ComponentTemplateRepositoryTests.java`; se retiró `backend/src/test/java/es/codeurjc/infracture/InfractureBackendApplicationTests.java`.
+- **Revisión del alumno:** el alumno autorizó la implementación y, posteriormente, la creación de la rama de pruebas, el commit, la publicación y la apertura del pull request.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
