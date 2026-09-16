@@ -98,7 +98,7 @@ El objetivo funcional es ofrecer un laboratorio web local que permita pasar de u
 El objetivo técnico es construir una aplicación web mantenible y reproducible, con una interfaz visual específica, una API REST y un motor de ejecución local seguro.
 
 - Desarrollar la interfaz como una SPA con React, TypeScript, Vite y React Router, utilizando Tailwind CSS, shadcn/ui, React Flow, Motion for React, Lucide React y Recharts para las gráficas de métricas.
-- Implementar con Java y Spring Boot una API REST versionada y una arquitectura de monolito modular.
+- Implementar con Java 25 LTS y Spring Boot una API REST versionada y una arquitectura de monolito modular.
 - Persistir las entidades de dominio en PostgreSQL mediante Spring Data JPA, utilizar `jsonb` para snapshots y configuraciones variables cuando aporte valor, y versionar el esquema con migraciones de Flyway.
 - Ejecutar la plataforma localmente con Docker Compose, controlar Docker Engine desde el backend mediante docker-java encapsulado detrás de una interfaz propia, implementar el Load Generator sobre Grafana k6 y gestionar la latencia reproducible con Toxiproxy a través de su API HTTP.
 - Utilizar un catálogo cerrado de imágenes y configuraciones para evitar que el usuario introduzca comandos o imágenes arbitrarias.
@@ -579,7 +579,7 @@ Se permitirá subir imágenes desde el navegador para:
 - la portada de un proyecto;
 - el icono de una plantilla de componente administrada.
 
-Las imágenes se almacenarán en MinIO ejecutado localmente. La base de datos guardará la clave del objeto y se validarán el tipo y el tamaño antes de aceptarlo.
+Las imágenes se almacenarán en MinIO ejecutado localmente. La base de datos guardará la clave del objeto y se validarán el tipo y el tamaño antes de aceptarlo. Esta decisión fue [ratificada con el tutor](docs/adr/0001-minio-para-almacenamiento-de-imagenes.md).
 
 ### Gráficos
 

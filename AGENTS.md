@@ -23,7 +23,7 @@ Run backend commands from `backend/`:
 ./mvnw verify -Popenapi       # Regenerate docs/api YAML and HTML
 ```
 
-Keep PostgreSQL running for Spring context tests and OpenAPI generation. Use Java 21 as pinned by `.java-version`.
+Keep PostgreSQL running for Spring context tests and OpenAPI generation. Use Java 25 LTS as pinned by `.java-version`.
 
 ## Coding Style & Naming Conventions
 
