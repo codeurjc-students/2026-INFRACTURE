@@ -11,6 +11,8 @@ El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-E
 - Sustitución de MySQL por PostgreSQL como base de datos permanente de la plataforma y como componente relacional del catálogo controlado.
 - Selección de Recharts para las gráficas de métricas y de SonarQube Cloud para el análisis estático ejecutado desde GitHub Actions.
 - Ratificación de Playwright como herramienta de pruebas de sistema de la interfaz después de la revisión con el tutor.
+- Ratificación de MinIO como almacenamiento local de imágenes después de la revisión con el tutor.
+- Migración del backend de Java 21 LTS a Java 25 LTS durante la fase inicial del desarrollo.
 
 ### Added
 

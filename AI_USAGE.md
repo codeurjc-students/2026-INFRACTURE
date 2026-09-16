@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **5 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **16 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -384,6 +384,18 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Verificación:** `npm test` superó 3 pruebas; `npm run typecheck`, `npm run lint`, `npm run build` y `git diff --check` finalizaron correctamente.
 - **Ficheros principales:** `frontend/vitest.config.ts`, `frontend/test/setup.ts`, `frontend/test/routes/home.test.tsx`, `frontend/package.json` y `frontend/package-lock.json`; como apoyo local ignorado, `.local-docs/VITEST_FRONTEND_TEST_GUIDE.md`.
 - **Revisión del alumno:** el alumno pidió separar las pruebas en `frontend/test/`, revisó la explicación de Vitest y autorizó preparar el commit, publicar la rama y abrir la pull request. El merge y el cierre del issue permanecen pendientes de autorización separada.
+
+## AI-2026-09-16-026 - Ratificación de MinIO y migración a Java 25 LTS
+
+- **Fecha:** 16 de septiembre de 2026.
+- **Fase:** Fase 2 - Consolidación de decisiones tecnológicas y actualización del entorno.
+- **Objetivo:** registrar el acuerdo alcanzado con el tutor sobre el almacenamiento de imágenes y actualizar el backend a la versión LTS de Java elegida para continuar el desarrollo.
+- **Contexto aportado por el alumno:** tras la reunión, el tutor confirmó que se mantiene MinIO al no existir actualmente una alternativa que justifique cambiar la arquitectura prevista y recomendó migrar de Java 21 LTS a Java 25 LTS mientras el proyecto todavía se encuentra en una etapa temprana.
+- **Forma de uso:** revisión cruzada del README, la arquitectura, la configuración Maven, el pin local del JDK y la documentación operativa; contraste de Java 25 con la hoja de ruta oficial de Oracle y con los requisitos de Spring Boot 4.1.1; registro de la decisión de MinIO mediante un ADR aceptado; y actualización y comprobación del entorno Java.
+- **Herramientas auxiliares:** Eclipse Temurin 25.0.4.1, Homebrew, `jenv`, Maven Wrapper, Docker Compose, PostgreSQL y documentación oficial de Oracle y Spring Boot.
+- **Resultado:** MinIO queda ratificado como almacenamiento local compatible con S3 para avatares, portadas e iconos, mientras PostgreSQL conserva únicamente las claves de objeto. El repositorio fija Java 25.0.4.1 en `.java-version`, Maven compila con `release 25` y la documentación activa exige Java 25 LTS. Temurin 25.0.4.1 se instaló y registró en `jenv`; la suite completa del backend compiló con esa versión y superó sus 3 pruebas con PostgreSQL. La instalación anterior de OpenJDK 25.0.2 se retiró después de verificar la actualización y no se implementó todavía la integración con MinIO.
+- **Ficheros principales:** `.java-version`, `backend/pom.xml`, `backend/README.md`, `README.md`, `CHANGELOG.md`, `AGENTS.md` y `docs/adr/0001-minio-para-almacenamiento-de-imagenes.md`.
+- **Revisión del alumno:** el alumno comunicó directamente ambas decisiones acordadas con el tutor y solicitó documentarlas y aplicar la migración.
 
 ## Plantilla para nuevas entradas
 

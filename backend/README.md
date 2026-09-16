@@ -4,7 +4,7 @@ Spring Boot backend for the Infracture platform.
 
 ## Local development
 
-The backend requires Eclipse Temurin Java 21 and the development PostgreSQL
+The backend requires OpenJDK 25 LTS and the development PostgreSQL
 service defined in the repository root `compose.yaml`.
 
 Start PostgreSQL from the repository root:
