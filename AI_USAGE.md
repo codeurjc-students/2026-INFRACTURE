@@ -421,6 +421,18 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Verificación:** revisión del diff, contraste con los commits no mergeados y comprobación mediante `git diff --check`; no se ejecutaron suites de código porque el cambio afecta únicamente a documentación.
 - **Revisión del alumno:** el alumno solicitó explícitamente la reestructuración completa, confirmó que `Unreleased` debe mantenerse mientras no exista una versión publicada y pidió convertir la actualización pertinente del changelog y el formato de las ramas en instrucciones permanentes para los agentes.
 
+## AI-2026-09-17-029 - Prueba de sistema HTTP del catálogo con REST Assured
+
+- **Fecha:** 17 de septiembre de 2026.
+- **Fase:** Fase 2 - Pruebas automáticas del backend.
+- **Objetivo:** implementar el issue P2-15 comprobando el endpoint del catálogo como un sistema en ejecución mediante una petición HTTP real.
+- **Contexto aportado por el alumno:** una vez fusionadas las pruebas de integración P2-14, el alumno pidió identificar el siguiente issue de la fase y autorizó implementar P2-15.
+- **Forma de uso:** aplicación de TDD sobre la costura pública `GET /api/v1/component-templates`; creación inicial de una prueba que no compilaba sin REST Assured; incorporación exclusiva de la dependencia de test necesaria; arranque de Spring Boot en un puerto aleatorio; reutilización del patrón Testcontainers y `@ServiceConnection`; y validación del estado, tipo de contenido, cantidad, orden estable y campos representativos del JSON. Se aplicaron las skills `tdd` y `ponytail` para conservar la prueba en la interfaz HTTP y evitar clases base o configuración adicional sin necesidad actual.
+- **Herramientas auxiliares:** Java 25, Maven Wrapper, Spring Boot Test, REST Assured 6.0.1, Testcontainers 2.0.5, PostgreSQL 18.6, Flyway y Docker Desktop.
+- **Resultado:** `ComponentTemplateApiSystemTests` arranca Tomcat y PostgreSQL en puertos aleatorios, aplica las dos migraciones sobre un esquema vacío y comprueba por HTTP las seis plantillas en su orden contractual. La ejecución focalizada superó 1 prueba y `./mvnw verify` superó las 5 pruebas del backend sin modificar código de producción.
+- **Ficheros principales:** `backend/pom.xml`, `backend/src/test/java/es/codeurjc/infracture/catalog/api/ComponentTemplateApiSystemTests.java`, `CHANGELOG.md` y `AI_USAGE.md`.
+- **Revisión del alumno:** el alumno revisó el funcionamiento de REST Assured, Flyway y el aislamiento entre los PostgreSQL temporales, confirmó mantener Testcontainers y autorizó crear la rama, el commit, la publicación y el pull request. La fusión y el cierre del issue permanecen pendientes.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
