@@ -431,7 +431,33 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Herramientas auxiliares:** Java 25, Maven Wrapper, Spring Boot Test, REST Assured 6.0.1, Testcontainers 2.0.5, PostgreSQL 18.6, Flyway y Docker Desktop.
 - **Resultado:** `ComponentTemplateApiSystemTests` arranca Tomcat y PostgreSQL en puertos aleatorios, aplica las dos migraciones sobre un esquema vacío y comprueba por HTTP las seis plantillas en su orden contractual. La ejecución focalizada superó 1 prueba y `./mvnw verify` superó las 5 pruebas del backend sin modificar código de producción.
 - **Ficheros principales:** `backend/pom.xml`, `backend/src/test/java/es/codeurjc/infracture/catalog/api/ComponentTemplateApiSystemTests.java`, `CHANGELOG.md` y `AI_USAGE.md`.
-- **Revisión del alumno:** el alumno revisó el funcionamiento de REST Assured, Flyway y el aislamiento entre los PostgreSQL temporales, confirmó mantener Testcontainers y autorizó crear la rama, el commit, la publicación y el pull request. La fusión y el cierre del issue permanecen pendientes.
+- **Revisión del alumno:** el alumno revisó el funcionamiento de REST Assured, Flyway y el aislamiento entre los PostgreSQL temporales, confirmó mantener Testcontainers y autorizó crear la rama, el commit, la publicación y el pull request. Posteriormente fusionó el pull request y solicitó dejar la rama local limpia.
+
+## AI-2026-09-19-030 - Integración real entre el frontend y el backend
+
+- **Fecha:** 19 de septiembre de 2026.
+- **Fase:** Fase 2 - Pruebas de integración del sistema.
+- **Objetivo:** implementar el issue P2-17 y demostrar que un dato persistido en PostgreSQL atraviesa Flyway, Spring Boot, el endpoint HTTP, el cliente TypeScript y la vista React sin sustituir el servidor por dobles de prueba.
+- **Contexto aportado por el alumno:** tras incorporar P2-14 y P2-15, el alumno pidió identificar e implementar el siguiente issue de la fase de pruebas y confirmó la costura pública propuesta para P2-17.
+- **Modelo y configuración:** configuración activa de Codex para esta sesión.
+- **Forma de uso:** aplicación de TDD sobre `clientLoader` y la vista pública del catálogo; comprobación roja inicial del cliente con el servidor ausente; reutilización del soporte Testcontainers ya instalado; creación de una aplicación de prueba en el classpath de test según el patrón oficial de Spring Boot; arranque coordinado mediante un script Bash; y separación de las suites unitarias y de integración de Vitest. Se aplicaron las skills `tdd`, `ponytail`, `react-router` y `vercel-react-best-practices`.
+- **Herramientas auxiliares:** Java 25, Maven Wrapper, Spring Boot `test-run`, Testcontainers 2.0.5, PostgreSQL 18.6, Flyway, Docker Desktop, Node.js 24, Vitest, jsdom y React Testing Library.
+- **Resultado:** `scripts/test-client-server-integration.sh` arranca Spring Boot en el perfil `integration-test` con un PostgreSQL real y desechable, espera a que Flyway y el backend estén disponibles, ejecuta el cliente HTTP sin mocks y comprueba que la plantilla sembrada `HTTP Service` llega a la vista React. El cliente conserva la ruta `/api/v1/component-templates` y la resuelve contra el origen actual, manteniendo el proxy de Vite en desarrollo. Los fallos de arranque, red, contrato y renderizado producen mensajes diferenciados. La prueba integrada superó 1 caso y eliminó el contenedor al finalizar; `./mvnw verify` superó las 5 pruebas del backend, `npm test` superó las 3 pruebas unitarias del frontend y también finalizaron correctamente la comprobación de tipos, el lint, la construcción y la validación sintáctica del script. Como apoyo al aprendizaje se creó `.local-docs/CLIENT_SERVER_INTEGRATION_TEST_GUIDE.md`, que documenta el flujo completo, el reparto de responsabilidades, la reproducción manual, el diagnóstico y la futura reutilización en CI.
+- **Ficheros principales:** `backend/src/test/java/es/codeurjc/infracture/TestInfractureBackendApplication.java`, `backend/src/test/resources/application-integration-test.properties`, `frontend/test/integration/component-catalogue.integration.test.tsx`, `frontend/vitest.integration.config.ts`, `frontend/vitest.config.ts`, `frontend/app/features/component-catalogue/api/component-template-service.ts`, `frontend/package.json` y `scripts/test-client-server-integration.sh`; como apoyo local ignorado, `.local-docs/CLIENT_SERVER_INTEGRATION_TEST_GUIDE.md`.
+- **Revisión del alumno:** el alumno confirmó la costura pública antes de escribir la prueba y solicitó implementar el issue; los cambios permanecen sin preparar ni publicar para su revisión.
+
+## AI-2026-09-19-031 - Guía técnica de las pruebas con REST Assured
+
+- **Fecha:** 19 de septiembre de 2026.
+- **Fase:** Fase 2 - Documentación de las pruebas automáticas.
+- **Objetivo:** documentar de forma autocontenida la prueba REST Assured implementada para que el alumno pueda comprender su clasificación, alcance, arquitectura, configuración y ciclo de vida.
+- **Contexto aportado por el alumno:** después de revisar interactivamente REST Assured, los puertos aleatorios, Testcontainers, Flyway y el aislamiento de las bases de datos, el alumno pidió reunir toda la explicación en un fichero Markdown.
+- **Forma de uso:** revisión del código de la prueba de sistema, las pruebas unitarias y de persistencia, la configuración Maven, las migraciones y el flujo de producción; contraste de los conceptos con la documentación oficial de REST Assured, Spring Boot, Testcontainers y Flyway; y redacción de una guía centrada en las decisiones reales del repositorio.
+- **Herramientas auxiliares:** REST Assured 6.0.1, Spring Boot Test, JUnit 5, Hamcrest, Testcontainers 2.0.5, PostgreSQL 18.6, Flyway y documentación oficial.
+- **Resultado:** `docs/PRUEBAS_REST_ASSURED.md` explica por qué el caso es una prueba de sistema de API y no una E2E completa, el recorrido HTTP hasta PostgreSQL, cada anotación y aserción, el origen de los datos, los dos puertos dinámicos, la independencia entre contenedores, la alternativa de usar bases persistentes, los límites de cobertura, los comandos de ejecución y el diagnóstico de fallos habituales.
+- **Ficheros principales:** `docs/PRUEBAS_REST_ASSURED.md`, `CHANGELOG.md` y `AI_USAGE.md`.
+- **Verificación:** revisión cruzada con el código incorporado y comprobación de formato mediante `git diff --check`; no se ejecutaron suites porque los cambios de este bloque son exclusivamente documentales.
+- **Revisión del alumno:** el alumno solicitó expresamente crear la guía; los cambios quedan sin preparar ni publicar para su revisión.
 
 ## Plantilla para nuevas entradas
 
