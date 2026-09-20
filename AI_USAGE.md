@@ -486,6 +486,32 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Verificación:** revisión cruzada de la guía con el código y el issue actuales, comprobación de los enlaces oficiales, validación de que `.local-docs/` continúa ignorado y comprobación de formato mediante `git diff --check`; no se ejecutaron suites de código porque este bloque es exclusivamente documental.
 - **Revisión del alumno:** pendiente de revisar la guía; los cambios permanecen sin preparar ni publicar.
 
+## AI-2026-09-20-034 - Cobertura reproducible del backend y del frontend
+
+- **Fecha:** 20 de septiembre de 2026.
+- **Fase:** Fase 2 - Pruebas automáticas y cobertura.
+- **Objetivo:** implementar el issue P2-19 generando informes de cobertura reproducibles y aplicando una puerta inicial explícita tanto al backend como al frontend.
+- **Contexto aportado por el alumno:** después de fusionar P2-18 y limpiar su rama local, el alumno pidió continuar con el siguiente issue pendiente del parent P2.
+- **Modelo y configuración:** configuración activa de Codex para esta sesión.
+- **Forma de uso:** revalidación del issue mediante GitHub CLI; inspección de las suites existentes y de la política del 70 % ya documentada; contraste con la documentación oficial de JaCoCo y Vitest; configuración de ambos proveedores; medición inicial; incorporación de pruebas focalizadas para responsabilidades reales que no estaban cubiertas; y elevación temporal de ambos umbrales al 99 % para demostrar que los builds fallan cuando no se cumple la puerta. Se aplicó la skill `ponytail` para limitar el cambio a la cobertura local reutilizable por CI, sin adelantar workflows ni SonarQube.
+- **Herramientas auxiliares:** JaCoCo Maven Plugin 0.8.15, Vitest 5.0.0, `@vitest/coverage-v8` 5.0.0, Maven Wrapper, Java 25, Node.js 24, Docker Desktop y Testcontainers.
+- **Resultado:** `./mvnw verify` genera JaCoCo HTML y XML y exige un 70 % global de líneas; `npm run test:coverage` mide explícitamente todo el TypeScript y TSX de producción bajo `app/`, genera salida de terminal, HTML y LCOV y exige el mismo umbral de forma independiente. No se configuraron exclusiones propias. Se añadieron pruebas del cliente HTTP para éxito, error HTTP y fallo de conexión, además de pruebas del límite global de errores y de los recursos tipográficos. La cobertura observada fue del 90,74 % de líneas en backend y del 88,88 % en frontend; con un umbral temporal del 99 %, ambos comandos fallaron antes de restaurar el 70 %.
+- **Ficheros principales:** `backend/pom.xml`, `frontend/package.json`, `frontend/package-lock.json`, `frontend/vitest.config.ts`, `frontend/test/features/component-catalogue/api/component-template-service.test.ts`, `frontend/test/root.test.tsx`, `frontend/.gitignore`, `frontend/eslint.config.js`, `CHANGELOG.md` y `AI_USAGE.md`.
+- **Revisión del alumno:** pendiente de revisar la implementación; los cambios permanecen sin preparar ni publicar.
+
+## AI-2026-09-20-035 - Guía técnica de cobertura con JaCoCo y Vitest
+
+- **Fecha:** 20 de septiembre de 2026.
+- **Fase:** Fase 2 - Documentación de las pruebas automáticas.
+- **Objetivo:** documentar de forma autocontenida la cobertura implementada en P2-19 para que el alumno pueda comprender sus métricas, herramientas, configuración, informes, umbrales y futura integración con CI y SonarQube Cloud.
+- **Contexto aportado por el alumno:** después de implementar P2-19 y preguntar por la visualización posterior en SonarQube Cloud, el alumno pidió reunir toda la información en una guía local siguiendo la estructura didáctica de las anteriores guías de pruebas.
+- **Forma de uso:** revisión de la configuración JaCoCo y Vitest, de las pruebas que alimentan cada informe y de los resultados de las verificaciones; contraste con la documentación oficial de JaCoCo, Vitest y SonarQube Cloud; y redacción de una guía ligada a los archivos, comandos, decisiones y límites reales del repositorio. Se aplicó la skill `ponytail` para mantener fuera de la guía cualquier workflow o configuración SonarQube todavía no implementados.
+- **Herramientas auxiliares:** JaCoCo Maven Plugin 0.8.15, Vitest 5.0.0, proveedor V8, informes HTML, XML y LCOV, documentación oficial y herramientas locales de inspección del repositorio.
+- **Resultado:** `.local-docs/COBERTURA_JACOCO_VITEST.md` explica la diferencia entre ejecutar tests y medir cobertura, las métricas principales, el recorrido interno de JaCoCo y V8, la convivencia de los agentes JaCoCo y Mockito, cada opción incorporada, las pruebas frontend añadidas, la comprobación temporal al 99 %, la lectura de informes, el criterio de exclusiones, los comandos, el diagnóstico y la futura importación en SonarQube Cloud. La guía aclara que P2-19 genera artefactos reproducibles, pero todavía no configura CI ni publica resultados en SonarQube. Al ser material de aprendizaje, queda excluida del control de versiones.
+- **Ficheros principales:** `.local-docs/COBERTURA_JACOCO_VITEST.md` y `AI_USAGE.md`.
+- **Verificación:** revisión cruzada con el código actual, comprobación de enlaces oficiales, confirmación mediante `git check-ignore` de que la guía permanece local y validación de formato mediante `git diff --check`.
+- **Revisión del alumno:** pendiente de revisar la guía; los cambios de P2-19 se publicarán en una rama y pull request autorizadas, mientras que el Markdown local no formará parte del commit.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
