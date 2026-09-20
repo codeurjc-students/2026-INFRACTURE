@@ -7,6 +7,8 @@ export default defineConfig([
   globalIgnores([
     "build/**",
     ".react-router/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 
   {
