@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **16 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **20 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -458,6 +458,33 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Ficheros principales:** `.local-docs/PRUEBAS_REST_ASSURED.md` y `AI_USAGE.md`.
 - **Verificación:** revisión cruzada con el código incorporado, comprobación de que el documento está bajo la exclusión de `.local-docs/` y validación de formato mediante `git diff --check`; no se ejecutaron suites porque los cambios de este bloque son exclusivamente documentales.
 - **Revisión del alumno:** el alumno solicitó expresamente crear la guía; los cambios quedan sin preparar ni publicar para su revisión.
+
+## AI-2026-09-20-032 - Prueba de sistema del catálogo en Chromium
+
+- **Fecha:** 20 de septiembre de 2026.
+- **Fase:** Fase 2 - Pruebas automáticas del sistema.
+- **Objetivo:** implementar el issue P2-18 y verificar desde Chromium que la aplicación completa muestra el catálogo persistido que entrega el backend real.
+- **Contexto aportado por el alumno:** después de fusionar P2-15 y P2-17, el alumno pidió localizar, analizar e implementar el siguiente issue pendiente de la hoja de ruta.
+- **Modelo y configuración:** configuración activa de Codex para esta sesión.
+- **Forma de uso:** localización del siguiente issue mediante GitHub CLI; aplicación de TDD sobre la interfaz visible de la SPA; contraste de la configuración con la documentación oficial de Playwright; reutilización del script existente de desarrollo para coordinar PostgreSQL, Spring Boot y Vite; separación explícita entre las suites de Vitest y Playwright; y comprobación deliberada de un fallo temporal para validar los artefactos de diagnóstico. Se aplicaron las skills `tdd`, `ponytail` y `playwright`.
+- **Herramientas auxiliares:** Playwright Test 1.63.0, Chromium 153, React Router, Vite, Spring Boot, Flyway, PostgreSQL 18.6, Docker Compose, Java 25 y Node.js 24.
+- **Resultado:** `npm run test:system` arranca la aplicación real mediante `scripts/start-dev.sh`, abre Chromium y comprueba por roles accesibles las seis plantillas sembradas por Flyway sin interceptar la respuesta del backend. La configuración limita la prueba a Chromium, conserva captura y traza cuando falla, genera un informe HTML y utiliza un único worker en CI. Vitest excluye la suite de sistema y ESLint ignora los informes generados. La ejecución local y la ejecución con `CI=true` superaron 1 caso y detuvieron los procesos y el contenedor iniciados al finalizar; una expectativa temporalmente incorrecta confirmó la creación de la captura y la traza antes de restaurar el caso válido.
+- **Ficheros principales:** `frontend/playwright.config.ts`, `frontend/test/system/component-catalogue.spec.ts`, `frontend/package.json`, `frontend/package-lock.json`, `frontend/vitest.config.ts`, `frontend/eslint.config.js`, `frontend/.gitignore`, `CHANGELOG.md` y `AI_USAGE.md`.
+- **Revisión del alumno:** el alumno solicitó la implementación; los cambios permanecen sin preparar ni publicar para su revisión.
+
+## AI-2026-09-20-033 - Guía técnica de las pruebas con Playwright
+
+- **Fecha:** 20 de septiembre de 2026.
+- **Fase:** Fase 2 - Documentación de las pruebas automáticas.
+- **Objetivo:** documentar de forma autocontenida la prueba Playwright implementada para que el alumno pueda comprender su clasificación, arquitectura, configuración, ciclo de vida, ejecución y diagnóstico.
+- **Contexto aportado por el alumno:** después de implementar P2-18 y aclarar el significado de CI, el alumno pidió reunir en un Markdown local toda la información sobre Playwright, el motivo de cada decisión y el funcionamiento de lo incorporado.
+- **Modelo y configuración:** configuración activa de Codex para esta sesión.
+- **Forma de uso:** revisión del issue, la configuración Playwright, la especificación de sistema, el script coordinador, el proxy de Vite, el recorrido React y las migraciones; contraste con la documentación oficial de Playwright; y redacción de una guía centrada en las decisiones y límites reales del repositorio. Se aplicaron las skills `playwright` y `ponytail` para comprobar los conceptos operativos y evitar añadir infraestructura ajena al objetivo documental.
+- **Herramientas auxiliares:** Playwright Test 1.63.0, Chromium, GitHub CLI, documentación oficial de Playwright y herramientas locales de inspección del repositorio.
+- **Resultado:** `.local-docs/PRUEBAS_PLAYWRIGHT.md` explica el recorrido completo desde Chromium hasta PostgreSQL, la función de cada opción de `playwright.config.ts`, el arranque y la limpieza de servicios, las aserciones accesibles con espera automática, la ausencia de mocks HTTP, las diferencias entre ejecución local y `CI=true`, los informes y artefactos de fallo, los comandos de depuración, los límites de cobertura y los criterios para ampliar la suite. La guía aclara expresamente que el test utiliza el PostgreSQL persistente de Docker Compose, no Testcontainers, y que la variable `CI` no crea todavía un workflow de GitHub Actions. Al ser material local de aprendizaje, queda excluida del control de versiones. También se corrigió una frase obsoleta del changelog que todavía presentaba la integración de Playwright como pendiente pese a estar ya incorporada.
+- **Ficheros principales:** `.local-docs/PRUEBAS_PLAYWRIGHT.md`, `CHANGELOG.md` y `AI_USAGE.md`.
+- **Verificación:** revisión cruzada de la guía con el código y el issue actuales, comprobación de los enlaces oficiales, validación de que `.local-docs/` continúa ignorado y comprobación de formato mediante `git diff --check`; no se ejecutaron suites de código porque este bloque es exclusivamente documental.
+- **Revisión del alumno:** pendiente de revisar la guía; los cambios permanecen sin preparar ni publicar.
 
 ## Plantilla para nuevas entradas
 

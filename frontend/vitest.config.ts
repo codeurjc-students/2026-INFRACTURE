@@ -6,7 +6,11 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
-    exclude: [...configDefaults.exclude, "test/integration/**"],
+    exclude: [
+      ...configDefaults.exclude,
+      "test/integration/**",
+      "test/system/**",
+    ],
     setupFiles: "./test/setup.ts",
   },
 });
