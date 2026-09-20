@@ -16,6 +16,7 @@ El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-E
 - Frontend SPA con React, TypeScript, React Router y Vite, junto con un cliente HTTP tipado y una vista del catálogo que representa los estados de carga, contenido, vacío y error.
 - Script de desarrollo para coordinar PostgreSQL, backend y frontend en local.
 - Pruebas unitarias del servicio de catálogo con JUnit, Mockito y AssertJ, pruebas de la ruta del catálogo con Vitest y React Testing Library, pruebas de integración con Spring Boot, Flyway, Testcontainers y PostgreSQL desechable, una prueba de sistema de la API con REST Assured, una prueba de integración entre el cliente HTTP real y el backend y una prueba de sistema en Chromium sobre la aplicación completa.
+- Informes reproducibles de cobertura del backend con JaCoCo en HTML y XML y del frontend con Vitest en HTML y LCOV, con un umbral inicial independiente del 70 % de líneas.
 - ADR que registra la elección de MinIO como futuro almacenamiento local de imágenes compatible con S3; la integración todavía no está implementada.
 
 ### Changed
