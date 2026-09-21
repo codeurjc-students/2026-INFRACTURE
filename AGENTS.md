@@ -37,7 +37,7 @@ Tests use JUnit 5 and Spring Boot Test. Name classes `*Tests` and methods after 
 
 History follows Conventional Commit prefixes such as `feat:`, `fix:`, and `chore:` with short imperative summaries. Keep each pull request small and linked to its issue. Complete `.github/pull_request_template.md`: explain the outcome, list changes, report exact test and manual-verification results, and disclose risks, migrations, limitations, or follow-up work. Include screenshots for visible UI changes when a frontend is added.
 
-Name working branches in English as `<type>/<short-kebab-case-description>`, using `feat`, `fix`, `test`, `docs`, or `chore` for the main purpose, for example `test/component-template-integration-tests`. Do not add a `codex/` prefix.
+Use GitHub Flow: keep `main` stable and ready to deploy, never commit directly to it, and integrate changes through pull requests. Name working branches with a short, descriptive English kebab-case name, such as `add-login-page`, `fix-login-page`, or `add-ci-workflow`; no mandatory `<type>/` or `codex/` prefix is used.
 
 ## Agent-Specific Instructions
 
