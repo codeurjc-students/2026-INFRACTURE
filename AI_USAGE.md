@@ -512,6 +512,20 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Verificación:** revisión cruzada con el código actual, comprobación de enlaces oficiales, confirmación mediante `git check-ignore` de que la guía permanece local y validación de formato mediante `git diff --check`.
 - **Revisión del alumno:** pendiente de revisar la guía; los cambios de P2-19 se publicarán en una rama y pull request autorizadas, mientras que el Markdown local no formará parte del commit.
 
+## AI-2026-09-21-036 - Alineación de GitHub Flow e inicio del CI básico
+
+- **Fecha:** 21 de septiembre de 2026.
+- **Fase:** Fase 2 - Integración continua.
+- **Objetivo:** implementar el CI básico del issue P2-20 y alinear la convención permanente de ramas con el proceso indicado por la guía académica del TFG.
+- **Contexto aportado por el alumno:** el alumno aportó los apartados de GitHub Flow e integración continua de la guía, indicó que `main` debe permanecer estable, que los cambios deben integrarse mediante pull requests y que las ramas deben usar nombres cortos y descriptivos en inglés sin el esquema obligatorio `<type>/...`. Para este issue eligió expresamente `add-ci-workflow` y confirmó que el control básico debe ejecutarse con cada push a una rama de trabajo, reservando el control completo y la protección de `main` para P2-21.
+- **Modelo y configuración:** configuración activa de Codex para esta sesión.
+- **Forma de uso:** revisión textual y visual de las páginas relevantes del PDF del TFG, contraste con los issues P2-20 y P2-21 y con los comandos reales del repositorio, explicación incremental del modelo de GitHub Actions e implementación mínima del workflow. Se aplicaron las skills `pdf`, `writing-for-agents` y `ponytail`.
+- **Herramientas auxiliares:** Git, GitHub CLI, Poppler, `pypdf`, Maven Wrapper, npm y herramientas locales de inspección del repositorio.
+- **Ficheros de contexto:** `Desarrollo de una aplicación web como TFG v4.pdf`, `.github/workflows/development-ci.yml`, `.local-docs/GITHUB_ACTIONS_DEVELOPMENT_CI_GUIDE.md`, `.java-version`, `.nvmrc`, `backend/pom.xml`, `frontend/package.json`, `frontend/package-lock.json`, `AGENTS.md`, `CHANGELOG.md` y `AI_USAGE.md`.
+- **Resultado:** se creó desde `main` la rama local `add-ci-workflow`; `AGENTS.md` adopta GitHub Flow, elimina el prefijo obligatorio por tipo y conserva la integración mediante pull requests. El workflow `Development CI` se activa con cada push a una rama distinta de `main`; prepara las versiones fijadas de Java y Node.js, usa las cachés oficiales de Maven y npm sin omitir los lockfiles y muestra por separado los resultados básicos de backend y frontend. También se redactó una guía educativa local e ignorada por Git que explica GitHub Actions, el workflow línea por línea, sus límites y la futura separación respecto a P2-21.
+- **Verificación:** `./mvnw -Dtest=ComponentTemplateServiceTests test` finalizó con 2 tests correctos; `npm ci`, `npm run lint`, `npm run typecheck`, `npm test` y `npm run build` finalizaron correctamente, con 9 tests de frontend superados. También se validaron la sintaxis YAML, `git diff --check`, los enlaces locales de la guía y que `.local-docs/` permanece excluida mediante `.gitignore`.
+- **Revisión del alumno:** el alumno revisó el diseño del workflow básico y autorizó preparar, confirmar y publicar los cambios en la rama `add-ci-workflow`.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
