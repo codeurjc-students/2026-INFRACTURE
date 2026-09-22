@@ -24,6 +24,7 @@ El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-E
 ### Changed
 
 - Alineación de la convención de ramas con GitHub Flow: `main` se mantiene estable, el trabajo usa nombres cortos y descriptivos en inglés y los cambios se integran mediante pull requests.
+- Protección activa de `main`: los cambios requieren pull request y los cuatro checks del CI completo; también se bloquean la eliminación de la rama y los force pushes, sin bypasses configurados.
 - Sustitución de MySQL por PostgreSQL como base de datos permanente prevista para la plataforma y como componente relacional del catálogo controlado.
 - Revisión documental del modelo de dominio y de ejecución para conservar identidades históricas, revisiones inmutables y contratos tipados sin adelantar su implementación.
 - Selección de Recharts para las gráficas, SonarQube Cloud para el análisis estático y Playwright para las pruebas de sistema; Playwright ya está integrado y las otras dos integraciones permanecen pendientes de sus respectivos bloques de implementación.

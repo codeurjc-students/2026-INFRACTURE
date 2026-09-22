@@ -526,19 +526,19 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Verificación:** `./mvnw -Dtest=ComponentTemplateServiceTests test` finalizó con 2 tests correctos; `npm ci`, `npm run lint`, `npm run typecheck`, `npm test` y `npm run build` finalizaron correctamente, con 9 tests de frontend superados. También se validaron la sintaxis YAML, `git diff --check`, los enlaces locales de la guía y que `.local-docs/` permanece excluida mediante `.gitignore`.
 - **Revisión del alumno:** el alumno revisó el diseño del workflow básico y autorizó preparar, confirmar y publicar los cambios en la rama `add-ci-workflow`.
 
-## AI-2026-09-22-037 - Implementación local del CI completo
+## AI-2026-09-22-037 - CI completo y protección de main
 
 - **Fecha:** 22 de septiembre de 2026.
 - **Fase:** Fase 2 - Integración continua.
-- **Objetivo:** implementar el workflow completo del issue P2-21 para ejecutar toda la pirámide de pruebas en pull requests dirigidas a `main` y conservar diagnósticos útiles cuando falle una suite.
+- **Objetivo:** implementar el workflow completo del issue P2-21, ejecutar toda la pirámide de pruebas en pull requests dirigidas a `main`, conservar diagnósticos útiles cuando falle una suite y proteger la rama estable.
 - **Contexto aportado por el alumno:** después de completar P2-20, el alumno decidió continuar con el workflow completo, pidió revisar si era adecuado reutilizar los scripts locales desde GitHub Actions y autorizó crear el workflow una vez explicada su estructura.
 - **Modelo y configuración:** configuración activa de Codex para esta sesión.
-- **Forma de uso:** inspección del issue P2-21, de las suites backend y frontend, de los scripts de integración y desarrollo y de la configuración de Playwright; diseño explicado antes de editar; comprobación de la versión vigente de `actions/upload-artifact`; creación y validación local del workflow.
+- **Forma de uso:** inspección del issue P2-21, de las suites backend y frontend, de los scripts de integración y desarrollo y de la configuración de Playwright; diseño explicado antes de editar; comprobación de la versión vigente de `actions/upload-artifact`; creación y validación local del workflow; publicación de la PR #52; configuración del ruleset `Protect main`; y prueba controlada de un check obligatorio fallido seguida de su restauración.
 - **Herramientas auxiliares:** Git, GitHub CLI, Maven Wrapper, Docker, Testcontainers, npm, Vitest, JaCoCo, Playwright y Chromium.
 - **Ficheros principales:** `.github/workflows/pull-request-ci.yml`, `.local-docs/GITHUB_ACTIONS_DEVELOPMENT_CI_GUIDE.md`, `CHANGELOG.md` y `AI_USAGE.md`.
-- **Resultado:** `Pull Request CI` se activa en pull requests hacia `main` y expone cuatro jobs independientes: backend completo, frontend completo, integración cliente-servidor y sistema en Chromium. Los jobs publican durante siete días informes, cobertura, registros o trazas cuando fallan. La protección de `main`, la publicación del workflow y la comprobación real de sus checks permanecen pendientes de los siguientes pasos del issue.
-- **Verificación:** sintaxis YAML válida y `git diff --check` correcto; `./mvnw verify` superó 5 tests y el umbral JaCoCo; el frontend superó lint, typecheck, 9 tests, el umbral Vitest y el build; la integración cliente-servidor superó 1 test; Playwright superó 1 prueba en Chromium y limpió la infraestructura temporal.
-- **Revisión del alumno:** pendiente de revisar la implementación; los cambios permanecen sin preparar ni publicar en la rama `add-full-ci-workflow`.
+- **Resultado:** `Pull Request CI` se activa en pull requests hacia `main` y expone cuatro jobs independientes: backend completo, frontend completo, integración cliente-servidor y sistema en Chromium. Los jobs publican durante siete días informes, cobertura, registros o trazas cuando fallan. El ruleset activo `Protect main` exige una pull request y los cuatro checks, requiere que la rama esté actualizada, bloquea eliminación y force push y no concede bypass; mantiene cero aprobaciones obligatorias para no exigir un segundo colaborador.
+- **Verificación:** sintaxis YAML válida y `git diff --check` correcto; `./mvnw verify` superó 5 tests y el umbral JaCoCo; el frontend superó lint, typecheck, 9 tests, el umbral Vitest y el build; la integración cliente-servidor superó 1 test; Playwright superó 1 prueba en Chromium y limpió la infraestructura temporal. En GitHub, la primera ejecución de `Pull Request CI` superó los cuatro jobs. Después, un commit temporal hizo fallar `Frontend full tests`: GitHub marcó la PR como `BLOCKED` y publicó `frontend-failure-reports`; el commit se revirtió para restaurar el workflow correcto.
+- **Revisión del alumno:** el alumno revisó el diseño, autorizó la implementación y posteriormente autorizó el commit, push y continuación del flujo en la rama `add-full-ci-workflow`.
 
 ## Plantilla para nuevas entradas
 
