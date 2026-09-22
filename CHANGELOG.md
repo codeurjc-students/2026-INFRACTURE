@@ -18,8 +18,8 @@ El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-E
 - Pruebas unitarias del servicio de catálogo con JUnit, Mockito y AssertJ, pruebas de la ruta del catálogo con Vitest y React Testing Library, pruebas de integración con Spring Boot, Flyway, Testcontainers y PostgreSQL desechable, una prueba de sistema de la API con REST Assured, una prueba de integración entre el cliente HTTP real y el backend y una prueba de sistema en Chromium sobre la aplicación completa.
 - Informes reproducibles de cobertura del backend con JaCoCo en HTML y XML y del frontend con Vitest en HTML y LCOV, con un umbral inicial independiente del 70 % de líneas.
 - CI básico con jobs independientes para compilar y probar unitariamente el backend y para validar, probar y construir el frontend en cada push a una rama de trabajo.
-- CI completo para pull requests dirigidas a `main`, con pruebas backend, validaciones frontend, integración cliente-servidor, sistema en Chromium y artefactos de diagnóstico cuando falla una suite.
-- Análisis CI-based de backend y frontend con SonarQube Cloud en pull requests, importando los informes JaCoCo XML y LCOV y haciendo que el job espere el resultado del Quality Gate.
+- CI completo para pull requests dirigidas a `main` y para el resultado integrado tras cada merge, con pruebas backend, validaciones frontend, integración cliente-servidor, sistema en Chromium y artefactos de diagnóstico cuando falla una suite.
+- Análisis CI-based de backend y frontend con SonarQube Cloud en pull requests y en `main`, importando los informes JaCoCo XML y LCOV y haciendo que el job espere el resultado del Quality Gate.
 - ADR que registra la elección de MinIO como futuro almacenamiento local de imágenes compatible con S3; la integración todavía no está implementada.
 
 ### Changed
