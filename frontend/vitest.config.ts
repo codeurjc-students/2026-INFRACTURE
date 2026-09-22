@@ -9,7 +9,7 @@ export default defineConfig({
       // Generated React Router files live outside app/, so no exclusions are needed.
       include: ["app/**/*.{ts,tsx}"],
       provider: "v8",
-      reporter: ["text", "html", "lcov"],
+      reporter: ["text", "html", ["lcov", { projectRoot: ".." }]],
       thresholds: {
         lines: 70,
       },

@@ -1,7 +1,10 @@
-name: Pull Request CI
+name: Full CI
 
 on:
   pull_request:
+    branches:
+      - main
+  push:
     branches:
       - main
 
@@ -30,6 +33,17 @@ jobs:
 
       - name: Run backend test suite
         run: ./mvnw verify
+
+      - name: Upload backend analysis inputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-sonar-inputs
+          path: |
+            backend/target/classes
+            backend/target/test-classes
+            backend/target/site/jacoco/jacoco.xml
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload backend failure reports
         if: failure()
@@ -74,6 +88,14 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Upload frontend analysis inputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-sonar-inputs
+          path: frontend/coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload frontend failure reports
         if: failure()
@@ -172,3 +194,33 @@ jobs:
             frontend/test-results
           if-no-files-found: ignore
           retention-days: 7
+
+  sonarqube:
+    name: SonarQube Cloud
+    needs:
+      - backend
+      - frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Download backend analysis inputs
+        uses: actions/download-artifact@v8
+        with:
+          name: backend-sonar-inputs
+          path: backend/target
+
+      - name: Download frontend analysis inputs
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-sonar-inputs
+          path: frontend/coverage
+
+      - name: Analyze code and check Quality Gate
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
