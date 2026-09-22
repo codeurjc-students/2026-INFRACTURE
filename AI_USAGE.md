@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **20 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **23 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -539,6 +539,20 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Resultado:** `Pull Request CI` se activa en pull requests hacia `main` y expone cuatro jobs independientes: backend completo, frontend completo, integración cliente-servidor y sistema en Chromium. Los jobs publican durante siete días informes, cobertura, registros o trazas cuando fallan. El ruleset activo `Protect main` exige una pull request y los cuatro checks, requiere que la rama esté actualizada, bloquea eliminación y force push y no concede bypass; mantiene cero aprobaciones obligatorias para no exigir un segundo colaborador.
 - **Verificación:** sintaxis YAML válida y `git diff --check` correcto; `./mvnw verify` superó 5 tests y el umbral JaCoCo; el frontend superó lint, typecheck, 9 tests, el umbral Vitest y el build; la integración cliente-servidor superó 1 test; Playwright superó 1 prueba en Chromium y limpió la infraestructura temporal. En GitHub, la primera ejecución de `Pull Request CI` superó los cuatro jobs. Después, un commit temporal hizo fallar `Frontend full tests`: GitHub marcó la PR como `BLOCKED` y publicó `frontend-failure-reports`; el commit se revirtió para restaurar el workflow correcto.
 - **Revisión del alumno:** el alumno revisó el diseño, autorizó la implementación y posteriormente autorizó el commit, push y continuación del flujo en la rama `add-full-ci-workflow`.
+
+## AI-2026-09-22-038 - Integración de SonarQube Cloud mediante CI
+
+- **Fecha:** 22 y 23 de septiembre de 2026.
+- **Fase:** Fase 2 - Análisis estático e integración continua.
+- **Objetivo:** implementar el issue P2-22 conectando el repositorio con SonarQube Cloud, importando la cobertura real del backend y del frontend y exponiendo el resultado del Quality Gate durante la revisión de una pull request.
+- **Contexto aportado por el alumno:** el proyecto de SonarQube Cloud ya estaba vinculado al repositorio; el alumno generó el token desde el asistente oficial, lo almacenó como secreto `SONAR_TOKEN` de GitHub Actions, aportó las claves públicas de organización y proyecto y confirmó que `codeurjc-students` utiliza el plan OSS. La integración se revisó paso a paso para comprender el token, el escáner, los informes y el Quality Gate antes de editar los workflows.
+- **Modelo y configuración:** configuración activa de Codex para esta sesión.
+- **Forma de uso:** inspección del issue, de los workflows existentes y de la configuración de cobertura; contraste con la documentación y las versiones oficiales vigentes de SonarQube Cloud y las Actions utilizadas; diseño inicial sobre el CI básico; medición desde un directorio backend limpio; y traslado razonado al CI de pull requests al comprobar que la suite unitaria aislada solo representaba el 42,59 % de líneas y que el evento `pull_request` es el que proporciona a Sonar el contexto necesario para decorar la PR.
+- **Herramientas auxiliares:** SonarQube Cloud, GitHub Actions, GitHub CLI, SonarScanner, JaCoCo, Vitest Coverage, Maven Wrapper, npm, Docker y Testcontainers.
+- **Resultado:** `sonar-project.properties` define un único análisis para el backend Java y el frontend TypeScript, separa fuentes y tests, referencia el bytecode compilado y los informes JaCoCo XML y LCOV y obliga a esperar hasta 300 segundos el Quality Gate. `Pull Request CI` conserva temporalmente los resultados de cobertura y bytecode de sus jobs backend y frontend, los reúne en el job `SonarQube Cloud` y autentica el escáner exclusivamente mediante el secreto de GitHub. El LCOV utiliza rutas relativas a la raíz para que Sonar pueda asociar cada medida con su fichero. El CI básico permanece sin cambios. El plan OSS admite análisis ilimitados de ramas y pull requests para proyectos públicos, por lo que no existe una limitación de plan para la verificación prevista.
+- **Verificación:** sintaxis YAML válida y `git diff --check` correcto; `./mvnw clean verify` superó 5 pruebas y produjo un 90,74 % de líneas; el frontend superó lint, typecheck, 9 pruebas, un 88,88 % de líneas y el build. Se comprobó que existen el bytecode backend, `jacoco.xml` y `lcov.info` en las rutas descargadas por el escáner. La ejecución remota y la inspección del Quality Gate quedan pendientes de publicar la rama y abrir la pull request.
+- **Ficheros principales:** `sonar-project.properties`, `.github/workflows/pull-request-ci.yml`, `frontend/vitest.config.ts`, `CHANGELOG.md` y `AI_USAGE.md`.
+- **Revisión del alumno:** el alumno creó el secreto sin divulgar su valor, revisó la diferencia entre análisis de rama y de pull request y autorizó trasladar SonarQube Cloud al workflow completo.
 
 ## Plantilla para nuevas entradas
 
