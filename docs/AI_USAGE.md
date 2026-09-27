@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **25 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **27 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -561,6 +561,13 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Uso de IA y herramientas:** OpenAI Codex, con la configuración activa de la sesión, apoyó la lectura del PDF (`pypdf`, Poppler), la revisión del repositorio y los issues, la redacción y la comprobación de enlaces, comandos y diagrama. También se consultaron Mermaid Live Editor, GitHub Actions, el GitHub Project y SonarQube Cloud.
 - **Resultado:** las secciones de Fase 1 y este registro se trasladaron a `docs/`; el README quedó como portada y seguimiento enlaza el Project. La nueva guía documenta el catálogo implementado, arranque, uso de Visual Studio Code y Postman, recomendación de extensiones Java y Spring Boot, pruebas, OpenAPI, CI, capturas, métricas fechadas de tamaño del código y protocolos HTTP/PostgreSQL en Mermaid. Se incorporó la colección de Postman con `baseUrl = http://localhost:8080` y se dejó el apartado de releases pendiente de la primera publicación. Se acreditaron al menos 23 ramas de Fase 2 (21 integradas, una descartada y la actual), contando las PR #43 y #44 como un mismo trabajo renombrado.
 - **Verificación:** el 25 de septiembre se siguió la guía desde un clon limpio: instalación, arranque, consulta del catálogo, script de desarrollo, OpenAPI y 5 pruebas de servidor, 9 de cliente, 1 de integración cliente-servidor y 1 en Chromium. Se comprobaron el diagrama y los enlaces; el 26 se corrigió el recuento de ramas y se restituyó una frase de alcance de Infracture Local. El alumno autorizó preparar y abrir la pull request el 27 de septiembre.
+
+## AI-2026-09-27-040 - Revisión final de la Fase 2
+
+- **Fecha y fase:** 27 de septiembre de 2026; cierre de la Fase 2 (P2-25).
+- **Objetivo y decisiones del alumno:** contrastar los criterios obligatorios con la guía y la rúbrica aportadas, y cerrar los issues #31 y #10 en una misma pull request. El alumno confirmó que GraalVM y mutation testing no aplican y mantuvo SonarQube Cloud en el CI completo, pendiente de consultarlo con el profesor.
+- **Uso de IA y herramientas:** OpenAI Codex revisó el código, la documentación, las pruebas, GitHub Actions, SonarQube Cloud y los enlaces de la guía; utilizó `pypdf` y GitHub CLI para contrastar la rúbrica y el estado de los issues.
+- **Resultado y verificación:** se corrigió la fecha de cobertura de este registro. Los 15 criterios obligatorios tienen evidencia verificable; el análisis estático está implantado. El último CI completo de `main` pasó las pruebas de servidor, cliente, integración y navegador, y el Quality Gate de SonarQube Cloud. La trazabilidad de los criterios se presenta en la pull request de cierre.
 
 
 ## Plantilla para nuevas entradas
