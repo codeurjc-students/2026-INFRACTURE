@@ -21,9 +21,11 @@ El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-E
 - CI completo para pull requests dirigidas a `main` y para el resultado integrado tras cada merge, con pruebas backend, validaciones frontend, integración cliente-servidor, sistema en Chromium y artefactos de diagnóstico cuando falla una suite.
 - Análisis CI-based de backend y frontend con SonarQube Cloud en pull requests y en `main`, importando los informes JaCoCo XML y LCOV y haciendo que el job espere el resultado del Quality Gate.
 - ADR que registra la elección de MinIO como futuro almacenamiento local de imágenes compatible con S3; la integración todavía no está implementada.
+- Guía de desarrollo de Fase 2 con diagrama Mermaid de procesos independientes y protocolos de comunicación, herramientas, controles de calidad, métricas de tamaño del código y uso histórico de Git, arranque local, pruebas y OpenAPI comprobados desde un clon limpio; colección de Postman para la operación REST existente y capturas del GitHub Project, CI y SonarQube Cloud.
 
 ### Changed
 
+- Documentación de Fase 1 dividida por secciones académicas en `docs/`, con el README como portada e índice y el registro de IA trasladado a `docs/`.
 - Alineación de la convención de ramas con GitHub Flow: `main` se mantiene estable, el trabajo usa nombres cortos y descriptivos en inglés y los cambios se integran mediante pull requests.
 - Protección activa de `main`: los cambios requieren pull request y los cuatro checks del CI completo; también se bloquean la eliminación de la rama y los force pushes, sin bypasses configurados.
 - Sustitución de MySQL por PostgreSQL como base de datos permanente prevista para la plataforma y como componente relacional del catálogo controlado.
