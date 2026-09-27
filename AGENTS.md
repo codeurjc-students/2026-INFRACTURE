@@ -4,7 +4,7 @@
 
 The Spring Boot modular monolith lives in `backend/`. Production code is under `backend/src/main/java/es/codeurjc/infracture`; organize features by `api`, `application`, `domain`, and `persistence`, as shown by `catalog/`. Configuration and Flyway migrations belong in `backend/src/main/resources`; tests mirror production packages in `backend/src/test/java`.
 
-Local infrastructure is in `compose.yaml`; architecture, OpenAPI output, and images are in `docs/`. Treat the linked issue's acceptance criteria as scope. Consult `docs/EXECUTION_ARCHITECTURE.md` for execution context. Use the repository-root `README.md` as the only README source for product scope, functionality, entities, and analysis; do not use README files outside this working repository.
+Local infrastructure is in `compose.yaml`; architecture, OpenAPI output, and images are in `docs/`. Treat the linked issue's acceptance criteria as scope. Consult `docs/EXECUTION_ARCHITECTURE.md` for execution context. The repository-root `README.md` is the public entry point to the Phase 1 sections under `docs/`; those sections are the sources for product scope, functionality, entities, and analysis. Do not use README files outside this working repository.
 
 ## Build, Test, and Development Commands
 
@@ -41,6 +41,6 @@ Use GitHub Flow: keep `main` stable and ready to deploy, never commit directly t
 
 ## Agent-Specific Instructions
 
-Review `AI_USAGE.md` during every work block and add one grouped entry when AI produced a material decision, result, configuration change, or notable tool use. Leave changes unstaged, and obtain the student's explicit approval before staging, committing, pushing, opening a pull request, or closing an issue.
+Review `docs/AI_USAGE.md` during every work block and add one grouped entry when AI produced a material decision, result, configuration change, or notable tool use. Leave changes unstaged, and obtain the student's explicit approval before staging, committing, pushing, opening a pull request, or closing an issue.
 
 Review `CHANGELOG.md` during every work block and update `Unreleased` when the work introduces a relevant change. Record only changes already incorporated into the repository, identify documentation and decisions explicitly, and never present planned functionality as implemented.

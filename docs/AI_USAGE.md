@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **23 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **25 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -96,7 +96,7 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Perfiles y capacidades:** separación entre perfiles de comportamiento del HTTP Service, perfiles del Worker y perfiles de carga. Los perfiles declaran requisitos y capacidades para que el backend pueda validar sus combinaciones antes de crear recursos.
 - **Flujo de ejecución:** diferenciación entre el plano de control y el plano de datos; definición del ciclo de validación, compilación, arranque, salud, carga, fallos, observabilidad, parada y limpieza; y separación de `ScenarioValidator` y `DependencyImpactAnalyzer` como responsabilidades distintas sobre el mismo grafo.
 - **Generación de carga:** definición de operaciones repetidas, selección ponderada, flujos con estado, fases de carga y semilla reproducible. El Load Generator solo conoce la API pública del HTTP Service y no sus dependencias internas.
-- **Documento resultante:** creación de [`docs/EXECUTION_ARCHITECTURE.md`](docs/EXECUTION_ARCHITECTURE.md) como anexo técnico para presentar al tutor y ampliación resumida del apartado de contratos de [`README.md`](README.md).
+- **Documento resultante:** creación de [`docs/EXECUTION_ARCHITECTURE.md`](EXECUTION_ARCHITECTURE.md) como anexo técnico para presentar al tutor y ampliación resumida del apartado de contratos de [`README.md`](../README.md).
 - **Riesgos principales:** traducción del grafo a recursos ejecutables, aislamiento y limpieza segura, latencia controlada, transmisión continua de información, consumo de recursos y aprendizaje simultáneo de las tecnologías.
 - **Medida propuesta:** construir al comienzo un prototipo vertical que cree una red, levante componentes, recopile logs, aplique fallos, introduzca latencia y elimine todos los recursos.
 - **Revisión del alumno:** el alumno concedió prioridad a MinIO, los seis componentes, la pausa, la reanudación y la latencia. Confirmó MinIO local, aceptó Flyway por recomendación técnica, delegó la elección entre Playwright y Selenium y aprobó el conjunto visual basado en Tailwind CSS, shadcn/ui y Motion. Posteriormente, confirmó `docker-java` y Toxiproxy, manteniendo únicamente la librería de gráficos, la herramienta de análisis estático y la integración concreta de IA como selecciones aplazadas.
@@ -146,9 +146,9 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Modelos y configuración:** GPT-5.6 Sol con razonamiento `high` para comprobar coherencia y alcance; GPT-5.6 Luna con razonamiento `max` y modo `fast` en tareas de redacción, reorganización y compactación documental.
 - **Forma de uso:** generación, edición y revisión cruzada de documentos Markdown; comprobación de consistencia entre alcance, prioridades, calendario y decisiones descartadas; y auditoría final de ortografía, puntuación, concordancia y terminología.
 - **Ficheros creados o mantenidos:**
-  - [`README.md`](README.md): definición funcional, análisis, arquitectura, alcance, planificación y requisitos del repositorio oficial.
-  - [`docs/EXECUTION_ARCHITECTURE.md`](docs/EXECUTION_ARCHITECTURE.md): anexo técnico sobre contratos, conexiones, validación, generación de carga y ciclo de ejecución.
-  - [`CHANGELOG.md`](CHANGELOG.md): cambios relevantes de la propuesta.
+  - [`README.md`](../README.md): definición funcional, análisis, arquitectura, alcance, planificación y requisitos del repositorio oficial.
+  - [`docs/EXECUTION_ARCHITECTURE.md`](EXECUTION_ARCHITECTURE.md): anexo técnico sobre contratos, conexiones, validación, generación de carga y ciclo de ejecución.
+  - [`CHANGELOG.md`](../CHANGELOG.md): cambios relevantes de la propuesta.
   - [`AI_USAGE.md`](AI_USAGE.md): registro agrupado del uso de herramientas de IA.
 - **Fuentes y referencias utilizadas:** guía oficial del TFG y documentación oficial de tecnologías y productos comparados durante el estado del arte, entre ellos Docker, Portainer, GNS3, Killercoda, Play with Docker, Chaos Mesh y LitmusChaos.
 - **Decisiones editoriales:** documentación académica en español; README limitado exclusivamente a Infracture Local; tres capturas principales acompañadas de un mapa completo de navegación, inventario de pantallas y documentación del prototipo.
@@ -553,6 +553,15 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Verificación:** sintaxis YAML válida y `git diff --check` correcto; `./mvnw clean verify` superó 5 pruebas y produjo un 90,74 % de líneas; el frontend superó lint, typecheck, 9 pruebas, un 88,88 % de líneas y el build. Se comprobó que existen el bytecode backend, `jacoco.xml` y `lcov.info` en las rutas descargadas por el escáner. En la pull request #53, los cinco jobs de `Pull Request CI` finalizaron correctamente; SonarQube Cloud reconoció el contexto de pull request, importó un informe JaCoCo y el informe LCOV, publicó una cobertura conjunta del 84,9 % y el Quality Gate terminó en estado `PASSED`.
 - **Ficheros principales:** `sonar-project.properties`, `.github/workflows/pull-request-ci.yml`, `frontend/vitest.config.ts`, `CHANGELOG.md` y `AI_USAGE.md`.
 - **Revisión del alumno:** el alumno creó el secreto sin divulgar su valor, revisó la diferencia entre análisis de rama y de pull request, autorizó trasladar SonarQube Cloud al workflow completo y decidió añadir el análisis posterior al merge para mantener actualizada la vista de `main`.
+
+## AI-2026-09-25-039 - Documentación académica y guía de desarrollo de Fase 2
+
+- **Fecha y fase:** 25 al 27 de septiembre de 2026; Fase 2, documentación (P2-23 y P2-24).
+- **Objetivo y decisiones del alumno:** cumplir la sección 4.4 del PDF y los issues P2-23/P2-24. El alumno pidió separar cada sección académica de Fase 1, simplificar el README, excluir de su índice los documentos internos e indicar que el desarrollo ha comenzado pero la aplicación completa aún no es funcional. Confirmó Visual Studio Code con Extension Pack for Java y Postman como herramientas utilizadas, y aportó su colección.
+- **Uso de IA y herramientas:** OpenAI Codex, con la configuración activa de la sesión, apoyó la lectura del PDF (`pypdf`, Poppler), la revisión del repositorio y los issues, la redacción y la comprobación de enlaces, comandos y diagrama. También se consultaron Mermaid Live Editor, GitHub Actions, el GitHub Project y SonarQube Cloud.
+- **Resultado:** las secciones de Fase 1 y este registro se trasladaron a `docs/`; el README quedó como portada y seguimiento enlaza el Project. La nueva guía documenta el catálogo implementado, arranque, uso de Visual Studio Code y Postman, recomendación de extensiones Java y Spring Boot, pruebas, OpenAPI, CI, capturas, métricas fechadas de tamaño del código y protocolos HTTP/PostgreSQL en Mermaid. Se incorporó la colección de Postman con `baseUrl = http://localhost:8080` y se dejó el apartado de releases pendiente de la primera publicación. Se acreditaron al menos 23 ramas de Fase 2 (21 integradas, una descartada y la actual), contando las PR #43 y #44 como un mismo trabajo renombrado.
+- **Verificación:** el 25 de septiembre se siguió la guía desde un clon limpio: instalación, arranque, consulta del catálogo, script de desarrollo, OpenAPI y 5 pruebas de servidor, 9 de cliente, 1 de integración cliente-servidor y 1 en Chromium. Se comprobaron el diagrama y los enlaces; el 26 se corrigió el recuento de ramas y se restituyó una frase de alcance de Infracture Local. El alumno autorizó preparar y abrir la pull request el 27 de septiembre.
+
 
 ## Plantilla para nuevas entradas
 
