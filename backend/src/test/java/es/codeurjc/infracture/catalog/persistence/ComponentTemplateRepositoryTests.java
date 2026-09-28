@@ -58,18 +58,23 @@ class ComponentTemplateRepositoryTests {
     }
 
     @Test
-    void returnsEnabledTemplatesLoadedFromDatabaseOrderedByType() {
+    void returnsOnlyEnabledTemplatesOrderedByName() {
         repository.deleteAllInBatch();
         repository.saveAllAndFlush(List.of(
                 new ComponentTemplate(
-                        "enabled-rabbitmq",
+                        "a-rabbitmq",
                         "Enabled RabbitMQ",
                         ComponentType.RABBITMQ,
                         true),
                 new ComponentTemplate(
-                        "enabled-http-service",
+                        "z-http-service",
                         "Enabled HTTP Service",
                         ComponentType.HTTP_SERVICE,
+                        true),
+                new ComponentTemplate(
+                        "m-redis",
+                        "Enabled Redis",
+                        ComponentType.REDIS,
                         true),
                 new ComponentTemplate(
                         "disabled-worker",
@@ -82,7 +87,8 @@ class ComponentTemplateRepositoryTests {
         assertThat(enabledTemplates)
                 .extracting(ComponentTemplate::getKey, ComponentTemplate::getType)
                 .containsExactly(
-                        tuple("enabled-http-service", ComponentType.HTTP_SERVICE),
-                        tuple("enabled-rabbitmq", ComponentType.RABBITMQ));
+                        tuple("z-http-service", ComponentType.HTTP_SERVICE),
+                        tuple("a-rabbitmq", ComponentType.RABBITMQ),
+                        tuple("m-redis", ComponentType.REDIS));
     }
 }

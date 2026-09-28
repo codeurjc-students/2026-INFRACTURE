@@ -39,14 +39,14 @@ class ComponentTemplateApiSystemTests {
                 .body("size()", equalTo(6))
                 .body("key", contains(
                         "http-service",
-                        "worker",
                         "load-generator",
                         "postgresql",
+                        "rabbitmq",
                         "redis",
-                        "rabbitmq"))
+                        "worker"))
                 .body("[0].name", equalTo("HTTP Service"))
                 .body("[0].type", equalTo("HTTP_SERVICE"))
-                .body("[5].name", equalTo("RabbitMQ"))
-                .body("[5].type", equalTo("RABBITMQ"));
+                .body("[5].name", equalTo("Worker"))
+                .body("[5].type", equalTo("WORKER"));
     }
 }

@@ -1,6 +1,5 @@
 package es.codeurjc.infracture.catalog.application;
 
-import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -18,10 +17,7 @@ public class ComponentTemplateService {
     }
 
     public List<ComponentTemplate> getEnabledTemplates() {
-        return repository.findAllByEnabledTrue()
-                .stream()
-                .sorted(Comparator.comparing(ComponentTemplate::getType))
-                .toList();
+        return repository.findAllByEnabledTrueOrderByNameAsc();
     }
 
 }

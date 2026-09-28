@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 
 public interface ComponentTemplateRepository extends JpaRepository<ComponentTemplate, Long> {
-    List<ComponentTemplate> findAllByEnabledTrue();
+    List<ComponentTemplate> findAllByEnabledTrueOrderByNameAsc();
 }
