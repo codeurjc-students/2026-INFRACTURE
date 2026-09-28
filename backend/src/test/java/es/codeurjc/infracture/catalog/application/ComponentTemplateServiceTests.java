@@ -20,7 +20,7 @@ class ComponentTemplateServiceTests {
     private final ComponentTemplateService service = new ComponentTemplateService(repository);
 
     @Test
-    void returnsEnabledTemplatesOrderedByType() {
+    void returnsEnabledTemplatesFromRepository() {
         ComponentTemplate rabbitMq = new ComponentTemplate(
                 "rabbitmq",
                 "RabbitMQ",
@@ -36,26 +36,27 @@ class ComponentTemplateServiceTests {
                 "PostgreSQL",
                 ComponentType.POSTGRESQL,
                 true);
-        when(repository.findAllByEnabledTrue()).thenReturn(List.of(rabbitMq, httpService, postgresql));
+        when(repository.findAllByEnabledTrueOrderByNameAsc())
+                .thenReturn(List.of(rabbitMq, httpService, postgresql));
 
         List<ComponentTemplate> result = service.getEnabledTemplates();
 
         assertThat(result)
                 .extracting(ComponentTemplate::getKey, ComponentTemplate::getName, ComponentTemplate::getType)
                 .containsExactly(
+                        tuple("rabbitmq", "RabbitMQ", ComponentType.RABBITMQ),
                         tuple("http-service", "HTTP Service", ComponentType.HTTP_SERVICE),
-                        tuple("postgresql", "PostgreSQL", ComponentType.POSTGRESQL),
-                        tuple("rabbitmq", "RabbitMQ", ComponentType.RABBITMQ));
-        verify(repository).findAllByEnabledTrue();
+                        tuple("postgresql", "PostgreSQL", ComponentType.POSTGRESQL));
+        verify(repository).findAllByEnabledTrueOrderByNameAsc();
     }
 
     @Test
     void returnsEmptyCatalogueWhenNoEnabledTemplatesExist() {
-        when(repository.findAllByEnabledTrue()).thenReturn(List.of());
+        when(repository.findAllByEnabledTrueOrderByNameAsc()).thenReturn(List.of());
 
         List<ComponentTemplate> result = service.getEnabledTemplates();
 
         assertThat(result).isEmpty();
-        verify(repository).findAllByEnabledTrue();
+        verify(repository).findAllByEnabledTrueOrderByNameAsc();
     }
 }

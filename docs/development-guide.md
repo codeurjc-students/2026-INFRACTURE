@@ -89,9 +89,9 @@ La [documentación OpenAPI en HTML](https://raw.githack.com/codeurjc-students/20
 
 | Nivel | Herramientas | Comportamiento verificado |
 | --- | --- | --- |
-| Unitarias del servidor | [JUnit](https://junit.org/junit5/), [Mockito](https://site.mockito.org/), [AssertJ](https://assertj.github.io/doc/) | Reglas de consulta y filtrado del catálogo. |
-| Integración de persistencia | Spring Boot, Flyway, [Testcontainers](https://java.testcontainers.org/) | Migración, datos iniciales y lectura del repositorio sobre PostgreSQL desechable. |
-| Sistema de API | Spring Boot, [REST Assured](https://rest-assured.io/), Testcontainers | `GET /api/v1/component-templates` por HTTP real: estado, tipo, cantidad, orden y datos. |
+| Unitarias del servidor | [JUnit](https://junit.org/junit5/), [Mockito](https://site.mockito.org/), [AssertJ](https://assertj.github.io/doc/) | Delegación de la consulta ordenada del servicio y respuesta vacía. |
+| Integración de persistencia | Spring Boot, Flyway, [Testcontainers](https://java.testcontainers.org/) | Migración, datos iniciales y lectura alfabética del repositorio sobre PostgreSQL desechable. |
+| Sistema de API | Spring Boot, [REST Assured](https://rest-assured.io/), Testcontainers | `GET /api/v1/component-templates` por HTTP real: estado, tipo, cantidad, orden alfabético y datos. |
 | Unitarias del cliente | [Vitest](https://vitest.dev/), [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) | Cliente HTTP, estados de carga, contenido y error, y comportamiento de la página. |
 | Integración cliente-servidor | Vitest, backend real, Testcontainers | El cliente recibe el catálogo persistido y lo muestra. |
 | Sistema en navegador | [Playwright](https://playwright.dev/), Chromium | La SPA muestra las seis plantillas tras consultar el backend real. |

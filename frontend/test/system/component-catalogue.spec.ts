@@ -12,10 +12,10 @@ test("renders the persisted catalogue through the real application", async ({
     page.getByRole("list").getByRole("heading", { level: 2 }),
   ).toHaveText([
     "HTTP Service",
-    "Worker",
     "Load Generator",
     "PostgreSQL",
-    "Redis",
     "RabbitMQ",
+    "Redis",
+    "Worker",
   ]);
 });

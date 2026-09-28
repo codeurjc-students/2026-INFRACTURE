@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **27 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **28 de septiembre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -568,6 +568,14 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Objetivo y decisiones del alumno:** contrastar los criterios obligatorios con la guía y la rúbrica aportadas, y cerrar los issues #31 y #10 en una misma pull request. El alumno confirmó que GraalVM y mutation testing no aplican y mantuvo SonarQube Cloud en el CI completo, pendiente de consultarlo con el profesor.
 - **Uso de IA y herramientas:** OpenAI Codex revisó el código, la documentación, las pruebas, GitHub Actions, SonarQube Cloud y los enlaces de la guía; utilizó `pypdf` y GitHub CLI para contrastar la rúbrica y el estado de los issues.
 - **Resultado y verificación:** se corrigió la fecha de cobertura de este registro. Los 15 criterios obligatorios tienen evidencia verificable; el análisis estático está implantado. El último CI completo de `main` pasó las pruebas de servidor, cliente, integración y navegador, y el Quality Gate de SonarQube Cloud. La trazabilidad de los criterios se presenta en la pull request de cierre.
+
+## AI-2026-09-28-041 - Orden alfabético del catálogo
+
+- **Fecha y fase:** 28 de septiembre de 2026; primera versión del catálogo tras la Fase 2.
+- **Objetivo y decisión del alumno:** revisar si el orden del catálogo tiene un efecto funcional. Tras comprobar que determina la posición visual y que conviene mantenerla estable, el alumno eligió ordenar alfabéticamente por el nombre mostrado. Decidió conservar el servicio y el mapper como límites de la arquitectura prevista para las siguientes fases y autorizó crear una rama e implementar el cambio.
+- **Uso de IA y herramientas:** Codex examinó el recorrido entre PostgreSQL, repositorio, servicio, API, frontend, pruebas y documentación; editó los ficheros afectados y ejecutó Maven, npm y Playwright.
+- **Resultado:** el repositorio consulta únicamente las plantillas habilitadas y las ordena por `name` ascendente; el servicio delega la consulta sin ordenar por `ComponentType`. Las pruebas del servicio, de integración con PostgreSQL, HTTP y Chromium comprueban la consulta, el contenido y el orden alfabético en los límites correspondientes. Se actualizó la guía de desarrollo para reflejarlo.
+- **Verificación:** `./mvnw verify` superó 5 pruebas y el umbral de cobertura; `npm run lint`, `npm run typecheck`, `npm run test:coverage` y `npm run build` finalizaron correctamente, con 9 pruebas frontend y 88,88 % de líneas cubiertas; `./scripts/test-client-server-integration.sh` superó 1 prueba y `npm run test:system` superó 1 caso en Chromium. `git diff --check` no detectó errores. El trabajo se realizó en la rama `sort-catalogue-by-name`.
 
 
 ## Plantilla para nuevas entradas

@@ -25,6 +25,7 @@ El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-E
 
 ### Changed
 
+- El catálogo ordena alfabéticamente por nombre las plantillas habilitadas que muestra la API y la vista, en lugar de seguir el orden del enum.
 - Documentación de Fase 1 dividida por secciones académicas en `docs/`, con el README como portada e índice y el registro de IA trasladado a `docs/`.
 - Alineación de la convención de ramas con GitHub Flow: `main` se mantiene estable, el trabajo usa nombres cortos y descriptivos en inglés y los cambios se integran mediante pull requests.
 - Protección activa de `main`: los cambios requieren pull request y los cuatro checks del CI completo; también se bloquean la eliminación de la rama y los force pushes, sin bypasses configurados.
