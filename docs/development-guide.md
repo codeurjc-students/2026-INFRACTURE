@@ -92,9 +92,10 @@ La [documentación OpenAPI en HTML](https://raw.githack.com/codeurjc-students/20
 | Unitarias del servidor | [JUnit](https://junit.org/junit5/), [Mockito](https://site.mockito.org/), [AssertJ](https://assertj.github.io/doc/) | Delegación de la consulta ordenada del servicio y respuesta vacía. |
 | Integración de persistencia | Spring Boot, Flyway, [Testcontainers](https://java.testcontainers.org/) | Migración, datos iniciales y lectura alfabética del repositorio sobre PostgreSQL desechable. |
 | Sistema de API | Spring Boot, [REST Assured](https://rest-assured.io/), Testcontainers | `GET /api/v1/component-templates` por HTTP real: estado, tipo, cantidad, orden alfabético y datos. |
-| Unitarias del cliente | [Vitest](https://vitest.dev/), [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) | Cliente HTTP, estados de carga, contenido y error, y comportamiento de la página. |
+| Unitarias del cliente | [Vitest](https://vitest.dev/), [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) | Contrato del cliente HTTP y comportamiento del documento raíz. |
+| Integración del frontend | Vitest, Testing Library, jsdom | Ruta, cliente HTTP real y vista: carga, contenido, vacío y aviso ante fallos HTTP o de red, simulando únicamente `fetch`. |
 | Integración cliente-servidor | Vitest, backend real, Testcontainers | El cliente recibe el catálogo persistido y lo muestra. |
-| Sistema en navegador | [Playwright](https://playwright.dev/), Chromium | La SPA muestra las seis plantillas tras consultar el backend real. |
+| Sistema en navegador | [Playwright](https://playwright.dev/), Chromium, Testcontainers | La SPA muestra las seis plantillas tras consultar el backend real con PostgreSQL desechable. |
 
 `./mvnw verify` genera los informes de [JaCoCo](https://www.jacoco.org/jacoco/) en `backend/target/site/jacoco/`; `npm run test:coverage` genera los de Vitest en `frontend/coverage/`. Ambos builds exigen por separado un mínimo del 70 % de líneas cubiertas. [SonarQube Cloud](https://www.sonarsource.com/products/sonarcloud/) analiza código y cobertura desde el CI y espera el resultado del Quality Gate. [ESLint](https://eslint.org/) y [TypeScript](https://www.typescriptlang.org/) comprueban el cliente.
 
@@ -135,7 +136,7 @@ Al 25 de septiembre de 2026, `main` acumulaba **53 commits** y se habían creado
 
 ### Requisitos y clonación
 
-Se necesita Git, Docker con el motor iniciado, Java y Node.js en las versiones fijadas arriba, npm y un navegador. El servidor usa `localhost:8080`, la SPA `localhost:5173` y PostgreSQL `localhost:5432`; estos puertos deben estar libres. Los scripts de prueba de integración también usan `localhost:8081`.
+Se necesita Git, Docker con el motor iniciado, Java y Node.js en las versiones fijadas arriba, npm y un navegador. El servidor usa `localhost:8080`, la SPA `localhost:5173` y PostgreSQL `localhost:5432`; estos puertos deben estar libres. Las pruebas cliente-servidor y de navegador usan `localhost:8081`; las de navegador también usan `localhost:5174`. Ambas suites deben ejecutarse por separado porque comparten el puerto del backend.
 
 ```bash
 git clone https://github.com/codeurjc-students/2026-INFRACTURE.git
@@ -239,13 +240,15 @@ npm test
 npm run test:coverage
 ```
 
+Estos comandos incluyen las pruebas de integración del frontend, sin backend ni Docker. La integración cliente-servidor se ejecuta por separado con el comando siguiente.
+
 Desde la raíz, para probar el cliente contra el backend real con PostgreSQL desechable:
 
 ```bash
 ./scripts/test-client-server-integration.sh
 ```
 
-Para la prueba de sistema en Chromium, instala el navegador una vez y ejecuta Playwright desde `frontend/`. Playwright arranca la aplicación mediante `scripts/start-dev.sh` y necesita libres los puertos de desarrollo:
+Para la prueba de sistema en Chromium, instala el navegador una vez y ejecuta Playwright desde `frontend/`. Playwright mantiene el backend de pruebas mediante `scripts/test-client-server-integration.sh --serve`, con PostgreSQL desechable de Testcontainers y datos iniciales de Flyway. Arranca Vite en el puerto 5174 y dirige sus peticiones al backend en el 8081; ambos puertos deben estar libres. No reutiliza servidores existentes ni utiliza el PostgreSQL de desarrollo. Al terminar, detiene los procesos de prueba y se elimina el contenedor desechable:
 
 ```bash
 npx playwright install chromium

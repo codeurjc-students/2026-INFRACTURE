@@ -25,6 +25,8 @@ El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-E
 
 ### Changed
 
+- Las pruebas de la ruta del catálogo integran el cliente HTTP real y la vista, simulando `fetch` para comprobar carga, contenido, vacío y errores HTTP o de red.
+- La prueba de sistema en Chromium utiliza el backend con PostgreSQL desechable de Testcontainers, reutilizando el arranque de integración y aislándose de los servidores y datos de desarrollo.
 - El catálogo ordena alfabéticamente por nombre las plantillas habilitadas que muestra la API y la vista, en lugar de seguir el orden del enum.
 - Documentación de Fase 1 dividida por secciones académicas en `docs/`, con el README como portada e índice y el registro de IA trasladado a `docs/`.
 - Alineación de la convención de ramas con GitHub Flow: `main` se mantiene estable, el trabajo usa nombres cortos y descriptivos en inglés y los cambios se integran mediante pull requests.

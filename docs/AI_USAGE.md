@@ -578,6 +578,38 @@ Las fechas iniciales se han comprobado con las marcas temporales del historial d
 - **Verificación:** `./mvnw verify` superó 5 pruebas y el umbral de cobertura; `npm run lint`, `npm run typecheck`, `npm run test:coverage` y `npm run build` finalizaron correctamente, con 9 pruebas frontend y 88,88 % de líneas cubiertas; `./scripts/test-client-server-integration.sh` superó 1 prueba y `npm run test:system` superó 1 caso en Chromium. `git diff --check` no detectó errores. El trabajo se realizó en la rama `sort-catalogue-by-name`.
 
 
+## AI-2026-09-28-042 - Exploración de oportunidades de arquitectura
+
+- **Fecha y fase:** 28 de septiembre de 2026; revisión del catálogo y su entorno de pruebas.
+- **Objetivo y contexto:** el alumno invocó `improve-codebase-architecture` para identificar oportunidades antes de elegir una para profundizar.
+- **Uso de IA y herramientas:** Codex, con la configuración activa de la sesión, aplicó esa skill y `codebase-design`, revisó historial, glosario, ADR, código y pruebas, y utilizó un subagente de lectura para contrastar los hallazgos.
+- **Resultado:** informe HTML temporal fuera del repositorio con dos propuestas: concentrar el entorno desechable de pruebas para cliente-servidor y navegador, y comprobar los fallos del catálogo desde la ruta usando el cliente real. Se respetó la decisión previa de conservar servicio y mapper. Ninguna propuesta se ha implementado ni constituye una decisión aprobada.
+- **Verificación y revisión:** evidencia estática contrastada con los archivos; no se ejecutaron suites. Se revisó `CHANGELOG.md`, sin cambios de producto que registrar. La elección del candidato queda pendiente del alumno.
+
+## AI-2026-09-28-043 - Aislamiento de la prueba de navegador
+
+- **Fecha y fase:** 28 de septiembre de 2026; pruebas de integración de Fase 2.
+- **Objetivo y decisión del alumno:** implementar la primera oportunidad de arquitectura elegida: ejecutar Playwright con el backend real y PostgreSQL desechable de Testcontainers, aislado del entorno de desarrollo.
+- **Uso de IA y herramientas:** Codex aplicó la propuesta revisada, reutilizó el script existente de integración y configuró los dos procesos gestionados por Playwright.
+- **Resultado:** `scripts/test-client-server-integration.sh --serve` mantiene el backend de pruebas en `8081`; Playwright arranca Vite en `5174`, apunta `VITE_API_BASE_URL` a ese backend y no reutiliza servidores existentes. La guía de desarrollo y el changelog reflejan el comportamiento.
+- **Verificación:** `npm run test:system` superó 1 prueba en Chromium; `./scripts/test-client-server-integration.sh` superó 1 prueba de integración cliente-servidor; `npm run lint`, `npm run typecheck`, `bash -n scripts/test-client-server-integration.sh` y `git diff --check` finalizaron correctamente. El trabajo queda sin staging ni commit.
+
+## AI-2026-09-28-044 - Integración del recorrido de carga del catálogo
+
+- **Fecha y fase:** 28 de septiembre de 2026; pruebas del frontend.
+- **Objetivo y decisión del alumno:** implementar la segunda oportunidad de arquitectura después de aclarar que se trata de integración dentro del frontend, sin backend ni navegador real.
+- **Uso de IA y herramientas:** Codex revisó la ruta, el cliente HTTP y sus pruebas; sustituyó el mock del cliente por dobles de `fetch` con respuestas HTTP reales en Vitest y jsdom.
+- **Resultado:** las pruebas de la ruta recorren el cliente HTTP real y comprueban carga, contenido, vacío y el aviso visible ante una respuesta 503 o un fallo de red. Los dobles globales se restauran tras cada caso. Se conservan las pruebas específicas del contrato del cliente, incluida la causa original del error. Se actualizaron la guía y el changelog.
+- **Verificación:** `npm run test:coverage` superó 11 pruebas y el umbral de cobertura, con 88,88 % de líneas; `npm run lint`, `npm run typecheck` y `git diff --check` finalizaron correctamente. Cambios sin staging ni commit.
+
+## AI-2026-09-30-045 - Preparación de la revisión de las pruebas del catálogo
+
+- **Fecha y fase:** 30 de septiembre de 2026; revisión y publicación de los dos cambios de pruebas.
+- **Objetivo y decisión del alumno:** tras revisar el funcionamiento del test de la ruta, el alumno pidió crear la pull request para ambos cambios ya implementados.
+- **Uso de IA y herramientas:** Codex revisó el diff y el estado de GitHub, creó la rama `isolate-catalogue-tests`, activó Docker Desktop para comprobar las suites locales y preparó la descripción de la pull request.
+- **Resultado:** se agrupan en una sola rama el aislamiento de Playwright con Testcontainers, la integración del cliente HTTP real en las pruebas de la ruta y la documentación asociada. No había issues abiertos en el repositorio para vincular.
+- **Verificación:** `./mvnw clean verify` superó 5 pruebas y JaCoCo; `npm run lint`, `npm run typecheck`, `npm run test:coverage` (11 pruebas, 88,88 % de líneas) y `npm run build` finalizaron correctamente; la integración cliente-servidor y Playwright superaron 1 prueba cada uno. `git diff --check` no detectó errores.
+
 ## Plantilla para nuevas entradas
 
 Las nuevas entradas deberán agrupar interacciones que persigan una misma finalidad. No será necesario crear una entrada distinta para cada pregunta o corrección menor.
