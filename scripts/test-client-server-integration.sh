@@ -2,6 +2,11 @@
 
 set -Eeuo pipefail
 
+if (( $# > 1 )) || [[ "${1:-}" != "" && "${1:-}" != "--serve" ]]; then
+  printf 'Usage: %s [--serve]\n' "$0" >&2
+  exit 2
+fi
+
 SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="$(cd -- "${SCRIPT_DIRECTORY}/.." && pwd)"
 BACKEND_DIRECTORY="${REPOSITORY_ROOT}/backend"
@@ -96,6 +101,12 @@ log "Starting Spring Boot with a Testcontainers PostgreSQL database"
 BACKEND_PID=$!
 
 wait_for_backend
+
+if [[ "${1:-}" == "--serve" ]]; then
+  log "Backend ready for browser tests at ${BACKEND_URL}"
+  wait "${BACKEND_PID}"
+  exit $?
+fi
 
 log "Running the real frontend client and catalogue view"
 (

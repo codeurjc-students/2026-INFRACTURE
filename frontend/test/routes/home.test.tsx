@@ -8,16 +8,8 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { HydrateFallback } from "~/root";
-import { getComponentTemplates } from "~/features/component-catalogue/api/component-template-service";
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
 import Home, { clientLoader, ErrorBoundary } from "~/routes/home";
-
-vi.mock(
-  "~/features/component-catalogue/api/component-template-service",
-  () => ({
-    getComponentTemplates: vi.fn(),
-  }),
-);
 
 const componentTemplates: ComponentTemplateDTO[] = [
   {
@@ -69,13 +61,13 @@ function deferred<T>() {
 
 afterEach(() => {
   activeRouters.splice(0).forEach((router) => router.dispose());
-  vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("component catalogue route", () => {
   it("shows the loading state before the catalogue request resolves", async () => {
-    const request = deferred<ComponentTemplateDTO[]>();
-    vi.mocked(getComponentTemplates).mockReturnValue(request.promise);
+    const request = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(request.promise));
 
     renderCatalogueRoute();
 
@@ -84,7 +76,7 @@ describe("component catalogue route", () => {
     );
 
     await act(async () => {
-      request.resolve(componentTemplates);
+      request.resolve(Response.json(componentTemplates));
     });
 
     expect(
@@ -92,8 +84,9 @@ describe("component catalogue route", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the component templates returned by the HTTP boundary", async () => {
-    vi.mocked(getComponentTemplates).mockResolvedValue(componentTemplates);
+  it("renders the component templates returned through the real HTTP client", async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json(componentTemplates));
+    vi.stubGlobal("fetch", fetch);
 
     renderCatalogueRoute();
 
@@ -105,13 +98,26 @@ describe("component catalogue route", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("HTTP_SERVICE")).toBeInTheDocument();
     expect(screen.getByText("http-service")).toBeInTheDocument();
-    expect(getComponentTemplates).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(
+      new URL("/api/v1/component-templates", window.location.origin),
+    );
   });
 
-  it("renders the route error state when the HTTP boundary rejects", async () => {
-    vi.mocked(getComponentTemplates).mockRejectedValue(
-      new Error("Catalogue request failed"),
-    );
+  it("renders the empty state when the HTTP response contains no templates", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([])));
+
+    renderCatalogueRoute();
+
+    expect(
+      await screen.findByText("No component templates are currently available."),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["HTTP failure", () => Promise.resolve(new Response(null, { status: 503 }))],
+    ["network failure", () => Promise.reject(new TypeError("Network unavailable"))],
+  ])("renders the route error state after a %s", async (_failure, respond) => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(respond));
 
     renderCatalogueRoute();
 
