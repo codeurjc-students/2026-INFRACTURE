@@ -49,3 +49,17 @@ Los siguientes bocetos de alta fidelidad representan los tres flujos principales
 ## Uso de herramientas de IA
 
 Durante la Fase 1 se utilizó OpenAI Codex para investigar la temática, comparar referencias y ayudar a definir funcionalidades, pantallas y documentación. En la Fase 2 se ha utilizado como apoyo para explicar tecnologías, preparar la primera vertical técnica, desarrollar pruebas y configurar controles de calidad. El alumno revisa las propuestas y toma las decisiones finales. El detalle de cada uso relevante se conserva en [AI_USAGE.md](docs/AI_USAGE.md).
+
+Para la Fase 3 se ha preparado un workflow híbrido: el alumno elige por issue o fragmento si implementa manualmente, con acompañamiento o delegando tareas concretas. Las skills locales adaptadas de Matt Pocock estructuran planificación, TDD y revisión; la verificación basada en pstack aporta evidencias de recorridos reales. Engram sirve de memoria suplementaria. La documentación, el código y las pruebas siguen siendo la referencia, y el alumno conserva la revisión y el commit.
+
+### Arquitectura de asistencia con IA
+
+[![Arquitectura de asistencia: Codex, documentación, Engram, skills, GitHub y revisión humana](docs/images/ai-workflow/ai-assistance-architecture.png)](docs/images/ai-workflow/ai-assistance-architecture.png)
+
+### Flujo híbrido de desarrollo
+
+El siguiente diagrama describe el procedimiento de trabajo acordado, desde la planificación hasta la entrega; no indica que los issues de Fase 3 ya estén implementados. Los nombres abreviados de implementación, TDD y revisión corresponden a las variantes locales `infracture-*`.
+
+[![Flujo híbrido: planificación por issues, elección humana, implementación, revisión, verificación y commit manual](docs/images/ai-workflow/ai-development-workflow.png)](docs/images/ai-workflow/ai-development-workflow.png)
+
+Las imágenes se pueden abrir para ampliar. [Whiteboard editable y referencias de las herramientas](https://www.tldraw.com/f/r_lZFRh_DcUIS4ObgfbN1).

@@ -1,0 +1,5 @@
+# Las bases de datos de trabajo son locales; se versionan las exportaciones.
+*.db
+*.db-wal
+*.db-shm
+*.db-journal

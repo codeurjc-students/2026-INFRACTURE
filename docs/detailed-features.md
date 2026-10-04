@@ -6,7 +6,7 @@ Las funcionalidades se agrupan en tres niveles de prioridad. En cada tabla se in
 
 | Funcionalidad | Tipo de usuario | Descripción |
 | --- | --- | --- |
-| Consulta pública | Anónimo, registrado y administrador | Consultar la información pública, proyectos publicados, perfiles públicos y retos disponibles. |
+| Consulta pública | Anónimo, registrado y administrador | Consultar la información pública, proyectos publicados, perfiles públicos. |
 | Registro, acceso y perfil | Registrado y administrador | Crear una cuenta, iniciar sesión con correo y contraseña, cerrar sesión, editar el perfil y subir un avatar. |
 | Gestión de proyectos | Registrado y administrador | Crear, consultar, editar y eliminar proyectos propios. Serán privados por defecto y podrán publicarse voluntariamente. |
 | Escenarios y canvas | Registrado y administrador | Crear escenarios dentro de un proyecto y guardar su definición antes de ejecutar. |
@@ -14,7 +14,7 @@ Las funcionalidades se agrupan en tres niveles de prioridad. En cada tabla se in
 | Conexiones y validación | Registrado y administrador | Conectar componentes compatibles y detectar configuraciones incompletas o inválidas. |
 | Ejecución local | Registrado y administrador | Ejecutar un escenario validado sobre Docker en una red aislada y detenerlo con limpieza de recursos. Solo habrá una ejecución activa en la instancia local. |
 | Observación e historial | Registrado y administrador | Consultar estados, logs resumidos, eventos, métricas y el historial de las ejecuciones propias. |
-| Administración | Administrador | Gestionar usuarios, plantillas del catálogo y contenido de los laboratorios. |
+| Administración | Administrador | Gestionar usuarios y plantillas del catálogo. |
 
 ## Funcionalidad intermedia
 
@@ -28,6 +28,8 @@ Las funcionalidades se agrupan en tres niveles de prioridad. En cada tabla se in
 | Gestión de imágenes | Registrado y administrador | Subir avatares, portadas e iconos de las plantillas mediante almacenamiento local. |
 
 ## Funcionalidad avanzada
+
+La consulta, creación, edición, publicación, retirada y realización de laboratorios pertenecen íntegramente a este nivel. Quedan fuera del alcance básico de Fase 3, según la decisión del alumno del 2 de octubre de 2026.
 
 | Funcionalidad | Tipo de usuario | Descripción |
 | --- | --- | --- |

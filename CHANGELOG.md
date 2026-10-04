@@ -2,7 +2,7 @@
 
 Este fichero registra los cambios relevantes incorporados a Infracture Local. El proyecto todavía no ha publicado una versión, por lo que los cambios permanecen en `Unreleased`.
 
-El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las funcionalidades planificadas no se incluyen hasta que se implementan; las decisiones y especificaciones se identifican como documentación.
+El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Se registran cambios relevantes de producto, calidad, infraestructura y documentación compartida. Las funcionalidades planificadas se incorporan cuando se implementan; la configuración personal de IA y el detalle de las sesiones se registran en `docs/AI_USAGE.md`.
 
 ## [Unreleased]
 
@@ -25,6 +25,9 @@ El formato sigue las ideas de [Keep a Changelog](https://keepachangelog.com/es-E
 
 ### Changed
 
+- Documentación del uso de IA ampliada con diagramas de arquitectura y flujo híbrido; registro de preparación agrupado por finalidad.
+- Aclarado en la especificación funcional que la consulta y administración de laboratorios pertenecen al nivel avanzado, fuera del alcance básico de Fase 3; cambio documental, sin implementación de producto.
+- Ampliación de las pruebas E2E del catálogo con comprobaciones de API, campos visibles y recarga, evidencias adjuntas y un recorrido de página inexistente y retorno.
 - Las pruebas de la ruta del catálogo integran el cliente HTTP real y la vista, simulando `fetch` para comprobar carga, contenido, vacío y errores HTTP o de red.
 - La prueba de sistema en Chromium utiliza el backend con PostgreSQL desechable de Testcontainers, reutilizando el arranque de integración y aislándose de los servidores y datos de desarrollo.
 - El catálogo ordena alfabéticamente por nombre las plantillas habilitadas que muestra la API y la vista, en lugar de seguir el orden del enum.
