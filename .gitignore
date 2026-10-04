@@ -1,3 +1,7 @@
 /.local-docs/
+/.agents/skills/
+/docs/PHASE_3_GUIDE.md
+/docs/PHASE_3_SCOPE.md
+/docs/images/phase-3-guide/
 .DS_Store
 .vscode/
