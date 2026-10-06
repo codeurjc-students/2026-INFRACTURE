@@ -44,6 +44,14 @@ _Avoid_: ExecutionEvent, failure
 
 ## Catálogo controlado
 
+**ComponentType**:
+Familia de comportamiento de un componente. El catálogo inicial admite HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ.
+_Avoid_: ComponentTemplate, Component
+
+**ComponentTemplate**:
+Ficha reutilizable del catálogo que pertenece a un ComponentType y reúne un nombre, un icono y una configuración inicial permitida. El administrador puede crear varias fichas del mismo tipo.
+_Avoid_: ComponentType, Component, Docker image
+
 **Template contract**:
 Definición versionada que establece la configuración, capacidades, dependencias y conectores permitidos para una ComponentTemplate.
 _Avoid_: Free-form JSON, Docker configuration

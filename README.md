@@ -40,6 +40,9 @@ Los siguientes bocetos de alta fidelidad representan los tres flujos principales
 - [Metodología](docs/methodology.md)
 - [Funcionalidades detalladas](docs/detailed-features.md)
 - [Análisis](docs/analysis.md)
+- [Glosario del dominio](GLOSSARY.md)
+- [Spec completa de Fase 3](docs/PHASE_3_SPEC.md) — [issue #60](https://github.com/codeurjc-students/2026-INFRACTURE/issues/60). Conservar la copia local en español y la traducción inglesa de #60 con alcance e identificadores equivalentes; sus textos y huellas difieren por el idioma. Ambas incorporan las versiones fijadas por la guía.
+- [Plan de implementación de Fase 3 en GitHub](https://github.com/codeurjc-students/2026-INFRACTURE/issues/60) — spec con el orden global de trabajo; 12 padres y 60 subissues con criterios, pruebas y dependencias. Implementación pendiente.
 - [Seguimiento](docs/tracking.md)
 - [Autores](docs/authors.md)
 - [Guía de desarrollo](docs/development-guide.md)
@@ -62,4 +65,4 @@ El siguiente diagrama describe el procedimiento de trabajo acordado, desde la pl
 
 [![Flujo híbrido: planificación por issues, elección humana, implementación, revisión, verificación y commit manual](docs/images/ai-workflow/ai-development-workflow.png)](docs/images/ai-workflow/ai-development-workflow.png)
 
-Las imágenes se pueden abrir para ampliar. [Whiteboard editable y referencias de las herramientas](https://www.tldraw.com/f/r_lZFRh_DcUIS4ObgfbN1).
+Las imágenes se pueden abrir para ampliar. [Whiteboard editable y referencias de las herramientas](https://www.tldraw.com/f/r_lZFRh_DcUIS4ObgfbN1?d=v-903.1912.4440.2792.page).
