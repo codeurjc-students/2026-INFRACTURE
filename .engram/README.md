@@ -27,8 +27,7 @@ gzip -dc .engram/chunks/NOMBRE_DEL_FRAGMENTO.jsonl.gz
 
 Sustituir el nombre por el archivo generado. La exportación no hace staging,
 commit ni push: el alumno controla esos pasos. No usar `--all`, que exportaría
-otros proyectos. La etiqueta `personal` tampoco excluye recuerdos de la
-exportación: guardar aquí solo contexto del TFG destinado a compartirse.
+otros proyectos. Guardar aquí solo contexto del TFG destinado a compartirse.
 
 ## Recuperar contexto en otro equipo
 
@@ -43,17 +42,6 @@ El plugin de Codex también intenta importar al iniciar una sesión si existe
 el manifiesto. Tras recuperar memoria, contrastarla con la documentación,
 el estado de Git, el código y las pruebas actuales, especialmente después
 de cambios manuales.
-
-## Verificación de la configuración
-
-El 3 de octubre de 2026 se verificó el guardado desde Codex con su sesión
-registrada, la búsqueda del recuerdo y su exportación a `chunks/` y
-`manifest.json`. La importación se comprobó en una base temporal vacía,
-recuperando el recuerdo sin modificar la base de trabajo.
-
-Tras esa comprobación, el alumno pidió dejar la memoria vacía: se eliminaron
-los recuerdos, prompts, sesiones y exportaciones de prueba, conservando la
-configuración.
 
 Las exportaciones incluyen también prompts y metadatos de sesión: revisar
 el contenido completo antes de publicarlo.

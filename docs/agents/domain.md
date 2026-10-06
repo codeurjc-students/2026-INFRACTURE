@@ -5,7 +5,7 @@ Use a single domain context for Infracture. Backend and frontend share the produ
 ## Before exploring the domain
 
 1. Read the repository-root [README](../../README.md) and its linked product documentation for scope, functionality, entities and analysis. Use only sources inside this working repository.
-2. If a root `GLOSSARY.md` exists, read it and use its terms consistently in issues, code and tests. If absent, proceed with the existing product terminology; create or extend a glossary only when an explicitly invoked domain workflow resolves terms. Avoid duplicate glossaries.
+2. If the root [GLOSSARY.md](../../GLOSSARY.md) exists, read it and use its terms consistently in issues, code and tests. If absent, proceed with the existing product terminology; create or extend a glossary only when an explicitly invoked domain workflow resolves terms. Avoid duplicate glossaries.
 3. Read the relevant decisions in `docs/adr/` and [execution architecture](../EXECUTION_ARCHITECTURE.md) when the subject concerns execution. Preserve existing locations and surface conflicts with accepted decisions explicitly.
 4. Inspect current code, tests and Git changes to distinguish documented plans from implemented behavior. Engram supplies supplementary context; current project sources and evidence govern decisions.
 

@@ -560,6 +560,8 @@ Estos nombres son conceptuales. Podrán cambiar al diseñar los módulos y clase
 
 ## 16. Prototipo vertical recomendado
 
+**Contexto del diseño inicial.** El recorrido siguiente explora también funcionalidades intermedias. Para Fase 3, el primer hito P06 demuestra HTTP Service y carga desde el backend contenedorizado, con salud, observación, Stop y limpieza; las dependencias se incorporan después. La latencia controlada y la parada/reinicio de un componente conservando la ejecución no se incluyen por este prototipo en el alcance básico.
+
 Antes de desarrollar todo el catálogo se validará el recorrido de extremo a extremo con:
 
 ```text

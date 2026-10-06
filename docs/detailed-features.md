@@ -10,7 +10,7 @@ Las funcionalidades se agrupan en tres niveles de prioridad. En cada tabla se in
 | Registro, acceso y perfil | Registrado y administrador | Crear una cuenta, iniciar sesión con correo y contraseña, cerrar sesión, editar el perfil y subir un avatar. |
 | Gestión de proyectos | Registrado y administrador | Crear, consultar, editar y eliminar proyectos propios. Serán privados por defecto y podrán publicarse voluntariamente. |
 | Escenarios y canvas | Registrado y administrador | Crear escenarios dentro de un proyecto y guardar su definición antes de ejecutar. |
-| Catálogo de componentes | Registrado y administrador | Utilizar exclusivamente seis plantillas controladas: HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ. |
+| Catálogo de componentes | Registrado y administrador | Utilizar fichas de seis tipos controlados: HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ. El administrador puede crear variantes de estos tipos con nombre, icono y valores iniciales dentro de contratos reconocidos. |
 | Conexiones y validación | Registrado y administrador | Conectar componentes compatibles y detectar configuraciones incompletas o inválidas. |
 | Ejecución local | Registrado y administrador | Ejecutar un escenario validado sobre Docker en una red aislada y detenerlo con limpieza de recursos. Solo habrá una ejecución activa en la instancia local. |
 | Observación e historial | Registrado y administrador | Consultar estados, logs resumidos, eventos, métricas y el historial de las ejecuciones propias. |
@@ -25,7 +25,9 @@ Las funcionalidades se agrupan en tres niveles de prioridad. En cada tabla se in
 | Latencia controlada | Registrado y administrador | Introducir y retirar latencia en una conexión compatible y registrar la acción. |
 | Análisis de ejecución | Registrado y administrador | Comparar el estado esperado y el observado, consultar eventos y representar métricas con gráficos. |
 | Comunidad de proyectos | Registrado y administrador | Seguir perfiles, marcar proyectos públicos con estrellas y clonar un proyecto público como copia privada. |
-| Gestión de imágenes | Registrado y administrador | Subir avatares, portadas e iconos de las plantillas mediante almacenamiento local. |
+| Gestión de imágenes | Registrado y administrador | Avatar y subida administrativa de iconos incluidos en Fase 3. Las portadas de proyectos se generan desde el escenario elegido; no admiten subida de fotografías. |
+
+**Ajustes acordados para Fase 3:** el avatar, los iconos administrables y las portadas automáticas forman parte de la entrega básica según el acuerdo del 2 de octubre de 2026; la fila conserva la agrupación de imágenes del diseño inicial. La gráfica temporal de CPU y memoria por componente también se incluye; las comparaciones y el análisis de impacto siguen en el nivel intermedio. Las variantes de catálogo se acordaron durante el grill del 4 de octubre. Estos acuerdos documentan el alcance previsto, sin acreditar su implementación.
 
 ## Funcionalidad avanzada
 

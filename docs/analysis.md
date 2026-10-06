@@ -193,7 +193,7 @@ Después de validar, el backend traducirá el grafo a nombres de red, variables 
 
 El administrador podrá mantener los metadatos, formularios y disponibilidad de las plantillas. La lógica ejecutable se identificará mediante una versión de contrato y se resolverá en el backend. La configuración, los objetivos y las reglas se representarán con tipos de dominio validados, aunque algunos se persistan como `jsonb`; no se compartirán mapas JSON sin contrato entre módulos. Protocolo, puerto, obligatoriedad y demás detalles técnicos de una conexión se derivarán del conector autorizado, sin admitir texto libre del usuario. Una plantilla deshabilitada no podrá añadirse a nuevos diseños; los escenarios anteriores seguirán siendo consultables y solo podrán volver a ejecutarse si su versión de contrato continúa habilitada para ejecución.
 
-La incorporación de un nuevo perfil ejecutable deberá respetar el contrato controlado y ser validada por el backend; nunca se traducirá texto libre del usuario en comandos Docker. Estos contratos se comprobarán al comienzo de la Fase 2 mediante un prototipo vertical antes de desarrollar el motor completo.
+La incorporación de un nuevo perfil ejecutable deberá respetar el contrato controlado y ser validada por el backend; nunca se traducirá texto libre del usuario en comandos Docker. El diseño inicial situaba su comprobación mediante un prototipo vertical al comienzo de Fase 2. La preparación actual la sitúa en el bloque P06 de Fase 3, antes de completar el motor, con HTTP Service y carga; los fallos controlados quedan para funcionalidad posterior.
 
 ### Ejecución y observabilidad
 
@@ -375,8 +375,9 @@ Los conceptos visibles en el perfil se calculan reuniendo, sin duplicados, los a
 Se permitirá subir imágenes desde el navegador para:
 
 - el avatar de un usuario;
-- la portada de un proyecto;
 - el icono de una plantilla de componente administrada.
+
+**Portadas acordadas el 2 de octubre de 2026:** la propuesta inicial de subir una portada se sustituyó por una miniatura automática del grafo del escenario elegido. Se actualiza al guardar ese escenario; el propietario puede elegir otro. Si no hay grafo, se utiliza el logo. No se permite subir fotografías como portada. Este acuerdo forma parte del alcance previsto de Fase 3, junto con avatar e iconos, sin afirmar que ya esté implementado.
 
 Las imágenes se almacenarán en MinIO ejecutado localmente. La base de datos guardará la clave del objeto y se validarán el tipo y el tamaño antes de aceptarlo. Esta decisión fue [ratificada con el tutor](adr/0001-minio-para-almacenamiento-de-imagenes.md).
 
