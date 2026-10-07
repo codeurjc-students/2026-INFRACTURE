@@ -73,16 +73,14 @@ When the student requests real application verification directly or through `inf
 
 ### Explanations and human understanding
 
-Make the work understandable so the student can review decisions and continue implementation manually. These communication requirements apply proactively; the student should not have to request them each time.
+Make the work understandable so the student can review decisions and continue implementation manually. Apply the writing guidance below and match the requested scope and deliverable.
 
 - **Clear text is required.** Use plain, concrete language, short sentences and consistent terminology, inspired by a flexible ASD-STE100 style rather than claiming formal compliance. Reply in Spanish when the student uses Spanish. Explain unfamiliar terms and connect the purpose, behavior and evidence before adding implementation detail.
-- **Use diagrams for structural explanations.** When explaining architecture, relationships, process flows or interactions across components, include a diagram that makes those connections visible. Use the actual project names and distinguish implemented behavior from proposals.
-- **Use interactive HTML for exploration.** When understanding depends on changing inputs, comparing scenarios or following state changes, provide a focused interactive HTML explanation or visualization. Keep it separate from production code unless its integration is requested. Make controls and outputs understandable, and label simulated data and assumptions.
-
-Choose the simplest format that explains the subject well. Simple factual answers and routine status updates can remain text-only; a substantial explanation should not default to a wall of text when a diagram or interactive view would clarify it. These artifacts support human understanding and complement verification; they do not replace tests or evidence.
 
 ### Traceability and delivery
 
-Review `docs/AI_USAGE.md` during every work block and add one grouped entry when AI produced a material decision, result, configuration change, or notable tool use. Leave changes unstaged, and obtain the student's explicit approval before staging, committing, pushing, opening a pull request, or closing an issue.
+Assess traceability against the final contribution to Infracture. Follow the [changelog and release-note policy](docs/tracking.md#changelog-y-notas-de-versión) and the [AI recording criteria](docs/AI_USAGE.md#criterio-de-registro). Assessment may result in no edits to either record; changing a repository file alone does not justify an entry.
 
-Review `CHANGELOG.md` during every work block and update `Unreleased` when the work introduces a relevant change. Record only changes already incorporated into the repository, identify documentation and decisions explicitly, and never present planned functionality as implemented.
+`CHANGELOG.md` records notable delivered changes, not plans, decisions or session activity. `docs/AI_USAGE.md` records material AI contributions to application development, updating an existing topic before creating another. Personal/local agent configuration, routine Git operations and conversations without a development contribution belong in neither record. Review each proposed entry for relevance, evidence and duplication; maintaining these records does not itself require another entry.
+
+Leave changes unstaged, preserving the existing index. Obtain the student's explicit approval before staging, committing, pushing, opening a pull request, publishing a release or closing an issue.
