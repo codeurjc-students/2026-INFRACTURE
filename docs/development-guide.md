@@ -1,6 +1,6 @@
 # Guía de desarrollo
 
-Esta guía describe el estado técnico de Infracture Local durante la Fase 2. La aplicación completa definida en la [documentación funcional](detailed-features.md) todavía no es funcional: la vertical disponible permite consultar un catálogo persistido de seis plantillas. Los comandos se ejecutan desde la raíz del repositorio salvo que se indique otro directorio.
+Esta guía describe la vertical del catálogo de Infracture Local, iniciada en Fase 2 y ampliada con paginación en Fase 3. La aplicación completa definida en la [documentación funcional](detailed-features.md) todavía no es funcional. El catálogo parte de seis plantillas y permite variantes del mismo tipo. Los comandos se ejecutan desde la raíz del repositorio salvo que se indique otro directorio.
 
 ## Índice
 
@@ -85,17 +85,21 @@ En desarrollo, **Vite, Spring Boot y PostgreSQL son procesos independientes**; l
 
 La [documentación OpenAPI en HTML](https://raw.githack.com/codeurjc-students/2026-INFRACTURE/main/docs/api/api-docs.html) se publica a partir del [HTML generado](api/api-docs.html), servido mediante raw.githack.com como indica la guía académica. También están disponibles el [contrato YAML](api/api-docs.yaml) y, con el backend en marcha, la [interfaz Swagger local](http://localhost:8080/swagger-ui.html).
 
+`GET /api/v1/component-templates` devuelve JSON con `content` y `page` (`number`, `size`, `totalElements`, `totalPages`). Acepta `page` desde 0 y `size` entre 1 y 100; sus valores por defecto son 0 y 10. El filtro opcional `q` busca por nombre sin distinguir mayúsculas y recorta espacios exteriores; `type` admite los seis valores del enum. La consulta incluye solo plantillas habilitadas y ordena por nombre y clave antes de paginar.
+
+Un número no válido, una página negativa, un tamaño fuera del rango o un tipo desconocido devuelve HTTP `400` mediante los errores estándar de Spring. No hay un DTO de error propio. Una página posterior a la última devuelve `content` vacío y conserva los totales; si `page * size` supera `Integer.MAX_VALUE`, JPA puede devolver `500`. La interfaz carga diez entradas y permite añadir las siguientes con **More results**, conservando las anteriores al reintentar un fallo. Los filtros están disponibles en la API; sus controles visuales quedan aplazados.
+
 ## Control de calidad
 
 | Nivel | Herramientas | Comportamiento verificado |
 | --- | --- | --- |
 | Unitarias del servidor | [JUnit](https://junit.org/junit5/), [Mockito](https://site.mockito.org/), [AssertJ](https://assertj.github.io/doc/) | Delegación de la consulta ordenada del servicio y respuesta vacía. |
-| Integración de persistencia | Spring Boot, Flyway, [Testcontainers](https://java.testcontainers.org/) | Migración, datos iniciales y lectura alfabética del repositorio sobre PostgreSQL desechable. |
-| Sistema de API | Spring Boot, [REST Assured](https://rest-assured.io/), Testcontainers | `GET /api/v1/component-templates` por HTTP real: estado, tipo, cantidad, orden alfabético y datos. |
+| Integración de persistencia | Spring Boot, Flyway, [Testcontainers](https://java.testcontainers.org/) | Actualización V2→V3 con datos previos, variantes, claves únicas, tipos permitidos y filtros antes de paginar sobre PostgreSQL desechable. |
+| Sistema de API | Spring Boot, [REST Assured](https://rest-assured.io/), Testcontainers | `GET /api/v1/component-templates` por HTTP real: páginas, filtros, orden, metadatos y rechazo de parámetros inválidos. |
 | Unitarias del cliente | [Vitest](https://vitest.dev/), [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) | Contrato del cliente HTTP y comportamiento del documento raíz. |
-| Integración del frontend | Vitest, Testing Library, jsdom | Ruta, cliente HTTP real y vista: carga, contenido, vacío y aviso ante fallos HTTP o de red, simulando únicamente `fetch`. |
+| Integración del frontend | Vitest, Testing Library, jsdom | Ruta y vista con el cliente HTTP: carga, contenido, vacío y reintento ante un fallo HTTP, simulando únicamente `fetch`. |
 | Integración cliente-servidor | Vitest, backend real, Testcontainers | El cliente recibe el catálogo persistido y lo muestra. |
-| Sistema en navegador | [Playwright](https://playwright.dev/), Chromium, Testcontainers | La SPA muestra las seis plantillas tras consultar el backend real con PostgreSQL desechable. |
+| Sistema en navegador | [Playwright](https://playwright.dev/), Chromium, Testcontainers | La SPA carga diez de doce plantillas, añade la última página sin duplicados y permite reintentar fallos de red inyectados contra el backend real. |
 
 `./mvnw verify` genera los informes de [JaCoCo](https://www.jacoco.org/jacoco/) en `backend/target/site/jacoco/`; `npm run test:coverage` genera los de Vitest en `frontend/coverage/`. Ambos builds exigen por separado un mínimo del 70 % de líneas cubiertas. [SonarQube Cloud](https://www.sonarsource.com/products/sonarcloud/) analiza código y cobertura desde el CI y espera el resultado del Quality Gate. [ESLint](https://eslint.org/) y [TypeScript](https://www.typescriptlang.org/) comprueban el cliente.
 
@@ -190,7 +194,7 @@ Abre la carpeta del repositorio en Visual Studio Code. Para editar Java con auto
 
 Desde la terminal integrada, ejecuta `docker compose` en la raíz, Maven Wrapper en `backend/` y npm en `frontend/`, como se muestra arriba.
 
-Para interactuar con la API, mantén PostgreSQL y el backend en marcha e importa en Postman la [colección del proyecto](api/infracture.postman_collection.json). Abre **Get Component Templates** y pulsa **Send**: la petición `GET {{baseUrl}}/api/v1/component-templates` debe responder `200 OK` con las seis plantillas. La colección ya define `baseUrl` como `http://localhost:8080`. Es la única operación REST implementada actualmente.
+Para interactuar con la API, mantén PostgreSQL y el backend en marcha e importa en Postman la [colección del proyecto](api/infracture.postman_collection.json). Abre **Get Component Templates** y pulsa **Send**: la petición `GET {{baseUrl}}/api/v1/component-templates` debe responder `200 OK` con una página que contiene las seis plantillas iniciales en `content`. Prueba `?q=worker&type=WORKER&page=0&size=2` para combinar filtros y paginación. La colección ya define `baseUrl` como `http://localhost:8080`. Es la única operación REST implementada actualmente.
 
 Al terminar el arranque manual, detén cliente y backend con `Ctrl+C`. Desde la raíz, detén PostgreSQL sin borrar sus datos:
 

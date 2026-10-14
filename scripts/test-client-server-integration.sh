@@ -59,7 +59,7 @@ wait_for_backend() {
   log "Waiting for Spring Boot and Flyway at ${BACKEND_URL}"
 
   until curl --fail --silent --show-error \
-    "${BACKEND_URL}/actuator/health" >/dev/null 2>&1; do
+    "${BACKEND_URL}/actuator/health/readiness" >/dev/null 2>&1; do
     if ! kill -0 "${BACKEND_PID}" >/dev/null 2>&1; then
       wait "${BACKEND_PID}" || true
       show_backend_log

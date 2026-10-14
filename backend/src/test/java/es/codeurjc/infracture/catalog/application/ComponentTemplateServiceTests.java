@@ -1,14 +1,16 @@
 package es.codeurjc.infracture.catalog.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
@@ -20,43 +22,24 @@ class ComponentTemplateServiceTests {
     private final ComponentTemplateService service = new ComponentTemplateService(repository);
 
     @Test
-    void returnsEnabledTemplatesFromRepository() {
-        ComponentTemplate rabbitMq = new ComponentTemplate(
-                "rabbitmq",
-                "RabbitMQ",
-                ComponentType.RABBITMQ,
-                true);
-        ComponentTemplate httpService = new ComponentTemplate(
-                "http-service",
-                "HTTP Service",
-                ComponentType.HTTP_SERVICE,
-                true);
-        ComponentTemplate postgresql = new ComponentTemplate(
-                "postgresql",
-                "PostgreSQL",
-                ComponentType.POSTGRESQL,
-                true);
-        when(repository.findAllByEnabledTrueOrderByNameAsc())
-                .thenReturn(List.of(rabbitMq, httpService, postgresql));
+    void returnsEmptyPageWithoutATypeFilter() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<ComponentTemplate> result = Page.empty(pageable);
+        when(repository.findAllByEnabledTrueAndNameContainingIgnoreCaseOrderByNameAscKeyAsc("", pageable))
+                .thenReturn(result);
 
-        List<ComponentTemplate> result = service.getEnabledTemplates();
-
-        assertThat(result)
-                .extracting(ComponentTemplate::getKey, ComponentTemplate::getName, ComponentTemplate::getType)
-                .containsExactly(
-                        tuple("rabbitmq", "RabbitMQ", ComponentType.RABBITMQ),
-                        tuple("http-service", "HTTP Service", ComponentType.HTTP_SERVICE),
-                        tuple("postgresql", "PostgreSQL", ComponentType.POSTGRESQL));
-        verify(repository).findAllByEnabledTrueOrderByNameAsc();
+        assertThat(service.getEnabledTemplates(pageable, "   ", null)).isSameAs(result);
     }
 
     @Test
-    void returnsEmptyCatalogueWhenNoEnabledTemplatesExist() {
-        when(repository.findAllByEnabledTrueOrderByNameAsc()).thenReturn(List.of());
+    void trimsSearchAndReturnsPageForRequestedType() {
+        Pageable pageable = PageRequest.of(0, 10);
+        ComponentTemplate redis = new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true);
+        Page<ComponentTemplate> result = new PageImpl<>(List.of(redis), pageable, 1);
+        when(repository.findAllByEnabledTrueAndTypeAndNameContainingIgnoreCaseOrderByNameAscKeyAsc(
+                ComponentType.REDIS, "redis", pageable))
+                .thenReturn(result);
 
-        List<ComponentTemplate> result = service.getEnabledTemplates();
-
-        assertThat(result).isEmpty();
-        verify(repository).findAllByEnabledTrueOrderByNameAsc();
+        assertThat(service.getEnabledTemplates(pageable, "  redis  ", ComponentType.REDIS)).isSameAs(result);
     }
 }

@@ -21,7 +21,7 @@ export default defineConfig({
       command: "./scripts/test-client-server-integration.sh --serve",
       cwd: "..",
       name: "Testcontainers backend",
-      url: "http://127.0.0.1:8081/actuator/health",
+      url: "http://127.0.0.1:8081/actuator/health/readiness",
       reuseExistingServer: false,
       timeout: 120_000,
       gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },

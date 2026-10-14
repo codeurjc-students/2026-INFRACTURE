@@ -1,13 +1,15 @@
 package es.codeurjc.infracture.catalog.api;
 
-import java.util.List;
-
-import org.springframework.http.MediaType;
+import es.codeurjc.infracture.catalog.application.ComponentTemplateService;
+import es.codeurjc.infracture.catalog.domain.ComponentType;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import es.codeurjc.infracture.catalog.application.ComponentTemplateService;
 
 @RestController
 @RequestMapping("/api/v1/component-templates")
@@ -17,14 +19,23 @@ public class ComponentTemplateController {
     private final ComponentTemplateMapper mapper;
 
     public ComponentTemplateController(
-            ComponentTemplateService service,
-            ComponentTemplateMapper mapper) {
+        ComponentTemplateService service,
+        ComponentTemplateMapper mapper
+    ) {
         this.service = service;
         this.mapper = mapper;
     }
 
-    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<ComponentTemplateDTO> getComponentTemplates() {
-        return mapper.toDTOs(service.getEnabledTemplates());
+    @GetMapping
+    public Page<ComponentTemplateDTO> getComponentTemplates(
+        @RequestParam(defaultValue = "") String q,
+        @RequestParam(required = false) ComponentType type,
+        @RequestParam(defaultValue = "0") @Min(0) int page,
+        @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
+    ) {
+        PageRequest pageable = PageRequest.of(page, size);
+        return service
+            .getEnabledTemplates(pageable, q, type)
+            .map(mapper::toDTO);
     }
 }

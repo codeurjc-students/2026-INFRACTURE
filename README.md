@@ -41,8 +41,6 @@ Los siguientes bocetos de alta fidelidad representan los tres flujos principales
 - [Funcionalidades detalladas](docs/detailed-features.md)
 - [Análisis](docs/analysis.md)
 - [Glosario del dominio](GLOSSARY.md)
-- [Spec completa de Fase 3](docs/PHASE_3_SPEC.md) — [issue #60](https://github.com/codeurjc-students/2026-INFRACTURE/issues/60). Conservar la copia local en español y la traducción inglesa de #60 con alcance e identificadores equivalentes; sus textos y huellas difieren por el idioma. Ambas incorporan las versiones fijadas por la guía.
-- [Plan de implementación de Fase 3 en GitHub](https://github.com/codeurjc-students/2026-INFRACTURE/issues/60) — spec con el orden global de trabajo; 12 padres y 60 subissues con criterios, pruebas y dependencias. Implementación pendiente.
 - [Seguimiento](docs/tracking.md)
 - [Autores](docs/authors.md)
 - [Guía de desarrollo](docs/development-guide.md)

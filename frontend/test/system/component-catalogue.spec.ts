@@ -5,7 +5,7 @@ test("renders the persisted catalogue through the real application", async ({
   request,
 }, testInfo) => {
   await test.step("Doctor: disposable backend is healthy", async () => {
-    const health = await request.get("http://127.0.0.1:8081/actuator/health");
+    const health = await request.get("http://127.0.0.1:8081/actuator/health/readiness");
     expect(health.ok()).toBeTruthy();
     expect(await health.json()).toMatchObject({ status: "UP" });
   });
@@ -17,7 +17,12 @@ test("renders the persisted catalogue through the real application", async ({
     "RabbitMQ",
     "Redis",
     "Worker",
+    "Worker variant 1",
+    "Worker variant 2",
+    "Worker variant 3",
+    "Worker variant 4",
   ];
+  const allNames = [...expectedNames, "Worker variant 5", "Worker variant 6"];
 
   const templates = await test.step("Read the public catalogue API", async () => {
     const response = await request.get(
@@ -25,9 +30,10 @@ test("renders the persisted catalogue through the real application", async ({
     );
     expect(response.status()).toBe(200);
     const body = await response.json();
-    expect(body).toHaveLength(6);
-    expect(body.map((item: { name: string }) => item.name)).toEqual(expectedNames);
-    for (const item of body) {
+    expect(body.content).toHaveLength(10);
+    expect(body.page).toEqual({ size: 10, number: 0, totalElements: 12, totalPages: 2 });
+    expect(body.content.map((item: { name: string }) => item.name)).toEqual(expectedNames);
+    for (const item of body.content) {
       expect(Object.keys(item).sort()).toEqual(["key", "name", "type"]);
       expect(item.key).toEqual(expect.any(String));
       expect(item.type).toEqual(expect.any(String));
@@ -36,7 +42,10 @@ test("renders the persisted catalogue through the real application", async ({
       body: JSON.stringify(body, null, 2),
       contentType: "application/json",
     });
-    return body as { key: string; name: string; type: string }[];
+    return body as {
+      content: { key: string; name: string; type: string }[];
+      page: { size: number; number: number; totalElements: number; totalPages: number };
+    };
   });
 
   await test.step("Open the catalogue through the browser and real API proxy", async () => {
@@ -54,13 +63,51 @@ test("renders the persisted catalogue through the real application", async ({
     await expect(
       page.getByRole("list").getByRole("heading", { level: 2 }),
     ).toHaveText(expectedNames);
-    for (const template of templates) {
+    for (const template of templates.content) {
       const card = page.getByRole("listitem").filter({
         has: page.getByRole("heading", { name: template.name, exact: true }),
       });
       await expect(card.getByText(template.key, { exact: true })).toBeVisible();
       await expect(card.getByText(template.type, { exact: true })).toBeVisible();
     }
+  });
+
+  await test.step("Keep existing cards when the next page fails", async () => {
+    await page.route("**/api/v1/component-templates?*", (route) => {
+      if (new URL(route.request().url()).searchParams.get("page") === "1") {
+        return route.abort("failed");
+      }
+      return route.continue();
+    });
+    await page.getByRole("button", { name: "More results" }).click();
+    await expect(page.getByRole("alert")).toContainText("Could not load more component templates.");
+    await expect(page.getByRole("listitem")).toHaveCount(10);
+    await testInfo.attach("catalogue-later-error.png", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+    await page.unroute("**/api/v1/component-templates?*");
+  });
+
+  await test.step("Retry and load the final real page without duplicate cards", async () => {
+    const nextResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/v1/component-templates" && url.searchParams.get("page") === "1";
+    });
+    await page.getByRole("button", { name: "Try again" }).click();
+    const response = await nextResponse;
+    expect(response.status()).toBe(200);
+    const lastPage = await response.json();
+    expect(lastPage.content.map((item: { key: string }) => item.key))
+      .toEqual(["worker-variant-5", "worker-variant-6"]);
+    await expect(page.getByRole("list").getByRole("heading", { level: 2 })).toHaveText(allNames);
+    await expect(page.getByRole("listitem")).toHaveCount(12);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "More results" })).toHaveCount(0);
+    await testInfo.attach("catalogue-all-pages.png", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
   });
 
   await test.step("Reload and retain the persisted catalogue", async () => {
@@ -93,6 +140,6 @@ test("shows a missing page and allows returning to the catalogue", async ({ page
     await page.goto("/");
     await expect(
       page.getByRole("list").getByRole("heading", { level: 2 }),
-    ).toHaveCount(6);
+    ).toHaveCount(10);
   });
 });

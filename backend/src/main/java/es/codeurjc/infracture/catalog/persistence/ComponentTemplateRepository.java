@@ -1,11 +1,22 @@
 package es.codeurjc.infracture.catalog.persistence;
 
-import java.util.List;
-
+import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
+import es.codeurjc.infracture.catalog.domain.ComponentType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
+public interface ComponentTemplateRepository
+    extends JpaRepository<ComponentTemplate, Long>
+{
+    Page<ComponentTemplate> findAllByEnabledTrueAndNameContainingIgnoreCaseOrderByNameAscKeyAsc(
+        String q,
+        Pageable pageable
+    );
 
-public interface ComponentTemplateRepository extends JpaRepository<ComponentTemplate, Long> {
-    List<ComponentTemplate> findAllByEnabledTrueOrderByNameAsc();
+    Page<ComponentTemplate> findAllByEnabledTrueAndTypeAndNameContainingIgnoreCaseOrderByNameAscKeyAsc(
+        ComponentType type,
+        String q,
+        Pageable pageable
+    );
 }
