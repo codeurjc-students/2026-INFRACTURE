@@ -1,4 +1,5 @@
 import type { Route } from "./+types/home";
+import { useRevalidator } from "react-router";
 import { getComponentTemplates } from "~/features/component-catalogue/api/component-template-service";
 import ComponentCatalogue from "~/features/component-catalogue/components/component-catalogue";
 
@@ -18,6 +19,8 @@ export async function clientLoader() {
 }
 
 export function ErrorBoundary() {
+  const revalidator = useRevalidator();
+
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-12">
       <section aria-labelledby="catalogue-error-heading">
@@ -28,9 +31,16 @@ export function ErrorBoundary() {
           Component catalogue unavailable
         </h1>
         <p role="alert" className="mt-3 max-w-2xl text-gray-600 dark:text-gray-300">
-          Check that PostgreSQL and the backend are running, then reload this
-          page.
+          The catalogue could not be loaded. Please try again.
         </p>
+        <button
+          type="button"
+          onClick={() => revalidator.revalidate()}
+          disabled={revalidator.state === "loading"}
+          className="mt-4 rounded-lg bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-wait disabled:opacity-60 dark:bg-blue-600 dark:hover:bg-blue-500"
+        >
+          {revalidator.state === "loading" ? "Loading…" : "Try again"}
+        </button>
       </section>
     </main>
   );
@@ -42,7 +52,7 @@ export default function Home({
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-12">
       <ComponentCatalogue
-        componentTemplates={loaderData.componentTemplates}
+        initialPage={loaderData.componentTemplates}
       />
     </main>
   );

@@ -11,15 +11,49 @@ paths:
       tags:
       - component-template-controller
       operationId: getComponentTemplates
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ""
+      - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - HTTP_SERVICE
+          - WORKER
+          - LOAD_GENERATOR
+          - POSTGRESQL
+          - REDIS
+          - RABBITMQ
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+          minimum: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+          maximum: 100
+          minimum: 1
       responses:
         "200":
           description: OK
           content:
-            application/json:
+            '*/*':
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ComponentTemplateDTO"
+                $ref: "#/components/schemas/PagedModelComponentTemplateDTO"
 components:
   schemas:
     ComponentTemplateDTO:
@@ -38,3 +72,27 @@ components:
           - POSTGRESQL
           - REDIS
           - RABBITMQ
+    PageMetadata:
+      type: object
+      properties:
+        size:
+          type: integer
+          format: int64
+        number:
+          type: integer
+          format: int64
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int64
+    PagedModelComponentTemplateDTO:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentTemplateDTO"
+        page:
+          $ref: "#/components/schemas/PageMetadata"

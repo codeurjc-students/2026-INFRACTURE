@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -39,25 +41,6 @@ class ComponentTemplateRepositoryTests {
     }
 
     @Test
-    void loadsCatalogueSeededByFlyway() {
-        List<ComponentTemplate> templates = repository.findAll();
-
-        assertThat(templates)
-                .extracting(
-                        ComponentTemplate::getKey,
-                        ComponentTemplate::getName,
-                        ComponentTemplate::getType,
-                        ComponentTemplate::isEnabled)
-                .containsExactlyInAnyOrder(
-                        tuple("http-service", "HTTP Service", ComponentType.HTTP_SERVICE, true),
-                        tuple("worker", "Worker", ComponentType.WORKER, true),
-                        tuple("load-generator", "Load Generator", ComponentType.LOAD_GENERATOR, true),
-                        tuple("postgresql", "PostgreSQL", ComponentType.POSTGRESQL, true),
-                        tuple("redis", "Redis", ComponentType.REDIS, true),
-                        tuple("rabbitmq", "RabbitMQ", ComponentType.RABBITMQ, true));
-    }
-
-    @Test
     void returnsOnlyEnabledTemplatesOrderedByName() {
         repository.deleteAllInBatch();
         repository.saveAllAndFlush(List.of(
@@ -82,13 +65,43 @@ class ComponentTemplateRepositoryTests {
                         ComponentType.WORKER,
                         false)));
 
-        List<ComponentTemplate> enabledTemplates = service.getEnabledTemplates();
+        Page<ComponentTemplate> enabledTemplates = service.getEnabledTemplates(PageRequest.of(0, 10), "", null);
 
-        assertThat(enabledTemplates)
+        assertThat(enabledTemplates.getContent())
                 .extracting(ComponentTemplate::getKey, ComponentTemplate::getType)
                 .containsExactly(
                         tuple("z-http-service", ComponentType.HTTP_SERVICE),
                         tuple("a-rabbitmq", ComponentType.RABBITMQ),
                         tuple("m-redis", ComponentType.REDIS));
     }
+
+    @Test
+    void filtersBeforePaginatingVariantsWithEqualNamesByKey() {
+        repository.deleteAllInBatch();
+        repository.saveAllAndFlush(List.of(
+                new ComponentTemplate("http-b", "HTTP Service", ComponentType.HTTP_SERVICE, true),
+                new ComponentTemplate("http-a", "HTTP Service", ComponentType.HTTP_SERVICE, true),
+                new ComponentTemplate("worker", "HTTP Service", ComponentType.WORKER, true),
+                new ComponentTemplate("other-http", "Other Service", ComponentType.HTTP_SERVICE, true),
+                new ComponentTemplate("http-disabled", "HTTP Service", ComponentType.HTTP_SERVICE, false)));
+
+        Page<ComponentTemplate> firstPage = service.getEnabledTemplates(
+                PageRequest.of(0, 1), "  hTtP  ", ComponentType.HTTP_SERVICE);
+        Page<ComponentTemplate> secondPage = service.getEnabledTemplates(
+                PageRequest.of(1, 1), "  hTtP  ", ComponentType.HTTP_SERVICE);
+
+        assertThat(firstPage.getContent()).extracting(ComponentTemplate::getKey).containsExactly("http-a");
+        assertThat(firstPage.getTotalElements()).isEqualTo(2);
+        assertThat(firstPage.getTotalPages()).isEqualTo(2);
+        assertThat(firstPage.hasNext()).isTrue();
+        assertThat(secondPage.getContent()).extracting(ComponentTemplate::getKey).containsExactly("http-b");
+        assertThat(secondPage.hasNext()).isFalse();
+
+        Page<ComponentTemplate> withoutType = service.getEnabledTemplates(
+                PageRequest.of(0, 10), "  hTtP  ", null);
+        assertThat(withoutType.getContent()).extracting(ComponentTemplate::getKey)
+                .containsExactly("http-a", "http-b", "worker");
+        assertThat(withoutType.getTotalElements()).isEqualTo(3);
+    }
+
 }

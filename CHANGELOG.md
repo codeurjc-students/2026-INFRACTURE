@@ -20,7 +20,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Los c
 
 ### Changed
 
-- El catálogo ordena alfabéticamente por nombre las plantillas habilitadas que muestra la API y la vista, en lugar de seguir el orden del enum.
+- Catálogo con variantes por tipo y carga incremental de diez plantillas, ordenadas por nombre y clave. `GET /api/v1/component-templates` acepta `q`, `type`, `page` y `size` y devuelve `{content, page}` en lugar de un array; los clientes deben adaptarse al nuevo formato. Flyway aplica V3 para permitir variantes conservando datos y claves únicas.
 - Verificación del catálogo ampliada para cubrir carga, vacío, errores HTTP o de red, campos visibles, recarga y navegación de retorno desde una página inexistente.
 - Pruebas de navegador aisladas de los servidores y datos de desarrollo mediante un backend con PostgreSQL desechable de Testcontainers.
 - Backend actualizado de Java 21 LTS a Java 25 LTS, con versiones de Java y Node.js fijadas para reproducir el entorno de desarrollo.

@@ -1,17 +1,12 @@
+import type { PageDTO } from "~/shared/model/PageDTO";
 import type { ComponentTemplateDTO } from "../model/ComponentTemplateDTO";
 
 const API_PATH = "/api/v1/component-templates";
 
-export async function getComponentTemplates(): Promise<ComponentTemplateDTO[]> {
-  let response: Response;
-
-  try {
-    response = await fetch(new URL(API_PATH, window.location.origin));
-  } catch (cause) {
-    throw new Error("Could not connect to the component catalogue API", {
-      cause,
-    });
-  }
+export async function getComponentTemplates(page = 0): Promise<
+  PageDTO<ComponentTemplateDTO>
+> {
+  const response = await fetch(`${API_PATH}?page=${page}`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch component templates");

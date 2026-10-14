@@ -5,6 +5,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -36,17 +38,76 @@ class ComponentTemplateApiSystemTests {
                 .log().ifValidationFails()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("size()", equalTo(6))
-                .body("key", contains(
+                .body("content.size()", equalTo(6))
+                .body("page.number", equalTo(0))
+                .body("page.size", equalTo(10))
+                .body("page.totalElements", equalTo(6))
+                .body("page.totalPages", equalTo(1))
+                .body("content.key", contains(
                         "http-service",
                         "load-generator",
                         "postgresql",
                         "rabbitmq",
                         "redis",
                         "worker"))
-                .body("[0].name", equalTo("HTTP Service"))
-                .body("[0].type", equalTo("HTTP_SERVICE"))
-                .body("[5].name", equalTo("Worker"))
-                .body("[5].type", equalTo("WORKER"));
+                .body("content[0].name", equalTo("HTTP Service"))
+                .body("content[0].type", equalTo("HTTP_SERVICE"))
+                .body("content[5].name", equalTo("Worker"))
+                .body("content[5].type", equalTo("WORKER"));
+    }
+
+    @Test
+    void returnsEmptyPageWhenNameAndTypeDoNotMatchTogether() {
+        given()
+                .port(port)
+                .queryParam("q", "redis")
+                .queryParam("type", "WORKER")
+                .queryParam("size", 1)
+        .when()
+                .get("/api/v1/component-templates")
+        .then()
+                .statusCode(200)
+                .body("content.size()", equalTo(0))
+                .body("page.number", equalTo(0))
+                .body("page.size", equalTo(1))
+                .body("page.totalElements", equalTo(0))
+                .body("page.totalPages", equalTo(0));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "page, -1",
+            "page, abc",
+            "size, 0",
+            "size, 101",
+            "type, UNSUPPORTED"
+    })
+    void rejectsInvalidQueryParameters(String parameter, String value) {
+        given()
+                .port(port)
+                .queryParam(parameter, value)
+        .when()
+                .get("/api/v1/component-templates")
+        .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void returnsEmptyHighPageWithFilteredTotals() {
+        given()
+                .port(port)
+                .queryParam("page", 10001)
+                .queryParam("q", "redis")
+                .queryParam("type", "REDIS")
+        .when()
+                .get("/api/v1/component-templates")
+        .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("content.size()", equalTo(0))
+                .body("page.number", equalTo(10001))
+                .body("page.size", equalTo(10))
+                .body("page.totalElements", equalTo(1))
+                .body("page.totalPages", equalTo(1));
     }
 }

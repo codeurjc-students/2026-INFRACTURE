@@ -2,7 +2,7 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **6 de octubre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **14 de octubre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
 El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
@@ -241,6 +241,10 @@ Los identificadores históricos conservados no se renumeran al agrupar o retirar
 - **Ficheros principales:** `backend/pom.xml`, `backend/src/main/java/es/codeurjc/infracture/catalog/` y `backend/src/main/resources/db/migration/V2__create_component_template_catalogue.sql`.
 - **Revisión del alumno:** el alumno decidió agrupar los dos issues en una misma rama, eligió MapStruct y el nombre visual `ComponentTemplateDTO`, creó las clases siguiendo la guía, confirmó el resultado JSON y mantuvo el control de las decisiones y de todas las operaciones Git.
 
+
+- **Continuación de Fase 3 (13 de octubre):** el alumno añadió q/type al controlador y delegó los filtros del servicio y repositorio. Codex implementó dos consultas derivadas de Spring Data para buscar por nombre sin distinguir mayúsculas, con tipo opcional y texto recortado. PostgreSQL filtra antes de paginar y conserva habilitación y orden nombre/clave. La suite final comprueba filtros combinados, habilitación y orden en PostgreSQL; HTTP400 para tipos no admitidos se comprueba en la API.
+- **Validación y evidencia ampliadas (13–14 de octubre):** por petición del alumno, page debe ser un entero no negativo y size queda entre 1 y 100, con defaults 0/10. No se impone un máximo adicional al número de página: una página posterior a la última devuelve contenido vacío y conserva totales filtrados dentro del rango de desplazamiento de JPA. El alumno pidió retirar la comprobación adicional y la consulta auxiliar de páginas extremas; no se garantiza contenido vacío si el desplazamiento supera Integer.MAX_VALUE y puede producirse HTTP500. ./mvnw verify pasa 13 pruebas (2 unitarias, 3 de base de datos y 8 HTTP) y el control de cobertura tras simplificar la suite a las reglas propias del catálogo. La selección de unitarias en CI usa patrones de nombres; las suites completas permanecen en el control de pull requests. La suite HTTP conserva HTTP400 y página 10001 vacía; el navegador se centra en paginación y reintentos, sin repetir esos pasos exclusivos de API. Tipos y lint correctos. Los casos HTTP de filtros y validación fallaron antes de implementar cada comportamiento. El alumno regeneró OpenAPI y Codex revisó el contrato, documentó errores y ejemplos en la guía y añadió una prueba de actualización V2→V3 sobre PostgreSQL desechable: conserva datos modificados, permite variantes y rechaza claves duplicadas y tipos desconocidos. Esta prueba caracteriza la migración existente; no se presenta como un ciclo test-first. Se ajustó el #73 a los filtros de API y a la decisión de aplazar controles visuales en la página heredada. Revisión final del alumno e integración pendientes.
+
 ## AI-2026-09-03-015 - Documentación y exportación reproducible de OpenAPI
 
 - **Fecha:** 3 de septiembre de 2026.
@@ -314,6 +318,10 @@ Los identificadores históricos conservados no se renumeran al agrupar o retirar
 - **Verificación:** `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` y `git diff --check` finalizaron correctamente. Vitest sigue sin casos porque las pruebas del componente pertenecen al issue P2-16.
 - **Ficheros principales:** `frontend/app/root.tsx`, `frontend/app/routes/home.tsx` y `frontend/app/features/component-catalogue/components/component-catalogue.tsx`.
 - **Revisión del alumno:** pendiente de revisar visualmente el resultado y autorizar su incorporación al historial Git.
+
+
+- **Continuación de Fase 3 (13 de octubre):** el alumno implementó la conexión con la página de Spring y delegó completar la paginación del frontend. Codex añadió acumulación de resultados sin claves duplicadas, botón More results hasta la última página, carga accesible y reintentos inicial y posterior que conservan las tarjetas. La interfaz genérica PageDTO describe el JSON de Spring; no añade un formato propio al servidor.
+- **Evidencia y límites de esta continuación:** 9 pruebas unitarias del frontend, dos de integración con API real (incluido el rechazo de una página negativa) y dos recorridos en Chromium; cobertura de líneas del frontend del 90,69 %. Tipos y lint correctos; el build anterior sigue siendo aplicable al código de producción sin cambios. A petición del alumno se redujo la suite completa de 52 a 26 casos: 7 adicionales sobre los 19 iniciales. Se conservaron las seis categorías con una selección representativa; se retiraron matrices de conversiones de Spring, propagación nativa de fetch y duplicaciones de semillas/estados entre niveles. La carga y la deduplicación se verifican juntas; el recorrido principal de navegador incluye fallo de página siguiente, reintento, última página y recarga. El error inicial y su reintento se comprueban en la ruta; se retiró el recorrido móvil independiente. Las pruebas usan seis variantes adicionales solo en PostgreSQL desechable; el fallo de navegador es una inyección de red declarada y el reintento usa el backend real. Revisión final del alumno e integración pendientes. Los controles de búsqueda de la página heredada siguen aplazados, conforme al #73.
 
 ## AI-2026-09-07-023 - Hoja de ruta de pruebas de la Fase 2
 
