@@ -20,6 +20,8 @@ Las funcionalidades se agrupan en tres niveles de prioridad. En cada tabla se in
 
 | Funcionalidad | Tipo de usuario | Descripción |
 | --- | --- | --- |
+| Verificación del correo | Registrado y administrador | Confirmar mediante un enlace o código enviado al correo de registro que la persona controla esa dirección. Prevista para después de Fase 3. |
+| Recuperación de contraseña por correo | Registrado y administrador | Solicitar un enlace o código temporal de un solo uso para establecer una nueva contraseña si se ha olvidado la anterior. Prevista para después de Fase 3. |
 | Parada y reinicio | Registrado y administrador | Detener un componente de una ejecución y volver a iniciarlo conservando el contexto. |
 | Pausa y reanudación | Registrado y administrador | Pausar temporalmente un componente compatible y reanudarlo sin crear otra ejecución. |
 | Latencia controlada | Registrado y administrador | Introducir y retirar latencia en una conexión compatible y registrar la acción. |
