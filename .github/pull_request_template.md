@@ -31,6 +31,12 @@ Closes #ISSUE_NUMBER
 - [ ] Lint, type checking or build, when applicable:
 - [ ] Manual verification, when applicable:
 
+## Changelog
+
+<!-- Quote the entry added to CHANGELOG.md, or explain why users, installers and API consumers will not notice this change. See docs/tracking.md#changelog-y-notas-de-versión. -->
+
+-
+
 ## Review notes
 
 <!-- Highlight risks, limitations, migrations or follow-up work. Write "None" when not applicable. -->

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { ErrorBoundary, links } from "~/root";
+import { ErrorBoundary } from "~/root";
 
 function renderError(error: unknown) {
   render(
@@ -12,15 +12,6 @@ function renderError(error: unknown) {
 }
 
 describe("application root", () => {
-  it("declares the application font resources", () => {
-    expect(links()).toContainEqual(
-      expect.objectContaining({
-        rel: "stylesheet",
-        href: expect.stringContaining("fonts.googleapis.com"),
-      }),
-    );
-  });
-
   it("renders a not-found message for a 404 route response", () => {
     renderError({
       status: 404,

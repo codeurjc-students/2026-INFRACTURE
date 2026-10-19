@@ -1,5 +1,6 @@
 /.local-docs/
 /.codex/
+/.claude/
 /.agents/skills/
 /docs/PHASE_3_GUIDE.md
 /docs/PHASE_3_SCOPE.md
@@ -7,3 +8,4 @@
 .DS_Store
 .vscode/
 .zed/
+/.env

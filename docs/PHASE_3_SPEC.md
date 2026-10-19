@@ -58,7 +58,7 @@ Las historias utilizan el formato «Como actor, quiero función, para beneficio�
 
 ### Cuenta, sesión, perfil e imágenes — F02
 
-11. Como visitante, quiero registrarme con los datos de cuenta admitidos, para disponer de un espacio propio. (US011)
+11. Como visitante, quiero registrarme con nombre de usuario, nombre visible, correo y contraseña, para disponer de un espacio propio. (US011)
 12. Como visitante, quiero recibir errores claros ante datos inválidos o correo o nombre de usuario duplicados, para corregir el registro. (US012)
 13. Como usuario, quiero iniciar sesión con correo y contraseña, para acceder a mis recursos según mi rol. (US013)
 14. Como usuario, quiero que las credenciales incorrectas y el acceso sin sesión se rechacen, para proteger mi cuenta y la de otros usuarios. (US014)
@@ -226,7 +226,7 @@ Estas decisiones sintetizan requisitos académicos, arquitectura del proyecto y 
 
 ### Permisos, cuenta e imágenes
 
-- **ID05.** Spring Security/JWT; actores anónimo, registrado y único administrador; hash seguro de contraseñas. Registro asigna rol ordinario. Admin inicial independiente de ejemplos, sin restablecer contraseña por arranque. Transporte/duración/mecanismos de sesión se concretan en P02 con logout y revocación efectivos.
+- **ID05.** Spring Security/JWT; actores anónimo, registrado y único administrador; hash seguro de contraseñas. Registro asigna rol ordinario. Admin inicial independiente de ejemplos, sin restablecer contraseña por arranque. El [ADR de sesión y CSRF](adr/0002-proteccion-csrf-con-jwt-en-cookies.md) concreta JWT en cookies, duración, almacenamiento y CSRF para React; la revocación en servidor queda como [mejora opcional](adr/0007-revocacion-jwt-como-mejora-opcional.md).
 - **ID06.** Autorizar por rol/recurso en servidor; propiedad desde sesión. Consulta pública de cuentas activas: diseño completo en lectura, sin correo, secretos, historial ni control ajenos. Admin consulta/modifica proyectos privados ajenos según matriz; no concede implícitamente Run, Stop o historial ajenos.
 - **ID07.** Propietario gestiona su cuenta. Admin solo cambia nombre visible/retira avatar en gestión de usuarios, sin correo/contraseña/username/promoción de rol; rechazar campos fraudulentos. Único admin protegido de desactivación/borrado en UI/API, con edición de su perfil permitida.
 - **ID08.** Desactivación reversible conserva datos/visibilidad, revoca sesiones/SSE, impide login y oculta contenido público también por acceso directo. Solicita Stop de su ejecución con motivo/evidencia. Reactivación requiere login nuevo, sin revivir tokens ni publicar privados.
@@ -236,11 +236,11 @@ Estas decisiones sintetizan requisitos académicos, arquitectura del proyecto y 
 ### Grafo, catálogo y contratos
 
 - **ID11.** Project privado inicialmente y publicable de forma reversible. Scenario vacío/incompleto guardable con referencias coherentes, claves estables y extremos propios. Borrar nodo elimina conexiones. Guardado atómico del agregado, revisión esperada e incremento; conflicto nunca sobrescribe silenciosamente.
-- **ID12.** Run guarda, valida y ejecuta la misma revisión: fallos/conflictos/errores bloquean; advertencias permiten. Revalidar al reservar/snapshot. Scenario solo lectura desde reserva hasta fin de limpieza en UI/API, admin y otras pestañas incluidos; otros escenarios editables. Coordinar reserva/guardado concurrentes.
+- **ID12.** Run guarda, valida y ejecuta la misma revisión: fallos/conflictos/errores bloquean; advertencias permiten. Revalidar al reservar/snapshot. Scenario solo lectura desde reserva hasta fin de limpieza en UI/API, admin y otras pestañas incluidos; otros escenarios editables. Coordinar reserva/guardado concurrentes. [Motivo de la revisión inmutable](adr/0004-ejecuciones-ligadas-a-una-revision-inmutable.md).
 - **ID13.** Seis ComponentType: HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ. Varias fichas por tipo y nodos por ficha dentro de cuotas. Nombre/icono/defaults reconocidos; tipo inmutable. Migración aditiva elimina unicidad actual por tipo conservando clave única y migraciones aplicadas.
 - **ID14.** Component conserva tipo, contrato concreto, perfil y parámetros. Defaults de ficha editables en nodo dentro del mismo tipo/contrato; cambios administrativos solo afectan nodos nuevos. Cambiar perfil conserva conexiones, señala incompatibles y permite borrador coherente, pero bloquea Run hasta corregir.
 - **ID15.** Deshabilitar ficha bloquea nuevas incorporaciones; existentes consultables/ejecutables si contrato permitido. Acción separada bloquea versión de contrato para nuevos Run, potencialmente varias fichas; no para reservas/arranques/ejecuciones previas. Orden concurrente bloqueo/reserva comprobable. Panel no crea código/versiones ejecutables.
-- **ID16.** Contrato versionado único para canvas/validación/compilación: configuración tipada, campos/límites, requisitos/capacidades, cardinalidades, conectores, imagen/salud/evidencia. Backend deriva protocolo/puertos/credenciales/variables/imágenes/comandos; sin texto libre. Matriz concreta previa en P05/P07.
+- **ID16.** Contrato versionado único para canvas/validación/compilación: configuración tipada, campos/límites, requisitos/capacidades, cardinalidades, conectores, imagen/salud/evidencia. Backend deriva protocolo/puertos/credenciales/variables/imágenes/comandos; sin texto libre. Matriz concreta previa en P05/P07. [Motivo del catálogo controlado y versionado](adr/0003-catalogo-controlado-con-contratos-versionados.md).
 
 | Componente/perfil incluido | Comportamiento que debe demostrarse | Dependencia obligatoria |
 | --- | --- | --- |
@@ -270,7 +270,7 @@ Estas decisiones sintetizan requisitos académicos, arquitectura del proyecto y 
 - **ID23.** Separar plataforma permanente y experimento temporal: credenciales/volúmenes/ciclo de vida. Sin privilegios/montajes/puertos elegidos por usuario; experimentos sin motor/secretos de plataforma. Limpiar solo propiedad etiquetada, no nombres parecidos. Concretar red/telemetría desde backend contenedorizado y acceso protegido al motor.
 - **ID24.** Stop global asíncrono/idempotente: parada → cancelar carga → recoger evidencia → detener componentes → retirar contenedores/red/volúmenes temporales. Liberar reserva/desbloquear tras reconciliar recursos. Fallo registrado/reintentable, nunca éxito por limpiar. Cerrar pestaña/SSE no detiene.
 - **ID25.** Máximo inicial configurable/revisable 30 minutos, aplicado por backend incluso sin navegador. Registrar fin por duración, parar/limpiar. Concretar inicio del reloj y timeouts independientes. Limpieza fallida mantiene Run bloqueado; probar con límite reducido.
-- **ID26.** Tras caída, reconciliar registro/recursos antes de Run. Marcar interrumpida, conservar snapshot/evidencia disponible y limpiar sin reanudación automática. Docker ausente/recursos pendientes: diagnóstico, bloqueo y reintento idempotente. Continuar borrados previos: preservar una interrupción no anula eliminación solicitada.
+- **ID26.** Tras caída, reconciliar registro/recursos antes de Run. Marcar interrumpida, conservar snapshot/evidencia disponible y limpiar sin reanudación automática. Docker ausente/recursos pendientes: diagnóstico, bloqueo y reintento idempotente. Continuar borrados previos: preservar una interrupción no anula eliminación solicitada. [Motivo de la recuperación sin reanudación](adr/0005-recuperacion-sin-reanudacion-automatica.md).
 - **ID27.** Estados/salud/eventos/logs/métricas reales de Docker/servicios/k6, agregados por intervalo, no fila por petición. Muestras sobre ExecutedComponent y eventos sobre Execution/identidades ejecutadas. Distinguir running/healthy, ausencia/cero e incompleto/éxito. Recharts CPU/memoria con unidad/fecha y contadores documentados por tipo/contrato.
 - **ID28.** REST controla/consulta; SSE transmite novedades autorizadas. Sesión/revocación también en SSE/imágenes. Reconexión recupera estado/novedades sin duplicar; concretar cursor o equivalente, expiración y límites en P02/P08. Desconectar observador no detiene.
 - **ID29.** Historial propio paginado: fecha/Scenario/resultado/duración y snapshot/evidencia. Logs 7 días; métricas/eventos 30, configurables/revisables. Resumen/snapshot hasta borrado Scenario/Project/cuenta. Indicar caducado frente a nunca recogido. Concretar reloj/purga y frecuencia/volumen de captura.
@@ -382,7 +382,7 @@ Pendientes aplazados, no funciones omitidas. Resolver el contrato antes de progr
 | Condición/bloque | Concreción requerida dentro de las decisiones anteriores |
 | --- | --- |
 | C01 / P01 | DTO/error/paginación, orden/desempate/límites y códigos/asíncronía. Superficie REST de Scope §17.2 sigue propuesta; cerrar OpenAPI/cliente conjuntamente. |
-| C02 / P02, P08 | Transporte/duración/revocación JWT, expiración/renovación si procede, protección de peticiones/SSE/imágenes, normalización/unicidad y campos de cuenta. Duración y bootstrap admin expresamente aplazados a P02. |
+| C02 / P02, P08 | JWT en cookies, CSRF, duración, caducidad y renovación en el [ADR de sesión y CSRF](adr/0002-proteccion-csrf-con-jwt-en-cookies.md), integrados en React; revocación como [mejora opcional](adr/0007-revocacion-jwt-como-mejora-opcional.md) y administrador inicial en su [ADR](adr/0008-administrador-inicial-desde-configuracion.md). Concretar la protección de SSE e imágenes cuando se introduzcan. |
 | C03 / P03, P04 | Formatos/dimensiones/tamaño, lectura autorizada, reemplazo/huérfanos y generación/almacenamiento de miniaturas. |
 | C04 / P05, P07, P09 | Matriz versionada de campos/defaults/límites, capacidades/conectores, API demostrativa, procesamiento/cola/reintentos/datos. Aplazar un perfil requiere acuerdo del alumno y actualización de alcance/tareas. |
 | C05 / P06, P09 | Reserva/idempotencia, orden concurrente, estados/transiciones y progreso de reconciliación. STOPPING/COMPLETED/FAILED son términos existentes; interrupción nunca implica éxito. |

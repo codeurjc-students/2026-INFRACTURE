@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
       tsconfigPaths: true,
     },
     server: {
+      watch: { ignored: ["**/coverage/**", "**/build/**"] },
       proxy: {
         "/api": {
           target: env.VITE_API_BASE_URL || "http://localhost:8080",

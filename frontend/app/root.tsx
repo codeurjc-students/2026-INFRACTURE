@@ -10,19 +10,6 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 
-export const links: Route.LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
-  },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-  },
-];
-
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -48,8 +35,8 @@ export default function App() {
 export function HydrateFallback() {
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-12">
-      <p role="status" className="text-gray-600 dark:text-gray-300">
-        Loading component catalogue…
+      <p role="status" className="type-body text-muted-foreground">
+        Loading…
       </p>
     </main>
   );

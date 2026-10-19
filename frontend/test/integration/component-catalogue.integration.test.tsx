@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
-import Home, { clientLoader } from "~/routes/home";
+import ComponentCatalogueRoute, { clientLoader } from "~/routes/component-catalogue";
 import { getComponentTemplates } from "~/features/component-catalogue/api/component-template-service";
 
 const nodeFetch = globalThis.fetch;
@@ -35,7 +35,7 @@ it("renders catalogue data persisted by the real backend", async () => {
   expect(loaderData.componentTemplates.page)
     .toEqual({ size: 10, number: 0, totalElements: 12, totalPages: 2 });
 
-  render(<Home loaderData={loaderData} />);
+  render(<ComponentCatalogueRoute loaderData={loaderData} />);
 
   expect(
     screen.getByRole("heading", { name: "HTTP Service" }),
