@@ -52,7 +52,7 @@ test("renders the persisted catalogue through the real application", async ({
     const responsePromise = page.waitForResponse(
       (response) => new URL(response.url()).pathname === "/api/v1/component-templates",
     );
-    await page.goto("/");
+    await page.goto("/catalogue");
     const response = await responsePromise;
     expect(response.status()).toBe(200);
     expect(await response.json()).toEqual(templates);
@@ -137,7 +137,7 @@ test("shows a missing page and allows returning to the catalogue", async ({ page
     });
   });
   await test.step("Navigate back to the catalogue URL", async () => {
-    await page.goto("/");
+    await page.goto("/catalogue");
     await expect(
       page.getByRole("list").getByRole("heading", { level: 2 }),
     ).toHaveCount(10);

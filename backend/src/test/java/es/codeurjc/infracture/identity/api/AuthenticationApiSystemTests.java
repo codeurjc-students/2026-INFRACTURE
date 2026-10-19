@@ -9,10 +9,14 @@ import static org.mockito.Mockito.doAnswer;
 
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.persistence.UserRepository;
+import es.codeurjc.infracture.security.MutableClock;
+import es.codeurjc.infracture.security.jwt.TokenType;
 import io.restassured.filter.cookie.CookieFilter;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -24,9 +28,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -53,6 +60,44 @@ class AuthenticationApiSystemTests {
 
     @MockitoSpyBean
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private MutableClock clock;
+
+    @TestConfiguration
+    static class ControlledClock {
+
+        @Bean
+        @Primary
+        MutableClock testClock() {
+            return new MutableClock(Instant.now());
+        }
+    }
+
+    @Test
+    void exposesHealthWithoutAuthenticationForStartupScripts() {
+        given().port(port).get("/actuator/health")
+            .then().statusCode(200).body("status", equalTo("UP"));
+    }
+
+    @Test
+    void rejectsAnExpiredAccessTokenAndRenewsItWithTheRefreshToken() {
+        CookieFilter cookies = new CookieFilter();
+        String csrf = csrf(cookies);
+        write(cookies, csrf).body(registration("expiryuser", "expiry@example.com"))
+            .post("/api/v1/users/").then().statusCode(201);
+        write(cookies, csrf).body("""
+                {"email":"expiry@example.com","password":"%s"}
+                """.formatted(PASSWORD)).post("/api/v1/auth/login").then().statusCode(200);
+        given().port(port).filter(cookies).get("/api/v1/users/me").then().statusCode(200);
+
+        clock.advance(TokenType.ACCESS.duration.plus(Duration.ofSeconds(1)));
+        given().port(port).filter(cookies).get("/api/v1/users/me").then().statusCode(401);
+
+        write(cookies, csrf(cookies)).post("/api/v1/auth/refresh").then().statusCode(200);
+        given().port(port).filter(cookies).get("/api/v1/users/me").then().statusCode(200)
+            .body("username", equalTo("expiryuser"));
+    }
 
     @Test
     void registersAuthenticatesRefreshesAndLogsOutThroughRealHttp() {
@@ -136,7 +181,7 @@ class AuthenticationApiSystemTests {
             assertThat(new int[] {firstResponse.statusCode(), secondResponse.statusCode()})
                 .containsExactlyInAnyOrder(201, 409);
             Response conflict = firstResponse.statusCode() == 409 ? firstResponse : secondResponse;
-            assertThat(conflict.asString()).isEqualTo(identifier.equals("username")
+            assertThat(conflict.jsonPath().getString("detail")).isEqualTo(identifier.equals("username")
                 ? "Username is already in use" : "Email is already in use");
         }
         assertThat(repository.findAll().stream().filter(user -> identifier.equals("username")

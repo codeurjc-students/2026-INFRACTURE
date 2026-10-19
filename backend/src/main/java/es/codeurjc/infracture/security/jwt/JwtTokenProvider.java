@@ -1,5 +1,7 @@
 package es.codeurjc.infracture.security.jwt;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -19,7 +21,13 @@ import jakarta.servlet.http.HttpServletRequest;
 public class JwtTokenProvider {
 
     private final SecretKey jwtSecret = Jwts.SIG.HS256.key().build();
-    private final JwtParser jwtParser = Jwts.parser().verifyWith(jwtSecret).build();
+    private final Clock clock;
+    private final JwtParser jwtParser;
+
+    public JwtTokenProvider(Clock clock) {
+        this.clock = clock;
+        this.jwtParser = Jwts.parser().verifyWith(jwtSecret).clock(() -> Date.from(clock.instant())).build();
+    }
 
     public String tokenStringFromHeaders(HttpServletRequest req){
         String bearerToken = req.getHeader(HttpHeaders.AUTHORIZATION);
@@ -72,14 +80,13 @@ public class JwtTokenProvider {
     }
 
     private JwtBuilder buildToken(TokenType tokenType, UserDetails userDetails) {
-        var currentDate = new Date();
-        var expiryDate = Date.from(new Date().toInstant().plus(tokenType.duration));
+        Instant issuedAt = clock.instant();
         return Jwts.builder()
                 .claim("roles", userDetails.getAuthorities())
                 .claim("type", tokenType.name())
                 .subject(userDetails.getUsername())
-                .issuedAt(currentDate)
-                .expiration(expiryDate)
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(issuedAt.plus(tokenType.duration)))
                 .signWith(jwtSecret);
     }
 }

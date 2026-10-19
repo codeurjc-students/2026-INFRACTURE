@@ -194,11 +194,168 @@ font-style: italic;
 
   <h3>Table of Contents </h3>
   <div class="method-summary"></div>
+  <h4><a href="#AuthController">AuthController</a></h4>
+  <ul>
+  <li><a href="#csrf"><code><span class="http-method">get</span> /api/v1/auth/csrf</code></a></li>
+  <li><a href="#login"><code><span class="http-method">post</span> /api/v1/auth/login</code></a></li>
+  <li><a href="#logout"><code><span class="http-method">post</span> /api/v1/auth/logout</code></a></li>
+  <li><a href="#refresh"><code><span class="http-method">post</span> /api/v1/auth/refresh</code></a></li>
+  </ul>
   <h4><a href="#ComponentTemplateController">ComponentTemplateController</a></h4>
   <ul>
   <li><a href="#getComponentTemplates"><code><span class="http-method">get</span> /api/v1/component-templates</code></a></li>
   </ul>
+  <h4><a href="#UserController">UserController</a></h4>
+  <ul>
+  <li><a href="#getUserLogged"><code><span class="http-method">get</span> /api/v1/users/me</code></a></li>
+  <li><a href="#registerUser"><code><span class="http-method">post</span> /api/v1/users/</code></a></li>
+  </ul>
 
+  <h1><a name="AuthController">AuthController</a></h1>
+  <div class="method"><a name="csrf"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/auth/csrf</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">csrf</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="login"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/auth/login</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">login</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">LoginRequest <a href="#LoginRequest">LoginRequest</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#AuthResponse">AuthResponse</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "message" : "message",
+  "error" : "error",
+  "status" : "SUCCESS"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#AuthResponse">AuthResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="logout"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/auth/logout</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">logout</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="refresh"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/auth/refresh</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">refresh</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#AuthResponse">AuthResponse</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "message" : "message",
+  "error" : "error",
+  "status" : "SUCCESS"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#AuthResponse">AuthResponse</a>
+  </div> <!-- method -->
+  <hr/>
   <h1><a name="ComponentTemplateController">ComponentTemplateController</a></h1>
   <div class="method"><a name="getComponentTemplates"/>
     <div class="method-path">
@@ -266,17 +423,141 @@ font-style: italic;
         <a href="#PagedModelComponentTemplateDTO">PagedModelComponentTemplateDTO</a>
   </div> <!-- method -->
   <hr/>
+  <h1><a name="UserController">UserController</a></h1>
+  <div class="method"><a name="getUserLogged"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/users/me</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getUserLogged</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#UserDTO">UserDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "role" : "USER",
+  "avatarKey" : "avatarKey",
+  "displayName" : "displayName",
+  "active" : true,
+  "id" : 0,
+  "email" : "email",
+  "username" : "username",
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#UserDTO">UserDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="registerUser"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/users/</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">registerUser</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">RegisterUserDTO <a href="#RegisterUserDTO">RegisterUserDTO</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#UserDTO">UserDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "role" : "USER",
+  "avatarKey" : "avatarKey",
+  "displayName" : "displayName",
+  "active" : true,
+  "id" : 0,
+  "email" : "email",
+  "username" : "username",
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#UserDTO">UserDTO</a>
+  </div> <!-- method -->
+  <hr/>
 
   <h2><a name="__Models">Models</a></h2>
   [ Jump to <a href="#__Methods">Methods</a> ]
 
   <h3>Table of Contents</h3>
   <ol>
+    <li><a href="#AuthResponse"><code>AuthResponse</code> - </a></li>
     <li><a href="#ComponentTemplateDTO"><code>ComponentTemplateDTO</code> - </a></li>
+    <li><a href="#LoginRequest"><code>LoginRequest</code> - </a></li>
     <li><a href="#PageMetadata"><code>PageMetadata</code> - </a></li>
     <li><a href="#PagedModelComponentTemplateDTO"><code>PagedModelComponentTemplateDTO</code> - </a></li>
+    <li><a href="#RegisterUserDTO"><code>RegisterUserDTO</code> - </a></li>
+    <li><a href="#UserDTO"><code>UserDTO</code> - </a></li>
   </ol>
 
+  <div class="model">
+    <h3><a name="AuthResponse"><code>AuthResponse</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">status (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">SUCCESS</div><div class="param-enum">FAILURE</div>
+<div class="param">message (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">error (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
   <div class="model">
     <h3><a name="ComponentTemplateDTO"><code>ComponentTemplateDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
@@ -286,6 +567,14 @@ font-style: italic;
 <div class="param">type (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
         <div class="param-enum-header">Enum:</div>
         <div class="param-enum">HTTP_SERVICE</div><div class="param-enum">WORKER</div><div class="param-enum">LOAD_GENERATOR</div><div class="param-enum">POSTGRESQL</div><div class="param-enum">REDIS</div><div class="param-enum">RABBITMQ</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="LoginRequest"><code>LoginRequest</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">email (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">password (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -304,6 +593,33 @@ font-style: italic;
     <div class="field-items">
       <div class="param">content (optional)</div><div class="param-desc"><span class="param-type"><a href="#ComponentTemplateDTO">array[ComponentTemplateDTO]</a></span>  </div>
 <div class="param">page (optional)</div><div class="param-desc"><span class="param-type"><a href="#PageMetadata">PageMetadata</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="RegisterUserDTO"><code>RegisterUserDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">username (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">displayName (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">email (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">password (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="UserDTO"><code>UserDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">id (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">username (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">displayName (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">email (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">role (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">USER</div><div class="param-enum">ADMIN</div>
+<div class="param">active (optional)</div><div class="param-desc"><span class="param-type"><a href="#boolean">Boolean</a></span>  </div>
+<div class="param">avatarKey (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">createdAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+<div class="param">updatedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
     </div>  <!-- field-items -->
   </div>
   </body>

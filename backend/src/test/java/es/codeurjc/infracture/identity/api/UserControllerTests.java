@@ -127,7 +127,9 @@ class UserControllerTests {
 
         mvc.perform(registrationRequest())
             .andExpect(status().is(expectedStatus))
-            .andExpect(content().string(failure.getMessage()));
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.status").value(expectedStatus))
+            .andExpect(jsonPath("$.detail").value(failure.getMessage()));
     }
 
     static Stream<Arguments> registrationFailures() {
