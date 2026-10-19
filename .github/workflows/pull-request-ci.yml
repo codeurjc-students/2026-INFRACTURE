@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     name: Backend full tests
@@ -108,6 +112,8 @@ jobs:
 
   client-server:
     name: Client-server integration
+    # main only needs the jobs that feed SonarQube; the PR already ran these on the same code.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -151,6 +157,7 @@ jobs:
 
   browser:
     name: Browser system tests
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
