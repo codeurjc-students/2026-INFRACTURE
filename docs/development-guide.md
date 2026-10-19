@@ -132,7 +132,7 @@ El trabajo sigue un proceso iterativo e incremental: cada [issue](https://github
 
 *Vista [Execution del GitHub Project](https://github.com/orgs/codeurjc-students/projects/51/views/4), filtrada por issues abiertos con issue padre; captura del 25 de septiembre de 2026. El enlace muestra el estado actualizado.*
 
-[GitHub Actions](https://docs.github.com/en/actions) ejecuta dos flujos: **Development CI** en los pushes a ramas distintas de `main` (pruebas unitarias de servidor y cliente, lint, tipos y build) y **Full CI** en pull requests a `main` y pushes a `main` (suite completa de servidor, cobertura, integración cliente-servidor, sistema en Chromium y SonarQube Cloud). Los informes de fallos se adjuntan como artefactos. El repositorio protege `main` con los cuatro checks del CI completo antes de integrar.
+[GitHub Actions](https://docs.github.com/en/actions) ejecuta dos flujos: **Development CI** en los pushes a ramas distintas de `main` (pruebas unitarias de servidor y cliente, lint, tipos y build) y **Full CI** en pull requests a `main` (suite completa de servidor, cobertura, integración cliente-servidor, sistema en Chromium y SonarQube Cloud). Tras integrar, el push a `main` repite solo la suite de servidor, la cobertura y SonarQube Cloud, para actualizar el análisis de `main`; las pruebas de integración y de navegador ya se ejecutaron en la PR sobre el mismo código. Un push nuevo cancela la ejecución anterior del mismo flujo en esa rama o PR. Los informes de fallos se adjuntan como artefactos. El repositorio protege `main` con los cuatro checks del CI completo antes de integrar.
 
 Al 25 de septiembre de 2026, `main` acumulaba **53 commits** y se habían creado **al menos 23 ramas de trabajo** durante la Fase 2.
 
