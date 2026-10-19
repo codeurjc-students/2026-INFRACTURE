@@ -13,25 +13,28 @@ El mock de Fase 1 (`../infracture-ui-prototype`) sigue siendo la referencia de p
 3. **Tono y espacio, no líneas.** Las superficies se separan con escalones de tono y huecos. Sin bordes decorativos ni sombras en reposo.
 4. **Texto llano.** Cada botón dice lo que hace, cada error explica cómo arreglarlo y cada estado vacío invita a actuar.
 
+Toda la interfaz está en inglés, pensada como una aplicación global. Las traducciones se decidirán más adelante.
+
 ## Color
 
 Los colores se definen como tokens con significado. Los componentes usan los tokens, nunca valores sueltos. El tema sigue la preferencia del sistema (`prefers-color-scheme`); no hay selector manual por ahora.
 
 | Token | Claro | Oscuro | Uso |
 | --- | --- | --- | --- |
-| `ground` | `#E3E6E2` | `#1C2227` | Fondo de la aplicación y del lienzo |
-| `surface` | `#F1F3F0` | `#262E34` | Paneles, nodos, métricas |
-| `surface-selected` | `#F1F3F0` sobre `ground` | `#343D44` | Opción activa dentro de un control |
-| `ink` | `#1E2830` | `#E6EAE7` | Texto principal e iconos |
-| `ink-muted` | `#46535D` | `#A9B3B9` | Texto secundario, etiquetas |
-| `connection` | `#8C979E` | `#5E6A72` | Conexiones del lienzo en reposo |
+| `ground` | `#E3E6E2` | `#0D1114` | Fondo de la aplicación y del lienzo |
+| `surface` | `#F1F3F0` | `#161C20` | Paneles, nodos, métricas |
+| `surface-selected` | `#F1F3F0` sobre `ground` | `#222A30` | Opción activa dentro de un control |
+| `ink` | `#1E2830` | `#EEF1EF` | Texto principal e iconos |
+| `ink-muted` | `#46535D` | `#9AA5AC` | Texto secundario, etiquetas |
+| `connection` | `#8C979E` | `#3A464E` | Conexiones del lienzo en reposo |
 | `action` | `ink` | `ink` | Fondo del botón principal; su texto usa `surface` en claro y `ground` en oscuro |
 | `degraded-fill` | `#E9A93A` | `#E9A93A` | Relleno del nodo y la conexión degradados |
 | `degraded-text` | `#8A5A00` | `#F0B954` | Texto e iconos de estado degradado |
 | `failed-text` | `#A82B16` | `#F2836B` | Texto e iconos de fallo y error |
 | `healthy-text` | `#2E7A4E` | `#6CC18F` | Texto e iconos de estado sano |
+| `on-degraded` | `ink` | `ground` | Texto e iconos sobre `degraded-fill` |
 
-El fondo oscuro es grafito, no negro: reduce el halo del texto claro sobre negro puro y permite separar superficies por tono.
+El fondo oscuro es un pizarra casi negro, de sala de control, sin llegar al negro puro: así el ámbar del fallo destaca al máximo, el texto claro no produce halo y las superficies se separan por escalones de tono (`ground`, `surface`, `surface-selected`).
 
 Reglas:
 
@@ -44,10 +47,11 @@ Reglas:
 
 | Familia | Uso |
 | --- | --- |
-| Atkinson Hyperlegible Next | Toda la interfaz: títulos, botones, etiquetas y textos |
+| Mona Sans | Solo la frase de impacto (`type-hero`), con anchura expandida al 112 %, peso 760 e interletrado del −4 % |
+| Atkinson Hyperlegible Next | El resto de la interfaz: títulos, botones, etiquetas y textos |
 | Paper Mono | Solo datos técnicos: tiempos, métricas, puertos, identificadores, etiquetas de conexión, configuración y logs |
 
-Ambas tienen licencia OFL. Las cifras de métricas y tiempos usan `font-variant-numeric: tabular-nums`. En Paper Mono se activa el cero con barra (`font-feature-settings: "zero"`) para distinguirlo de la O.
+Las tres tienen licencia OFL. Las cifras de métricas y tiempos usan `font-variant-numeric: tabular-nums`. En Paper Mono se activa el cero con barra (`font-feature-settings: "zero"`) para distinguirlo de la O.
 
 Escala de tamaños:
 
@@ -58,8 +62,10 @@ Escala de tamaños:
 | 14–15 px | Texto de interfaz, botones, nombres |
 | 17 px | Títulos de panel |
 | 28–30 px | Valores de métrica |
+| 36 px | Títulos de las páginas de acceso (`type-display`, Atkinson a peso 500, interletrado del −3 %; 32 px en ventanas de menos de 720 px de alto) |
+| 40–104 px | Frase principal de las páginas de acceso y la landing (`type-hero`, Mona Sans, interlineado 0,92). Su tamaño depende del ancho de su contenedor (`13cqi`), no de la ventana |
 
-Los títulos de página se fijan al diseñar la primera página que los necesite.
+Los títulos de página usan 24 px con peso 650 (`type-page-title`), fijados en las páginas de acceso.
 
 - Mayúsculas solo al inicio de frase. Nunca etiquetas en mayúsculas espaciadas.
 - Sin tracking negativo extremo en los títulos.
@@ -99,7 +105,12 @@ Los controles habituales (botones, campos, selects, pestañas, diálogos, menús
 
 - **Botón principal**: variante por defecto de shadcn, que toma el color `action`. Uno por zona como máximo.
 - **Botón de icono**: siempre con `aria-label`.
-- **Campo de formulario**: etiqueta visible encima, nunca solo el placeholder.
+- **Campo de formulario**: etiqueta visible encima, nunca solo el placeholder. Debajo, una ayuda que dice la regla real del campo, por ejemplo "3 to 20 letters, numbers or underscores.". Si hay error, el error sustituye a la ayuda y explica cómo arreglarlo, no solo qué falla.
+- **Límites**: cada campo lleva `maxLength` con el mismo límite que la entidad del backend. Las reglas complejas, como la política de contraseñas, solo las valida el servidor.
+- **Contraseña**: siempre con botón para mostrarla u ocultarla (`InputGroup` de shadcn, con `aria-label` y `aria-pressed`).
+- **Envío**: `<Form method="post">` de React Router, nunca un `<form>` sin método, que mandaría los campos en la URL. Mientras se envía, el botón principal se desactiva y muestra `Spinner` y un texto en gerundio ("Signing in…").
+- **Sin scroll en formularios cortos**: un formulario de acceso o de alta cabe entero en una ventana de portátil (unos 650 px de alto útil). En ventanas de menos de 720 px de alto se reducen el título y el espacio entre campos. La ayuda solo aparece en los campos con una regla que no se adivina.
+- **Errores que aparecen tras enviar**: entran con la clase `enter-soft` (opacidad y 4 px de desplazamiento, 200 ms). Con movimiento reducido, solo opacidad.
 - **Mensaje de estado**: componente `Alert` con icono, título y detalle del estado.
 
 Componente propio de Infracture, sin equivalente en shadcn:
@@ -115,7 +126,7 @@ La interfaz se construye con **Tailwind CSS** (ya instalado en `frontend/`) y **
 Se ejecuta dentro de `frontend/`, con la plantilla de React Router ya detectada:
 
 - **Base**: Base UI (`--base base`), la opción por defecto de shadcn. Radix solo si hay un motivo concreto.
-- **Estilo**: `maia`, el más cercano a nuestra geometría (controles de 40 px o más, paneles de 12 px, espaciado generoso). El estilo fija la geometría de los componentes; los tokens fijan colores, fuentes y radios.
+- **Estilo**: `vega`, el estilo clásico de shadcn. Sus controles usan `rounded-md` y sus cards `rounded-xl`, así que los radios fijados abajo se aplican sin tocar los componentes. `maia` se descartó porque usa formas de píldora (`rounded-4xl`). El estilo fija la geometría de los componentes; los tokens fijan colores, fuentes y radios.
 - **Iconos**: Lucide (`lucide-react`), elegido en la inicialización.
 
 ### Tokens
@@ -137,11 +148,11 @@ Todo se define en `frontend/app/app.css`, el único archivo de estilos globales.
 
 Los tokens sin equivalente en shadcn (`connection`, `degraded-fill`, `degraded-text`, `healthy-text`) se declaran como variables propias y se registran en `@theme inline` (por ejemplo, `--color-degraded-fill`), para usarlos como `bg-degraded-fill`.
 
-- **Modo oscuro**: shadcn lo activa por defecto con la clase `.dark`. Como aquí sigue la preferencia del sistema, la variante `dark` se redefine con `@media (prefers-color-scheme: dark)` y los tokens oscuros van en ese mismo media query.
+- **Modo oscuro**: cada token se define una sola vez con `light-dark(claro, oscuro)` y `:root` declara `color-scheme: light dark`, así que el tema sigue la preferencia del sistema. La clase `.theme-dark` fuerza el tema oscuro en una zona concreta; las páginas de acceso la usan entera. La variante `dark:` de Tailwind se activa con `@media (prefers-color-scheme: dark)` o dentro de `.theme-dark`, para que los componentes de shadcn también la respeten.
 - **Radios**: se fijan uno a uno en `@theme inline`, sin derivarlos de `--radius`: `--radius-md: 6px` (elementos de menú), `--radius-lg: 6px` (botones, campos, pestañas) y `--radius-xl: 12px` (cards y diálogos). El resto se queda como lo trae shadcn.
-- **Fuentes**: `--font-sans` apunta a Atkinson Hyperlegible Next y `--font-mono` a Paper Mono, ambas alojadas en el propio proyecto. `--font-heading` usa la misma fuente que `--font-sans`.
+- **Fuentes**: `--font-sans` apunta a Atkinson Hyperlegible Next, `--font-display` a Mona Sans y `--font-mono` a Paper Mono, todas alojadas en el propio proyecto. `--font-heading` usa la misma fuente que `--font-sans`.
 - **Escala tipográfica**: como utilidades `@utility type-*`, no como claves `--text-*`, para que no choquen con las clases de color.
-- Bordes, sombras y foco se quedan como los trae shadcn.
+- Bordes, sombras y foco se quedan como los trae shadcn. Solo cambia el color de `--border` y `--input`, que se deriva de `ink` con `color-mix` (14 % y 24 % en claro, 10 % y 15 % en oscuro) para que los campos se vean sobre `ground` y sobre `surface`.
 
 ### Usar los componentes
 
@@ -169,16 +180,14 @@ Se aplica a lo que diseñamos nosotros: páginas, composición y componentes pro
 - Etiquetas pequeñas sobre los títulos, mayúsculas espaciadas y numeraciones 01/02/03 que no sean secuencias reales.
 - Datos unidos con puntos medios (`A · B · C`) y flechas añadidas al texto de botones o enlaces.
 - Una palabra resaltada dentro de un titular.
-- Fondos casi negros con un único acento brillante, o crema con terracota.
+- Un color de marca brillante sobre fondo oscuro, o crema con terracota. El único color intenso es el del estado.
 - Emoji y textos de relleno.
 
 ## Decisiones abiertas
 
-- Idioma de la interfaz: el frontend actual declara `lang="en"` y el alcance permite castellano en los textos visibles.
 - Colores de fallo (relleno), pausado y recuperando.
 - Contraste medido con herramienta de los tokens en ambos temas.
 - Presencia y forma del Lab Mentor (el mock usaba una mascota).
-- Inicializar shadcn y sustituir la fuente Inter y los colores por defecto de `frontend/app/app.css` por estos tokens al implementar la primera página.
 
 ## Herramientas
 
