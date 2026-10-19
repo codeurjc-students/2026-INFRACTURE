@@ -8,7 +8,7 @@ El [`CHANGELOG.md`](../CHANGELOG.md) resume los cambios relevantes entregados en
 
 ## Changelog y notas de versión
 
-El changelog sirve a quienes usan, instalan o mantienen Infracture. Cada entrada explica un cambio ya incorporado y su efecto: una función, un error corregido, una incompatibilidad, una mejora de seguridad o un cambio significativo en instalación, configuración, calidad o documentación de uso/desarrollo. Una modificación interna merece entrada solo si aporta un efecto relevante para esas personas.
+El changelog sirve a quienes usan, instalan o mantienen Infracture. Cada entrada explica un cambio ya incorporado y su efecto: una función, un error corregido, una incompatibilidad, una vulnerabilidad corregida o un cambio en la instalación o la configuración. Cada entrada se compara con la última versión publicada; mientras no exista ninguna, todo va en `Added`. Una modificación interna merece entrada solo si aporta un efecto relevante para esas personas.
 
 Se sigue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/): cambios seleccionados por versión, categorías homogéneas y versiones más recientes primero. Usar únicamente categorías con contenido: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` y `Security`. Mantener `Unreleased` arriba para los cambios incorporados que aún no se han publicado.
 

@@ -45,6 +45,6 @@ Reply in Spanish when the student uses Spanish. Use plain words, short sentences
 
 Use GitHub Flow with short English kebab-case branch names and Conventional Commit summaries. Integrate through PRs; never commit directly to `main`. For an authorized PR, complete [.github/pull_request_template.md](.github/pull_request_template.md) with actual checks, limits and screenshots for visible UI changes.
 
-Apply the [changelog/release policy](docs/tracking.md#changelog-y-notas-de-versión) and [AI recording criteria](docs/AI_USAGE.md#criterio-de-registro) when the contribution qualifies. Evaluation may result in no entry. Local agent configuration, routine Git operations and conversations without a development contribution belong in neither record.
+Apply the [changelog/release policy](docs/tracking.md#changelog-y-notas-de-versión) and [AI recording criteria](docs/AI_USAGE.md#criterio-de-registro) when the contribution qualifies. Evaluation may result in no entry. Before writing a changelog entry, read the [changelog conventions](docs/agents/changelog.md). Local agent configuration, routine Git operations and conversations without a development contribution belong in neither record.
 
 Leave changes unstaged, preserving the existing index. Obtain the student's explicit approval before staging, committing, pushing, opening a pull request, publishing a release or closing an issue.
