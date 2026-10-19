@@ -119,13 +119,13 @@
 
 @utility type-display {
   font-size: 2.25rem;
-  @media (max-height: 720px) {
-    font-size: 2rem;
-  }
   line-height: 1.05;
   font-weight: 500;
   letter-spacing: -0.03em;
   text-wrap: balance;
+  @media (max-height: 720px) {
+    font-size: 2rem;
+  }
 }
 
 @utility type-page-title {
