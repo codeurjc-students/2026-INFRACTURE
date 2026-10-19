@@ -123,8 +123,14 @@
   font-weight: 500;
   letter-spacing: -0.03em;
   text-wrap: balance;
+}
+
+/* Kept outside @utility: Sonar's CSS analyzer reads @utility as an unknown at-rule. */
+@layer utilities {
   @media (max-height: 720px) {
-    font-size: 2rem;
+    .type-display {
+      font-size: 2rem;
+    }
   }
 }
 
