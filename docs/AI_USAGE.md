@@ -2,11 +2,15 @@
 
 Este documento registra el uso de herramientas de inteligencia artificial durante la concepción y el desarrollo de Infracture. Las interacciones relacionadas se agrupan por tema y finalidad para conservar la trazabilidad sin convertir el documento en una transcripción de cada mensaje.
 
-El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **18 de octubre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
+El periodo cubierto actualmente comprende desde el **27 de julio de 2026** hasta el **19 de octubre de 2026**. El orden de las entradas es principalmente temático; cuando un mismo tema se trabajó en varias sesiones, se indica un intervalo de fechas.
 
-El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones y redactar documentación. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
+El contenido generado por IA se ha utilizado como apoyo para investigar, comparar alternativas, estructurar decisiones, redactar documentación e implementar código y pruebas. El alumno es responsable de revisar, comprender, corregir y validar todas las propuestas antes de incorporarlas al proyecto.
 
-## Herramienta y configuración general
+## Herramientas y configuración general
+
+Se han utilizado dos asistentes: OpenAI Codex desde el inicio del registro y Claude Code desde el 18 de octubre de 2026. Cada entrada indica cuál intervino.
+
+### OpenAI Codex
 
 - **Herramienta:** OpenAI Codex, aplicación de escritorio.
 - **Versión de la aplicación declarada al iniciar el registro:** 26.731.11130.
@@ -17,7 +21,14 @@ El contenido generado por IA se ha utilizado como apoyo para investigar, compara
 - **Uso posterior comprobado:** GPT-6.1 Sol con razonamiento `high`, acreditado por los metadatos locales de conversaciones del proyecto al menos desde el 4 de octubre de 2026 y en esta aportación del 15 de octubre. La fecha exacta del cambio de modelo y las versiones intermedias de la aplicación no se han reconstruido.
 - **Criterio de uso:** GPT-5.6 Sol se utilizó inicialmente para investigación, análisis, arquitectura, evaluación de alternativas y toma de decisiones. GPT-5.6 Luna se utilizó en algunas tareas centradas en redacción, reorganización y edición extensa de documentación. GPT-6.1 Sol se ha utilizado para documentación e implementación de Fase 3.
 - **Herramientas auxiliares:** búsqueda web, lectura y extracción de PDF, generación de imágenes y diagramas, edición de ficheros locales y comprobaciones sobre la documentación generada.
-- **Herramienta adicional desde el 18 de octubre de 2026:** Claude Code en la aplicación de escritorio de Claude, con el modelo Claude Opus 5.5 (`claude-opus-5-5`), para la base visual del producto. Incluye lienzos de Claude Design para comparar propuestas.
+
+### Claude Code
+
+- **Herramienta:** Claude Code en la pestaña Code de la aplicación de escritorio de Claude, desde el 18 de octubre de 2026. La versión de la aplicación no se ha comprobado.
+- **Modelo:** Claude Opus 5.5 (`claude-opus-5-5`), según la configuración de la sesión.
+- **Modo de trabajo:** agéntico, con las instrucciones del repositorio (`AGENTS.md`) y Ponytail en nivel `ultra`. El alumno realiza staging, commits y push.
+- **Criterio de uso:** base visual y sistema de diseño; diseño e implementación del frontend de autenticación, con los ajustes de backend y las pruebas asociadas de #74; explicación del código para que el alumno pueda continuar manualmente.
+- **Herramientas auxiliares:** navegador integrado de la aplicación para revisar las páginas, lienzos de Claude Design para comparar propuestas, skills de diseño (frontend-design, good-css, emil-design-eng, break-ui, mobile-native y find-animation-opportunities) y la skill de shadcn.
 
 Las entradas históricas conservan la configuración declarada al documentar cada aportación; la secundaria se identifica donde intervino. Las configuraciones corresponden a los periodos y evidencias indicados, sin atribuir un único modelo a todo el registro ni a trabajos futuros.
 
@@ -33,7 +44,7 @@ Antes de escribir:
 
 La configuración personal del equipo/editor/agente, instalación o limpieza de memoria/skills, auxiliares temporales, operativa Git rutinaria, acuerdos sobre cómo conversar y mantenimiento del propio registro quedan fuera. Una explicación de una función existente se integra en su tema solo si aporta una precisión relevante; no genera una entrada propia. Las decisiones de producto conservan su detalle en la spec o los ADR y aquí se resume únicamente la aportación de IA.
 
-La herramienta y configuración generales se documentan arriba. Registrar nuevas/diferentes tecnologías de IA realmente utilizadas en el desarrollo, como exige la guía académica, actualizando esa sección o el tema afectado; no crear entradas autónomas de configuración local ni atribuir modelos/versiones no comprobados.
+Las herramientas y su configuración general se documentan arriba. Registrar nuevas/diferentes tecnologías de IA realmente utilizadas en el desarrollo, como exige la guía académica, actualizando esa sección o el tema afectado; no crear entradas autónomas de configuración local ni atribuir modelos/versiones no comprobados.
 
 Los identificadores históricos conservados no se renumeran al agrupar o retirar entradas; los huecos no representan trabajo pendiente. Las fechas iniciales se contrastaron con el historial: ideación el 27 de julio, ejecución local/nube el 28, fichas y marca el 31, y revisión de la guía v4 y documentación de Fase 1 el 1 de agosto.
 
@@ -559,7 +570,7 @@ Los identificadores históricos conservados no se renumeran al agrupar o retirar
 
 ## AI-2026-10-15-060 - Identidad y autenticación de Fase 3
 
-- **Fecha, objetivo y revisión del alumno:** 15–17 de octubre de 2026; acompañamiento de la implementación manual de #74. El alumno revisó los campos de cuenta, eligió un único rol por usuario y solicitó completar la entidad, automatizar las fechas y crear la migración.
+- **Fecha, objetivo y revisión del alumno:** 15–19 de octubre de 2026; acompañamiento de la implementación manual de #74. El alumno revisó los campos de cuenta, eligió un único rol por usuario y solicitó completar la entidad, automatizar las fechas y crear la migración.
 - **Aportación y resultado:** Codex completó `User` y `UserRole`, añadió callbacks JPA para las fechas y creó [V4](../backend/src/main/resources/db/migration/V4__create_users.sql) con los campos obligatorios, roles permitidos y unicidad de correo y nombre de usuario mediante índices sobre valores sin espacios extremos y en minúsculas. La asignación de fechas permanece en JPA.
 - **Evidencia y límites:** `./mvnw -Dtest=UserPersistenceIntegrationTests,ComponentTemplateMigrationIntegrationTests test` superó cinco casos con PostgreSQL aislado: correspondencia entre esquema y entidad, ID y fechas, duplicados normalizados, roles inválidos y conservación del catálogo durante la actualización. El esquema queda para revisión del alumno; estos resultados no acreditan el registro ni el login completos. Cambios sin staging ni commit.
 - **Conexión con Spring Security:** a petición del alumno, Codex adaptó `RepositoryUserDetailsService` al repositorio por email, rol único y estado activo, con inyección por constructor. Añadió la comprobación del estado de cuenta al usar y renovar JWT. `./mvnw clean -Dtest=RepositoryUserDetailsServiceTests,SecurityConfigTests test` superó once casos, incluidos BCrypt, usuario inexistente y rechazo de acceso/renovación tras desactivación. Las pruebas HTTP usan un controlador de prueba; los endpoints reales y la revocación de sesiones siguen pendientes.
@@ -578,13 +589,19 @@ Los identificadores históricos conservados no se renumeran al agrupar o retirar
 
 - **Mejoras futuras de cuenta (17 de octubre):** el alumno solicitó integrar la verificación del correo y la recuperación de contraseña por correo junto a las demás [funcionalidades intermedias](detailed-features.md#funcionalidad-intermedia), sin un apartado separado, y confirmó que ambas quedan fuera de Fase 3. Codex incorporó sus descripciones como funciones previstas para una entrega posterior. Cambio documental, sin implementación ni ampliación de la entrega actual.
 
+- **Frontend de autenticación con Claude Code (18–19 de octubre):** el alumno pidió que el backend devolviera los errores como JSON y que el formulario mostrara un aviso general, sin asociar cada error a su campo. Claude Code añadió `UserExceptionHandler` con `ProblemDetail` (409 y 400, limitado a `UserController`) y retiró los `try/catch` del controlador. Creó [`apiFetch`](../frontend/app/shared/api/api-fetch.ts) con `HttpError` y el envío de la cabecera CSRF, completó el servicio de auth a partir de la primera función escrita por el alumno y creó las rutas de login, registro con inicio de sesión automático, logout y una ruta privada con vuelta a `redirectTo` validada para evitar redirecciones externas. La página de cuenta sirve de demostración y los controles de sesión se sitúan provisionalmente en la home hasta que exista la barra superior.
+- **Correcciones encontradas al integrar (19 de octubre):** el alumno informó de que `start-dev.sh` no terminaba de arrancar. Claude Code localizó la causa en `/actuator/health`, que respondía 401 desde la configuración de seguridad, y la dejó pública. La issue exige comprobar la caducidad con un reloj controlado. Por petición posterior del alumno, que revisó la decisión anterior, `JwtTokenProvider` recibe un `Clock` y la duración de la sesión se documentó en el [ADR de sesión y CSRF](adr/0002-proteccion-csrf-con-jwt-en-cookies.md).
+- **Evidencia (19 de octubre):** pruebas unitarias de caducidad, REST con reloj adelantado y renovación, integración del cliente real contra el backend con PostgreSQL desechable (registro, duplicado, credenciales incorrectas, vuelta a `redirectTo` y sesión rechazada) y Playwright (registro, logout con cookies borradas y 401, vuelta a una página privada y recuperación tras un token rechazado). Resultados: `./mvnw verify` con 88 pruebas; 51 pruebas unitarias del frontend con 78,4 % de líneas; 7 de integración cliente-servidor y 3 de navegador; typecheck, lint, build y OpenAPI regenerado sin cambios posteriores. El recorrido se comprobó además en el navegador contra el backend local.
+- **Revisión del alumno y límites:** el alumno pidió explicaciones de cada pieza (`apiFetch`, CSRF, `clientAction`, loaders y caducidad), corrigió su versión inicial del login con esa guía, eligió el inicio de sesión automático tras el registro y pidió retirar los comentarios añadidos por la IA. Aplazó la validación en vivo, la disponibilidad de username en vivo, la barra superior y la renovación automática con `/auth/refresh`. Quedan pendientes la revisión final del alumno y la integración mediante PR.
+
 ## AI-2026-10-18-061 - Base visual y sistema de diseño
 
-- **Fecha o periodo y fase:** 18 de octubre de 2026; Fase 3, antes del frontend de autenticación.
+- **Fecha o periodo y fase:** 18–19 de octubre de 2026; Fase 3, antes y durante el frontend de autenticación.
 - **Objetivo y contexto:** definir la identidad visual común antes de diseñar las páginas de login y registro, partiendo del mock de Fase 1 sin considerarlo definitivo.
 - **Aportación de IA:** Claude Code analizó las skills de diseño disponibles (frontend-design, good-css, las de Emil Kowalski y taste-skill) y revisó el código y las capturas del mock. Detectó texto de 7 a 9 px, efectos decorativos, MySQL en lugar de PostgreSQL y colores por tipo de componente confundibles con los de estado. Recreó la pantalla de ejecución del mock en un lienzo de Claude Design y propuso una versión sin patrones genéricos de IA, en claro, en oscuro y con Paper Mono para datos técnicos. Redactó [DESIGN.md](../DESIGN.md) y contrastó su sección de componentes con la skill de shadcn.
 - **Resultado y evidencia:** `DESIGN.md` en la raíz, con principios, tokens en claro y oscuro, tipografía, estructura general, estados, componentes base, reglas y decisiones abiertas. No se ha modificado código del frontend ni medido el contraste con herramienta.
 - **Revisión del alumno y límites:** el alumno eligió la versión estricta frente al mock, mantener modo claro y oscuro con fondo grafito, dejar cards y combinaciones para cada página, y usar Tailwind con shadcn/ui como estándar de componentes, aceptando su diseño por defecto. La base es una referencia para las páginas; no acredita ninguna pantalla implementada.
+- **Implementación en código (18 de octubre):** el alumno pidió diseñar login y registro directamente en `frontend/`, con la interfaz en inglés. Claude Code inicializó shadcn/ui con Base UI, el estilo vega y Lucide, trasladó los tokens a `app.css` con `light-dark()` y vectorizó el logo del repositorio. El alumno rechazó varias propuestas, entre ellas el primer diseño partido, el lienzo animado y el logo animado. Eligió una página oscura con la frase en Mona Sans y el título en Atkinson Hyperlegible Next de peso medio, y que el registro cupiera sin scroll. Tras una revisión con las skills de diseño aprobó arreglos concretos (envío por `POST`, diseño que se adapta con el texto ampliado, pulido para móvil y animación de errores) y aplazó los requisitos de contraseña en vivo. El catálogo se trasladó a `/catalogue`. Se verificó en el navegador integrado, en ventanas de 1440×789 y 1366×657, junto con typecheck, lint, pruebas y build; `DESIGN.md` recoge las decisiones.
 
 ## Plantilla para nuevas entradas
 

@@ -53,6 +53,8 @@ Durante la Fase 1 se utilizó OpenAI Codex para investigar la temática, compara
 
 Para la Fase 3 se ha preparado un workflow híbrido: el alumno elige por issue o fragmento si implementa manualmente, con acompañamiento o delegando tareas concretas. Las skills locales adaptadas de Matt Pocock estructuran planificación, TDD y revisión; la verificación basada en pstack aporta evidencias de recorridos reales. Engram sirve de memoria suplementaria. La documentación, el código y las pruebas siguen siendo la referencia, y el alumno conserva la revisión y el commit.
 
+Desde el 18 de octubre de 2026 también se utiliza Claude Code con el mismo workflow y las mismas instrucciones del repositorio. Se ha empleado para la base visual y el sistema de diseño, y para el frontend de autenticación con sus pruebas. Codex sigue disponible; cada entrada de [AI_USAGE.md](docs/AI_USAGE.md) indica qué herramienta intervino. El diagrama siguiente muestra la arquitectura con Codex; con Claude Code se mantienen los mismos elementos.
+
 ### Arquitectura de asistencia con IA
 
 [![Arquitectura de asistencia: Codex, documentación, Engram, skills, GitHub y revisión humana](docs/images/ai-workflow/ai-assistance-architecture.png)](docs/images/ai-workflow/ai-assistance-architecture.png)
