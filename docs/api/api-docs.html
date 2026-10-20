@@ -205,10 +205,17 @@ font-style: italic;
   <ul>
   <li><a href="#getComponentTemplates"><code><span class="http-method">get</span> /api/v1/component-templates</code></a></li>
   </ul>
+  <h4><a href="#ProjectController">ProjectController</a></h4>
+  <ul>
+  <li><a href="#createProject"><code><span class="http-method">post</span> /api/v1/projects</code></a></li>
+  <li><a href="#getOwnProject"><code><span class="http-method">get</span> /api/v1/projects/{id}</code></a></li>
+  <li><a href="#getOwnProjects"><code><span class="http-method">get</span> /api/v1/projects</code></a></li>
+  <li><a href="#updateProject"><code><span class="http-method">put</span> /api/v1/projects/{id}</code></a></li>
+  </ul>
   <h4><a href="#UserController">UserController</a></h4>
   <ul>
   <li><a href="#getUserLogged"><code><span class="http-method">get</span> /api/v1/users/me</code></a></li>
-  <li><a href="#registerUser"><code><span class="http-method">post</span> /api/v1/users/</code></a></li>
+  <li><a href="#registerUser"><code><span class="http-method">post</span> /api/v1/users</code></a></li>
   </ul>
 
   <h1><a name="AuthController">AuthController</a></h1>
@@ -423,6 +430,241 @@ font-style: italic;
         <a href="#PagedModelComponentTemplateDTO">PagedModelComponentTemplateDTO</a>
   </div> <!-- method -->
   <hr/>
+  <h1><a name="ProjectController">ProjectController</a></h1>
+  <div class="method"><a name="createProject"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/projects</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">createProject</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">SaveProjectDTO <a href="#SaveProjectDTO">SaveProjectDTO</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ProjectDTO">ProjectDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "name" : "name",
+  "description" : "description",
+  "id" : 0,
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#ProjectDTO">ProjectDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getOwnProject"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/projects/{id}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getOwnProject</span>)</div>
+    <div class="method-notes"></div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">id (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div>
+    </div>  <!-- field-items -->
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ProjectDTO">ProjectDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "name" : "name",
+  "description" : "description",
+  "id" : 0,
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#ProjectDTO">ProjectDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getOwnProjects"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/projects</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getOwnProjects</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+    <h3 class="field-label">Query parameters</h3>
+    <div class="field-items">
+      <div class="param">page (optional)</div>
+
+      <div class="param-desc"><span class="param-type">Query Parameter</span> &mdash;  default: 0 format: int32</div><div class="param">size (optional)</div>
+
+      <div class="param-desc"><span class="param-type">Query Parameter</span> &mdash;  default: 10 format: int32</div>
+    </div>  <!-- field-items -->
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#PagedModelProjectDTO">PagedModelProjectDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "page" : {
+    "number" : 6,
+    "size" : 0,
+    "totalPages" : 5,
+    "totalElements" : 1
+  },
+  "content" : [ {
+    "createdAt" : "2000-01-23T04:56:07.000+00:00",
+    "name" : "name",
+    "description" : "description",
+    "id" : 0,
+    "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+  }, {
+    "createdAt" : "2000-01-23T04:56:07.000+00:00",
+    "name" : "name",
+    "description" : "description",
+    "id" : 0,
+    "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+  } ]
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#PagedModelProjectDTO">PagedModelProjectDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="updateProject"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="put"><code class="huge"><span class="http-method">put</span> /api/v1/projects/{id}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">updateProject</span>)</div>
+    <div class="method-notes"></div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">id (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div>
+    </div>  <!-- field-items -->
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">SaveProjectDTO <a href="#SaveProjectDTO">SaveProjectDTO</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ProjectDTO">ProjectDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "name" : "name",
+  "description" : "description",
+  "id" : 0,
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#ProjectDTO">ProjectDTO</a>
+  </div> <!-- method -->
+  <hr/>
   <h1><a name="UserController">UserController</a></h1>
   <div class="method"><a name="getUserLogged"/>
     <div class="method-path">
@@ -475,7 +717,7 @@ font-style: italic;
   <div class="method"><a name="registerUser"/>
     <div class="method-path">
     <a class="up" href="#__Methods">Up</a>
-    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/users/</code></pre></div>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/users</code></pre></div>
     <div class="method-summary"> (<span class="nickname">registerUser</span>)</div>
     <div class="method-notes"></div>
 
@@ -543,7 +785,10 @@ font-style: italic;
     <li><a href="#LoginRequest"><code>LoginRequest</code> - </a></li>
     <li><a href="#PageMetadata"><code>PageMetadata</code> - </a></li>
     <li><a href="#PagedModelComponentTemplateDTO"><code>PagedModelComponentTemplateDTO</code> - </a></li>
+    <li><a href="#PagedModelProjectDTO"><code>PagedModelProjectDTO</code> - </a></li>
+    <li><a href="#ProjectDTO"><code>ProjectDTO</code> - </a></li>
     <li><a href="#RegisterUserDTO"><code>RegisterUserDTO</code> - </a></li>
+    <li><a href="#SaveProjectDTO"><code>SaveProjectDTO</code> - </a></li>
     <li><a href="#UserDTO"><code>UserDTO</code> - </a></li>
   </ol>
 
@@ -596,6 +841,25 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="PagedModelProjectDTO"><code>PagedModelProjectDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">content (optional)</div><div class="param-desc"><span class="param-type"><a href="#ProjectDTO">array[ProjectDTO]</a></span>  </div>
+<div class="param">page (optional)</div><div class="param-desc"><span class="param-type"><a href="#PageMetadata">PageMetadata</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ProjectDTO"><code>ProjectDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">id (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">description (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">createdAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+<div class="param">updatedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="RegisterUserDTO"><code>RegisterUserDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -603,6 +867,14 @@ font-style: italic;
 <div class="param">displayName (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">email (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">password (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="SaveProjectDTO"><code>SaveProjectDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">description (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
