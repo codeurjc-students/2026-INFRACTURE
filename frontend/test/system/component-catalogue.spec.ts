@@ -5,7 +5,9 @@ test("renders the persisted catalogue through the real application", async ({
   request,
 }, testInfo) => {
   await test.step("Doctor: disposable backend is healthy", async () => {
-    const health = await request.get("http://127.0.0.1:8081/actuator/health/readiness");
+    const health = await request.get(
+      "http://127.0.0.1:8081/actuator/health/readiness",
+    );
     expect(health.ok()).toBeTruthy();
     expect(await health.json()).toMatchObject({ status: "UP" });
   });
@@ -24,33 +26,47 @@ test("renders the persisted catalogue through the real application", async ({
   ];
   const allNames = [...expectedNames, "Worker variant 5", "Worker variant 6"];
 
-  const templates = await test.step("Read the public catalogue API", async () => {
-    const response = await request.get(
-      "http://127.0.0.1:8081/api/v1/component-templates",
-    );
-    expect(response.status()).toBe(200);
-    const body = await response.json();
-    expect(body.content).toHaveLength(10);
-    expect(body.page).toEqual({ size: 10, number: 0, totalElements: 12, totalPages: 2 });
-    expect(body.content.map((item: { name: string }) => item.name)).toEqual(expectedNames);
-    for (const item of body.content) {
-      expect(Object.keys(item).sort()).toEqual(["key", "name", "type"]);
-      expect(item.key).toEqual(expect.any(String));
-      expect(item.type).toEqual(expect.any(String));
-    }
-    await testInfo.attach("catalogue-api.json", {
-      body: JSON.stringify(body, null, 2),
-      contentType: "application/json",
+  const templates =
+    await test.step("Read the public catalogue API", async () => {
+      const response = await request.get(
+        "http://127.0.0.1:8081/api/v1/component-templates",
+      );
+      expect(response.status()).toBe(200);
+      const body = await response.json();
+      expect(body.content).toHaveLength(10);
+      expect(body.page).toEqual({
+        size: 10,
+        number: 0,
+        totalElements: 12,
+        totalPages: 2,
+      });
+      expect(body.content.map((item: { name: string }) => item.name)).toEqual(
+        expectedNames,
+      );
+      for (const item of body.content) {
+        expect(Object.keys(item).sort()).toEqual(["key", "name", "type"]);
+        expect(item.key).toEqual(expect.any(String));
+        expect(item.type).toEqual(expect.any(String));
+      }
+      await testInfo.attach("catalogue-api.json", {
+        body: JSON.stringify(body, null, 2),
+        contentType: "application/json",
+      });
+      return body as {
+        content: { key: string; name: string; type: string }[];
+        page: {
+          size: number;
+          number: number;
+          totalElements: number;
+          totalPages: number;
+        };
+      };
     });
-    return body as {
-      content: { key: string; name: string; type: string }[];
-      page: { size: number; number: number; totalElements: number; totalPages: number };
-    };
-  });
 
   await test.step("Open the catalogue through the browser and real API proxy", async () => {
     const responsePromise = page.waitForResponse(
-      (response) => new URL(response.url()).pathname === "/api/v1/component-templates",
+      (response) =>
+        new URL(response.url()).pathname === "/api/v1/component-templates",
     );
     await page.goto("/catalogue");
     const response = await responsePromise;
@@ -68,7 +84,9 @@ test("renders the persisted catalogue through the real application", async ({
         has: page.getByRole("heading", { name: template.name, exact: true }),
       });
       await expect(card.getByText(template.key, { exact: true })).toBeVisible();
-      await expect(card.getByText(template.type, { exact: true })).toBeVisible();
+      await expect(
+        card.getByText(template.type, { exact: true }),
+      ).toBeVisible();
     }
   });
 
@@ -80,7 +98,9 @@ test("renders the persisted catalogue through the real application", async ({
       return route.continue();
     });
     await page.getByRole("button", { name: "More results" }).click();
-    await expect(page.getByRole("alert")).toContainText("Could not load more component templates.");
+    await expect(page.getByRole("alert")).toContainText(
+      "Could not load more component templates.",
+    );
     await expect(page.getByRole("listitem")).toHaveCount(10);
     await testInfo.attach("catalogue-later-error.png", {
       body: await page.screenshot({ fullPage: true }),
@@ -92,18 +112,27 @@ test("renders the persisted catalogue through the real application", async ({
   await test.step("Retry and load the final real page without duplicate cards", async () => {
     const nextResponse = page.waitForResponse((response) => {
       const url = new URL(response.url());
-      return url.pathname === "/api/v1/component-templates" && url.searchParams.get("page") === "1";
+      return (
+        url.pathname === "/api/v1/component-templates" &&
+        url.searchParams.get("page") === "1"
+      );
     });
     await page.getByRole("button", { name: "Try again" }).click();
     const response = await nextResponse;
     expect(response.status()).toBe(200);
     const lastPage = await response.json();
-    expect(lastPage.content.map((item: { key: string }) => item.key))
-      .toEqual(["worker-variant-5", "worker-variant-6"]);
-    await expect(page.getByRole("list").getByRole("heading", { level: 2 })).toHaveText(allNames);
+    expect(lastPage.content.map((item: { key: string }) => item.key)).toEqual([
+      "worker-variant-5",
+      "worker-variant-6",
+    ]);
+    await expect(
+      page.getByRole("list").getByRole("heading", { level: 2 }),
+    ).toHaveText(allNames);
     await expect(page.getByRole("listitem")).toHaveCount(12);
     await expect(page.getByRole("alert")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "More results" })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "More results" }),
+    ).toHaveCount(0);
     await testInfo.attach("catalogue-all-pages.png", {
       body: await page.screenshot({ fullPage: true }),
       contentType: "image/png",
@@ -126,11 +155,17 @@ test("renders the persisted catalogue through the real application", async ({
   });
 });
 
-test("shows a missing page and allows returning to the catalogue", async ({ page }, testInfo) => {
+test("shows a missing page and allows returning to the catalogue", async ({
+  page,
+}, testInfo) => {
   await test.step("Open an unknown route", async () => {
     await page.goto("/verification-missing-page");
-    await expect(page.getByRole("heading", { name: "404", exact: true })).toBeVisible();
-    await expect(page.getByText("The requested page could not be found.")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Page not found", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("The requested page could not be found."),
+    ).toBeVisible();
     await testInfo.attach("missing-page.png", {
       body: await page.screenshot({ fullPage: true }),
       contentType: "image/png",

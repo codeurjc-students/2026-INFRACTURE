@@ -13,7 +13,9 @@ export async function clientLoader() {
   return { user };
 }
 
-export default function Home({ loaderData }: Pick<Route.ComponentProps, "loaderData">) {
+export default function Home({
+  loaderData,
+}: Pick<Route.ComponentProps, "loaderData">) {
   const { user } = loaderData;
 
   return (
@@ -22,18 +24,40 @@ export default function Home({ loaderData }: Pick<Route.ComponentProps, "loaderD
       <p className="type-title text-muted-foreground">
         Design distributed systems, inject faults and see how they recover.
       </p>
-      <Link to="/catalogue" className={buttonVariants({ size: "lg" })}>
-        Open component catalogue
-      </Link>
+      <div className="flex flex-wrap gap-3">
+        {user && (
+          <Link to="/projects" className={buttonVariants({ size: "lg" })}>
+            Open your projects
+          </Link>
+        )}
+        <Link
+          to="/catalogue"
+          className={buttonVariants({
+            size: "lg",
+            variant: user ? "outline" : "default",
+          })}
+        >
+          Open component catalogue
+        </Link>
+      </div>
       {user ? (
-        <Form method="post" action="/logout" className="flex items-center gap-3">
+        <Form
+          method="post"
+          action="/logout"
+          className="flex items-center gap-3"
+        >
           <p className="type-body text-muted-foreground">
             Signed in as{" "}
-            <Link to="/account" className="text-foreground underline underline-offset-4">
+            <Link
+              to="/account"
+              className="text-foreground underline underline-offset-4"
+            >
               {user.displayName}
             </Link>
           </p>
-          <Button type="submit" variant="outline">Sign out</Button>
+          <Button type="submit" variant="outline">
+            Sign out
+          </Button>
         </Form>
       ) : (
         <Link to="/login" className={buttonVariants({ variant: "outline" })}>

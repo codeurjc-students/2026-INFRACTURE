@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getCurrentUser, login, logout, register } from "~/features/auth/api/auth-service";
+import {
+  getCurrentUser,
+  login,
+  logout,
+  register,
+} from "~/features/auth/api/auth-service";
 import type { UserDTO } from "~/features/auth/model/UserDTO";
 
 const user: UserDTO = {
@@ -31,20 +36,29 @@ afterEach(() => {
 
 describe("auth service", () => {
   it("signs in with the email and password", async () => {
-    const fetch = vi.fn().mockResolvedValue(Response.json({ status: "SUCCESS" }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(Response.json({ status: "SUCCESS" }));
     vi.stubGlobal("fetch", fetch);
 
-    await expect(login("alice@example.com", "A secure passphrase 2026!")).resolves.toBeUndefined();
+    await expect(
+      login("alice@example.com", "A secure passphrase 2026!"),
+    ).resolves.toBeUndefined();
 
     expect(requestOf(fetch)).toEqual({
       path: "/api/v1/auth/login",
       method: "POST",
-      body: JSON.stringify({ email: "alice@example.com", password: "A secure passphrase 2026!" }),
+      body: JSON.stringify({
+        email: "alice@example.com",
+        password: "A secure passphrase 2026!",
+      }),
     });
   });
 
   it("registers the account and returns the created user", async () => {
-    const fetch = vi.fn().mockResolvedValue(Response.json(user, { status: 201 }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(Response.json(user, { status: 201 }));
     vi.stubGlobal("fetch", fetch);
     const registration = {
       username: "alice",
@@ -63,12 +77,18 @@ describe("auth service", () => {
   });
 
   it("signs out without a body", async () => {
-    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetch);
 
     await expect(logout()).resolves.toBeUndefined();
 
-    expect(requestOf(fetch)).toEqual({ path: "/api/v1/auth/logout", method: "POST", body: undefined });
+    expect(requestOf(fetch)).toEqual({
+      path: "/api/v1/auth/logout",
+      method: "POST",
+      body: undefined,
+    });
   });
 
   it("returns the signed-in user", async () => {
@@ -77,6 +97,9 @@ describe("auth service", () => {
 
     await expect(getCurrentUser()).resolves.toEqual(user);
 
-    expect(requestOf(fetch)).toMatchObject({ path: "/api/v1/users/me", method: "GET" });
+    expect(requestOf(fetch)).toMatchObject({
+      path: "/api/v1/users/me",
+      method: "GET",
+    });
   });
 });

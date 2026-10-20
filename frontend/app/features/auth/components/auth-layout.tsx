@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Logo from "~/components/logo";
+import HeatBand from "./heat-band";
 
 type AuthLayoutProps = {
   headline: [string, string];
@@ -16,7 +17,7 @@ export default function AuthLayout({
 }: AuthLayoutProps) {
   return (
     <div className="theme-dark min-h-svh bg-background text-foreground">
-      <meta name="theme-color" content="#0d1114" />
+      <meta name="theme-color" content="#0f0f19" />
       <div className="mx-auto flex min-h-svh w-full max-w-6xl flex-col gap-6 px-6 py-6 sm:px-10 lg:px-16 [@media(max-height:720px)]:py-4">
         <header className="flex h-10 items-center">
           <Logo className="h-6 w-auto" />
@@ -32,11 +33,14 @@ export default function AuthLayout({
               Design a distributed system, run it on Docker and inject faults to
               see how every component reacts.
             </p>
+            <div className="hidden max-w-xl pt-4 sm:block">
+              <HeatBand />
+            </div>
           </section>
           <main className="grow basis-md">
             <div className="flex w-full max-w-sm flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <h1 className="type-display">{title}</h1>
+                <h1 className="type-display font-display">{title}</h1>
                 <p className="type-body text-muted-foreground">{description}</p>
               </div>
               {children}

@@ -1,4 +1,5 @@
-import { Link, useRouteLoaderData } from "react-router";
+import { useRouteLoaderData } from "react-router";
+import AppHeader from "~/components/app-header";
 import type { clientLoader as privateLoader } from "./private-layout";
 
 export function meta() {
@@ -6,22 +7,26 @@ export function meta() {
 }
 
 export default function AccountRoute() {
-  const { user } = useRouteLoaderData<typeof privateLoader>("routes/private-layout")!;
+  const { user } = useRouteLoaderData<typeof privateLoader>(
+    "routes/private-layout",
+  )!;
 
   return (
-    <main className="mx-auto flex min-h-svh max-w-5xl flex-col items-start justify-center gap-6 px-6 py-12">
-      <h1 className="type-page-title">Your account</h1>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 type-body">
-        <dt className="text-muted-foreground">Name</dt>
-        <dd>{user.displayName}</dd>
-        <dt className="text-muted-foreground">Username</dt>
-        <dd>{user.username}</dd>
-        <dt className="text-muted-foreground">Email</dt>
-        <dd>{user.email}</dd>
-      </dl>
-      <Link to="/" className="type-body underline underline-offset-4">
-        Back to home
-      </Link>
-    </main>
+    <div className="min-h-svh">
+      <AppHeader />
+      <div className="mx-auto max-w-7xl px-4 pb-20 sm:px-6">
+        <main className="flex max-w-3xl flex-col gap-6 pt-8">
+          <h1 className="type-headline">Your account</h1>
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-3 rounded-xl border bg-card p-5 type-body sm:p-6">
+            <dt className="text-muted-foreground">Name</dt>
+            <dd className="[overflow-wrap:anywhere]">{user.displayName}</dd>
+            <dt className="text-muted-foreground">Username</dt>
+            <dd className="[overflow-wrap:anywhere]">{user.username}</dd>
+            <dt className="text-muted-foreground">Email</dt>
+            <dd className="[overflow-wrap:anywhere]">{user.email}</dd>
+          </dl>
+        </main>
+      </div>
+    </div>
   );
 }
