@@ -56,7 +56,7 @@ describe("auth service", () => {
     await expect(register(registration)).resolves.toEqual(user);
 
     expect(requestOf(fetch)).toEqual({
-      path: "/api/v1/users/",
+      path: "/api/v1/users",
       method: "POST",
       body: JSON.stringify(registration),
     });

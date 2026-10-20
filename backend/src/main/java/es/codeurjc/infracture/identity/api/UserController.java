@@ -26,7 +26,7 @@ public class UserController {
         this.userMapper = userMapper;
     }
 
-    @PostMapping("/")
+    @PostMapping
     public ResponseEntity<UserDTO> registerUser(@RequestBody RegisterUserDTO userDTO) {
         User registeredUser = userService.registerUser(userMapper.fromRegisterDTOtoDomain(userDTO));
         URI location = fromCurrentRequest().path("/{id}").buildAndExpand(registeredUser.getId()).toUri();

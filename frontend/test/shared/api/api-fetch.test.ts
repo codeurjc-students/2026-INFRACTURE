@@ -32,7 +32,7 @@ describe("apiFetch", () => {
       ),
     );
 
-    const error = await apiFetch("/api/v1/users/", { method: "POST", body: "{}" }).catch((e) => e);
+    const error = await apiFetch("/api/v1/users", { method: "POST", body: "{}" }).catch((e) => e);
 
     expect(error).toBeInstanceOf(HttpError);
     expect(error).toMatchObject({ status: 409, message: "Username is already in use" });
