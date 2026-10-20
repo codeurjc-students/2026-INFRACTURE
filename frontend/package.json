@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
-    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
-    "@fontsource-variable/mona-sans": "^5.3.0",
+    "@fontsource-variable/geologica": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@react-router/node": "^8",
     "@react-router/serve": "^8",
     "class-variance-authority": "^0.7.1",

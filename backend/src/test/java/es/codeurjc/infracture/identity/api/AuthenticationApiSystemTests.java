@@ -85,7 +85,7 @@ class AuthenticationApiSystemTests {
         CookieFilter cookies = new CookieFilter();
         String csrf = csrf(cookies);
         write(cookies, csrf).body(registration("expiryuser", "expiry@example.com"))
-            .post("/api/v1/users/").then().statusCode(201);
+            .post("/api/v1/users").then().statusCode(201);
         write(cookies, csrf).body("""
                 {"email":"expiry@example.com","password":"%s"}
                 """.formatted(PASSWORD)).post("/api/v1/auth/login").then().statusCode(200);
@@ -104,7 +104,7 @@ class AuthenticationApiSystemTests {
         CookieFilter cookies = new CookieFilter();
         String csrf = csrf(cookies);
         Response registration = write(cookies, csrf).body(registration("flowuser", "FlowUser@example.com"))
-            .post("/api/v1/users/");
+            .post("/api/v1/users");
         registration.then().statusCode(201).body("role", equalTo("USER"))
             .body("password", nullValue()).body("encodedPassword", nullValue());
         Long id = registration.jsonPath().getLong("id");
@@ -112,7 +112,7 @@ class AuthenticationApiSystemTests {
         assertThat(saved.getEncodedPassword()).startsWith("$argon2id$").isNotEqualTo(PASSWORD);
         assertThat(passwordEncoder.matches(PASSWORD, saved.getEncodedPassword())).isTrue();
         write(cookies, csrf).body(registration("otherflow", "flowuser@EXAMPLE.COM"))
-            .post("/api/v1/users/").then().statusCode(409);
+            .post("/api/v1/users").then().statusCode(409);
         write(cookies, csrf).body("""
                 {"email":"FlowUser@example.com","password":"Incorrect password 2026!"}
                 """).post("/api/v1/auth/login").then().statusCode(401);
@@ -150,7 +150,7 @@ class AuthenticationApiSystemTests {
         String username = "tamper_" + field.toLowerCase(Locale.ROOT).substring(0, Math.min(field.length(), 12));
         String body = registration(username, username + "@example.com").stripTrailing();
         body = body.substring(0, body.length() - 1) + ",\"" + field + "\":\"ADMIN\"}";
-        write(cookies, csrf(cookies)).body(body).post("/api/v1/users/").then().statusCode(400);
+        write(cookies, csrf(cookies)).body(body).post("/api/v1/users").then().statusCode(400);
         assertThat(repository.existsByUsernameIgnoreCase(username)).isFalse();
     }
 
@@ -173,9 +173,9 @@ class AuthenticationApiSystemTests {
         String secondCsrf = csrf(secondCookies);
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             Future<Response> first = executor.submit(() -> write(firstCookies, firstCsrf)
-                .body(registration(firstUsername, firstEmail)).post("/api/v1/users/"));
+                .body(registration(firstUsername, firstEmail)).post("/api/v1/users"));
             Future<Response> second = executor.submit(() -> write(secondCookies, secondCsrf)
-                .body(registration(secondUsername, secondEmail)).post("/api/v1/users/"));
+                .body(registration(secondUsername, secondEmail)).post("/api/v1/users"));
             Response firstResponse = first.get(20, TimeUnit.SECONDS);
             Response secondResponse = second.get(20, TimeUnit.SECONDS);
             assertThat(new int[] {firstResponse.statusCode(), secondResponse.statusCode()})

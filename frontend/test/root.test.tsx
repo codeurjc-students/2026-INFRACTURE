@@ -20,16 +20,27 @@ describe("application root", () => {
       data: "",
     });
 
-    expect(screen.getByRole("heading", { name: "404" })).toBeInTheDocument();
-    expect(screen.getByText("The requested page could not be found."))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Page not found" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("404")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to home" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+    expect(
+      screen.getByText("The requested page could not be found."),
+    ).toBeInTheDocument();
   });
 
   it("renders the diagnostic details of an unexpected development error", () => {
     renderError(new Error("Unexpected catalogue failure"));
 
-    expect(screen.getByRole("heading", { name: "Oops!" })).toBeInTheDocument();
-    expect(screen.getByText("Unexpected catalogue failure"))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Something broke" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Unexpected catalogue failure"),
+    ).toBeInTheDocument();
   });
 });

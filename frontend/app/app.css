@@ -1,8 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/atkinson-hyperlegible-next";
-@import "@fontsource-variable/mona-sans/wdth.css";
+@import "@fontsource-variable/geologica/full.css";
+@import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark {
   @media (prefers-color-scheme: dark) {
@@ -14,10 +14,10 @@
 }
 
 @theme inline {
-  --font-sans: "Atkinson Hyperlegible Next Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geologica Variable", ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sans);
-  --font-display: "Mona Sans Variable", var(--font-sans);
-  --font-mono: "Paper Mono", ui-monospace, monospace;
+  --font-display: var(--font-sans);
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -41,7 +41,14 @@
   --color-degraded-fill: var(--degraded-fill);
   --color-degraded-text: var(--degraded-text);
   --color-healthy-text: var(--healthy-text);
+  --color-recovering-text: var(--recovering-text);
+  --color-failed-fill: var(--failed-fill);
   --color-on-degraded: var(--on-degraded);
+  --color-on-failed: var(--on-failed);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -51,17 +58,24 @@
 
 :root {
   color-scheme: light dark;
-  --ground: light-dark(#e3e6e2, #0d1114);
-  --surface: light-dark(#f1f3f0, #161c20);
-  --surface-selected: light-dark(#f1f3f0, #222a30);
-  --ink: light-dark(#1e2830, #eef1ef);
-  --ink-muted: light-dark(#46535d, #9aa5ac);
-  --connection: light-dark(#8c979e, #3a464e);
-  --degraded-fill: #e9a93a;
-  --degraded-text: light-dark(#8a5a00, #f0b954);
-  --failed-text: light-dark(#a82b16, #f2836b);
-  --healthy-text: light-dark(#2e7a4e, #6cc18f);
-  --on-degraded: light-dark(#1e2830, #0d1114);
+  --ground: light-dark(#ededf2, #0f0f19);
+  --surface: light-dark(#fbfbfd, #181823);
+  --surface-selected: light-dark(#e2e2e9, #252532);
+  --ink: light-dark(#1a1a23, #f3f3f7);
+  --ink-muted: light-dark(#595a64, #a6a7b0);
+  --connection: light-dark(#858590, #62626f);
+  --healthy-text: light-dark(#007654, #6bd2a8);
+  --recovering-text: light-dark(#7444b4, #be9df7);
+  --degraded-text: light-dark(#9a5a00, #fbc456);
+  --failed-text: light-dark(#ca0f4d, #ff6c86);
+  --degraded-fill: #f9b73f;
+  --failed-fill: #e01757;
+  --on-degraded: #1a1a23;
+  --on-failed: #ffffff;
+  --heat-1: light-dark(#b9b0d6, #33285a);
+  --heat-2: light-dark(#7444b4, #5a2c97);
+  --heat-3: #b20d8f;
+  --heat-4: #e01757;
 
   --background: var(--ground);
   --foreground: var(--ink);
@@ -70,7 +84,7 @@
   --popover: var(--surface);
   --popover-foreground: var(--ink);
   --primary: var(--ink);
-  --primary-foreground: light-dark(#f1f3f0, #0d1114);
+  --primary-foreground: var(--surface);
   --secondary: var(--surface);
   --secondary-foreground: var(--ink);
   --muted: var(--ground);
@@ -79,12 +93,12 @@
   --accent-foreground: var(--ink);
   --destructive: var(--failed-text);
   --border: light-dark(
-    color-mix(in oklch, #1e2830 14%, transparent),
-    color-mix(in oklch, #eef1ef 10%, transparent)
+    color-mix(in oklch, #1a1a23 14%, transparent),
+    color-mix(in oklch, #f3f3f7 10%, transparent)
   );
   --input: light-dark(
-    color-mix(in oklch, #1e2830 24%, transparent),
-    color-mix(in oklch, #eef1ef 15%, transparent)
+    color-mix(in oklch, #1a1a23 24%, transparent),
+    color-mix(in oklch, #f3f3f7 15%, transparent)
   );
   --ring: var(--ink);
 }
@@ -113,8 +127,17 @@
   font-size: clamp(2.5rem, 13cqi, 6.5rem);
   line-height: 0.92;
   font-weight: 760;
-  font-stretch: 112%;
   letter-spacing: -0.04em;
+}
+
+@utility type-headline {
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 6vw, 5rem);
+  line-height: 0.95;
+  font-weight: 760;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 @utility type-display {
@@ -183,5 +206,18 @@
   html {
     @apply font-sans;
     -webkit-tap-highlight-color: transparent;
+  }
+  /* Sharp voice of Geologica (DESIGN.md, Tipografía): headlines and failed components. */
+  .font-display,
+  .type-hero,
+  .type-headline {
+    font-variation-settings: "SHRP" 100, "CRSV" 1;
+  }
+  code,
+  kbd,
+  samp,
+  pre,
+  .font-mono {
+    font-feature-settings: "zero";
   }
 }

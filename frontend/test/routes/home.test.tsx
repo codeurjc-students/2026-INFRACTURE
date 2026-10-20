@@ -1,5 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider, useLoaderData } from "react-router";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useLoaderData,
+} from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getCurrentUser, logout } from "~/features/auth/api/auth-service";
@@ -13,7 +17,9 @@ vi.mock("~/features/auth/api/auth-service");
 const activeRouters: ReturnType<typeof createMemoryRouter>[] = [];
 
 function HomeTestRoute() {
-  const loaderData = useLoaderData() as Awaited<ReturnType<typeof clientLoader>>;
+  const loaderData = useLoaderData() as Awaited<
+    ReturnType<typeof clientLoader>
+  >;
 
   return <Home loaderData={loaderData} />;
 }
@@ -35,23 +41,37 @@ afterEach(() => {
 
 describe("home route", () => {
   it("links to the component catalogue and to sign in without a session", async () => {
-    vi.mocked(getCurrentUser).mockRejectedValue(new HttpError(401, "Unauthorized"));
+    vi.mocked(getCurrentUser).mockRejectedValue(
+      new HttpError(401, "Unauthorized"),
+    );
     renderHome();
 
-    expect(await screen.findByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+    expect(
+      await screen.findByRole("link", { name: "Sign in" }),
+    ).toHaveAttribute("href", "/login");
     expect(screen.getByRole("img", { name: "Infracture" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open component catalogue" })).toHaveAttribute(
-      "href",
-      "/catalogue",
-    );
+    expect(
+      screen.getByRole("link", { name: "Open component catalogue" }),
+    ).toHaveAttribute("href", "/catalogue");
+    expect(
+      screen.queryByRole("link", { name: "Open your projects" }),
+    ).not.toBeInTheDocument();
   });
 
   it("signs the user out and opens the sign-in page", async () => {
-    vi.mocked(getCurrentUser).mockResolvedValue({ displayName: "Alice" } as UserDTO);
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      displayName: "Alice",
+    } as UserDTO);
     vi.mocked(logout).mockResolvedValue();
     renderHome();
 
-    expect(await screen.findByRole("link", { name: "Alice" })).toHaveAttribute("href", "/account");
+    expect(await screen.findByRole("link", { name: "Alice" })).toHaveAttribute(
+      "href",
+      "/account",
+    );
+    expect(
+      screen.getByRole("link", { name: "Open your projects" }),
+    ).toHaveAttribute("href", "/projects");
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
 
     expect(await screen.findByText("Login page")).toBeInTheDocument();

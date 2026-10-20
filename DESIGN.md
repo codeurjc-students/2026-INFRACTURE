@@ -1,17 +1,19 @@
 # Diseño de Infracture
 
-Base visual común de toda la aplicación. Versión inicial del 18 de octubre de 2026.
+Guía de marca de Infracture. Versión del 20 de octubre de 2026 con la identidad térmica, que sustituye a la inicial del 18 de octubre.
 
-Este documento fija los cimientos: principios, tokens, reglas y las pocas piezas que se repiten en todas partes. El diseño concreto de cada página (layout, cards, listas, tablas, estados vacíos) se decide al diseñar esa página. Cuando una decisión de página se repite en dos o más páginas, se añade aquí como patrón.
+## Qué fija este documento y qué no
 
-El mock de Fase 1 (`../infracture-ui-prototype`) sigue siendo la referencia de pantallas, navegación y anatomía del nodo. Su estética no: se sustituye por la de este documento.
+Este documento fija la **identidad** de Infracture: lo que debe ser igual en toda la aplicación para que se reconozca como un único producto. Son los colores y su significado, las familias tipográficas, las formas, el vocabulario de estados, la accesibilidad y el sistema de componentes. Todo lo que aparece aquí es obligatorio.
+
+Este documento **no** fija la composición de las páginas: la estructura, la jerarquía, el layout, los tamaños de los títulos, el uso de imágenes o de recursos visuales. Cada página se diseña desde cero a partir de su trabajo y su contenido, siguiendo [Diseñar una página](#diseñar-una-página). Que una página ya diseñada use una estructura no la convierte en norma para las demás.
 
 ## Principios
 
-1. **El fallo es el único momento llamativo.** La interfaz es neutra y tranquila. Cuando se inyecta un fallo, el componente afectado y su conexión son lo único con color intenso.
-2. **El color solo indica estado.** El tipo de componente se reconoce por su icono y su nombre, nunca por un color propio.
-3. **Tono y espacio, no líneas.** Las superficies se separan con escalones de tono y huecos. Sin bordes decorativos ni sombras en reposo.
-4. **Texto llano.** Cada botón dice lo que hace, cada error explica cómo arreglarlo y cada estado vacío invita a actuar.
+1. **El fallo es el único momento llamativo.** La interfaz se comporta como una cámara térmica que vigila la arquitectura: en reposo todo está frío y neutro, y el calor (ámbar y después infrarrojo) aparece solo cuando algo se degrada o falla.
+2. **El color solo indica estado.** El tipo de componente se reconoce por su icono y su nombre, nunca por un color propio. El único acento de la marca, Infrarrojo, es también el color del fallo: si algo es infrarrojo, se ha roto o lo vas a romper.
+3. **La letra se fractura con el sistema.** Los titulares y lo que ha fallado usan la voz afilada de la tipografía; el resto de la interfaz, la voz roma.
+4. **Texto llano.** Cada botón dice lo que hace, cada error explica cómo arreglarlo y cada estado vacío invita a actuar. Sin emoji ni textos de relleno.
 
 Toda la interfaz está en inglés, pensada como una aplicación global. Las traducciones se decidirán más adelante.
 
@@ -19,71 +21,98 @@ Toda la interfaz está en inglés, pensada como una aplicación global. Las trad
 
 Los colores se definen como tokens con significado. Los componentes usan los tokens, nunca valores sueltos. El tema sigue la preferencia del sistema (`prefers-color-scheme`); no hay selector manual por ahora.
 
+La paleta se diseñó en OKLCH. Los neutros llevan un sesgo violeta muy bajo (tono 285), el frío de una imagen térmica, en lugar del gris azulado habitual en herramientas técnicas. El claro recuerda a la cerámica: gris frío de fondo y superficies casi blancas. El oscuro es una noche térmica: casi negro con un punto violeta, sin llegar al negro puro para que el texto claro no produzca halo.
+
 | Token | Claro | Oscuro | Uso |
 | --- | --- | --- | --- |
-| `ground` | `#E3E6E2` | `#0D1114` | Fondo de la aplicación y del lienzo |
-| `surface` | `#F1F3F0` | `#161C20` | Paneles, nodos, métricas |
-| `surface-selected` | `#F1F3F0` sobre `ground` | `#222A30` | Opción activa dentro de un control |
-| `ink` | `#1E2830` | `#EEF1EF` | Texto principal e iconos |
-| `ink-muted` | `#46535D` | `#9AA5AC` | Texto secundario, etiquetas |
-| `connection` | `#8C979E` | `#3A464E` | Conexiones del lienzo en reposo |
-| `action` | `ink` | `ink` | Fondo del botón principal; su texto usa `surface` en claro y `ground` en oscuro |
-| `degraded-fill` | `#E9A93A` | `#E9A93A` | Relleno del nodo y la conexión degradados |
-| `degraded-text` | `#8A5A00` | `#F0B954` | Texto e iconos de estado degradado |
-| `failed-text` | `#A82B16` | `#F2836B` | Texto e iconos de fallo y error |
-| `healthy-text` | `#2E7A4E` | `#6CC18F` | Texto e iconos de estado sano |
-| `on-degraded` | `ink` | `ground` | Texto e iconos sobre `degraded-fill` |
+| `ground` | `#EDEDF2` | `#0F0F19` | Fondo de la aplicación y del lienzo |
+| `surface` | `#FBFBFD` | `#181823` | Paneles, nodos, métricas, campos |
+| `surface-selected` | `#E2E2E9` | `#252532` | Opción activa dentro de un control, hover, nivel frío de la escala térmica |
+| `ink` | `#1A1A23` | `#F3F3F7` | Texto principal e iconos |
+| `ink-muted` | `#595A64` | `#A6A7B0` | Texto secundario, etiquetas, estado pausado |
+| `connection` | `#858590` | `#62626F` | Conexiones del lienzo en reposo |
+| `action` | `ink` | `ink` | Fondo del botón principal; su texto usa `surface` |
+| `healthy-text` | `#007654` | `#6BD2A8` | Texto e iconos de estado sano |
+| `recovering-text` | `#7444B4` | `#BE9DF7` | Texto, iconos y borde de estado recuperando |
+| `degraded-text` | `#9A5A00` | `#FBC456` | Texto e iconos de estado degradado |
+| `failed-text` | `#CA0F4D` | `#FF6C86` | Texto e iconos de fallo y error |
+| `degraded-fill` | `#F9B73F` | `#F9B73F` | Relleno del nodo y la conexión degradados |
+| `failed-fill` | `#E01757` | `#E01757` | Infrarrojo: relleno del nodo fallido, conexión rota y acción de inyectar un fallo |
+| `on-degraded` | `#1A1A23` | `#1A1A23` | Texto e iconos sobre `degraded-fill` |
+| `on-failed` | `#FFFFFF` | `#FFFFFF` | Texto e iconos sobre `failed-fill` |
 
-El fondo oscuro es un pizarra casi negro, de sala de control, sin llegar al negro puro: así el ámbar del fallo destaca al máximo, el texto claro no produce halo y las superficies se separan por escalones de tono (`ground`, `surface`, `surface-selected`).
+Contraste medido con la fórmula de WCAG 2.2, sobre `ground` de cada tema (claro / oscuro):
+
+| Par | Contraste |
+| --- | --- |
+| `ink` | 14,8:1 / 17,2:1 |
+| `ink-muted` | 5,86:1 / 7,96:1 |
+| `connection` (gráfico) | 3,13:1 / 3,17:1 |
+| `healthy-text` | 4,84:1 / 10,4:1 |
+| `recovering-text` | 5,57:1 / 8,48:1 |
+| `degraded-text` | 4,69:1 / 11,9:1 |
+| `failed-text` | 4,88:1 / 7,02:1 |
+| `on-degraded` sobre `degraded-fill` | 9,76:1 |
+| `on-failed` sobre `failed-fill` | 4,74:1 |
 
 Reglas:
 
-- No hay color de marca. La acción principal usa la tinta.
+- La acción principal usa la tinta. Infrarrojo solo es el color de un botón cuando ese botón provoca un fallo ("Inject fault").
+- Infrarrojo aparece solo en un fallo, en la acción que lo provoca y en momentos de marca (landing, página de error). Nunca como decoración.
+- Ningún otro color intenso fuera de los estados: ni colores por tipo de componente, ni degradados decorativos, ni brillos de fondo.
 - Ningún estado depende solo del color: siempre lleva icono y palabra.
-- Texto normal con contraste mínimo de 4,5:1 y texto grande (24 px o más) de 3:1, en ambos temas.
 - Las variantes de un color (hover, tinte, transparencia) se derivan con `color-mix(in oklch, …)`, como indica la skill good-css.
+
+Dentro de estas reglas, cada página decide cómo usa la paleta: qué tono domina, si usa el tema oscuro en una zona (`.theme-dark`) o cómo separa sus superficies.
+
+### Escala térmica
+
+Escala ordinal para magnitudes en visualizaciones: mapas de calor de latencia o errores e historiales de ejecuciones. Se inspira en la paleta "ironbow" de las cámaras térmicas, pero su nivel más caliente es Infrarrojo, para que "lo más caliente" signifique siempre lo mismo que el fallo.
+
+| Nivel | Claro | Oscuro |
+| --- | --- | --- |
+| 0, frío | `surface-selected` | `surface-selected` |
+| 1 | `#B9B0D6` | `#33285A` |
+| 2 | `#7444B4` | `#5A2C97` |
+| 3 | `#B20D8F` | `#B20D8F` |
+| 4, caliente | `#E01757` | `#E01757` |
+
+- Solo para magnitudes, nunca para estados ni para decorar.
+- Se usa por niveles, en celdas o barras, no como degradado continuo.
+- Siempre con una leyenda que diga qué es frío y qué es caliente.
 
 ## Tipografía
 
-| Familia | Uso |
+| Familia | Papel |
 | --- | --- |
-| Mona Sans | Solo la frase de impacto (`type-hero`), con anchura expandida al 112 %, peso 760 e interletrado del −4 % |
-| Atkinson Hyperlegible Next | El resto de la interfaz: títulos, botones, etiquetas y textos |
-| Paper Mono | Solo datos técnicos: tiempos, métricas, puertos, identificadores, etiquetas de conexión, configuración y logs |
+| Geologica | Familia única de titulares e interfaz. Variable en peso, Sharpness (`SHRP`) y Cursive (`CRSV`) |
+| JetBrains Mono | Solo datos técnicos: tiempos, métricas, puertos, identificadores, etiquetas de conexión, configuración y logs |
 
-Las tres tienen licencia OFL. Las cifras de métricas y tiempos usan `font-variant-numeric: tabular-nums`. En Paper Mono se activa el cero con barra (`font-feature-settings: "zero"`) para distinguirlo de la O.
+Las dos tienen licencia OFL y se alojan en el propio proyecto con Fontsource (`@fontsource-variable/geologica/full.css`, que incluye todos los ejes, y `@fontsource-variable/jetbrains-mono`). No se añaden otras familias.
 
-Escala de tamaños:
+Geologica tiene dos voces:
 
-| Tamaño | Uso |
-| --- | --- |
-| 12 px | Mínimo absoluto: datos auxiliares, tipo de componente, etiquetas de conexión |
-| 13 px | Texto secundario, etiquetas de campo, logs |
-| 14–15 px | Texto de interfaz, botones, nombres |
-| 17 px | Títulos de panel |
-| 28–30 px | Valores de métrica |
-| 36 px | Títulos de las páginas de acceso (`type-display`, Atkinson a peso 500, interletrado del −3 %; 32 px en ventanas de menos de 720 px de alto) |
-| 40–104 px | Frase principal de las páginas de acceso y la landing (`type-hero`, Mona Sans, interlineado 0,92). Su tamaño depende del ancho de su contenedor (`13cqi`), no de la ventana |
+- **Voz afilada**: `font-variation-settings: "SHRP" 100, "CRSV" 1`. Remates cortados en diagonal y `a` de un solo piso, como el logotipo. Se usa en titulares, frases de marca y el nombre de un componente que ha fallado.
+- **Voz de interfaz**: `"SHRP" 0, "CRSV" 0`. Todo lo demás: títulos de panel, botones, etiquetas y textos.
 
-Los títulos de página usan 24 px con peso 650 (`type-page-title`), fijados en las páginas de acceso.
+Reglas:
 
-- Mayúsculas solo al inicio de frase. Nunca etiquetas en mayúsculas espaciadas.
-- Sin tracking negativo extremo en los títulos.
+- Las cifras de métricas y tiempos usan `font-variant-numeric: tabular-nums`.
+- En JetBrains Mono se activa el cero con barra (`font-feature-settings: "zero"`) para distinguirlo de la O.
+- 12 px es el tamaño mínimo de cualquier texto.
+- Interletrado negativo solo a partir de 24 px. Nunca etiquetas en mayúsculas espaciadas.
 
-## Espaciado y forma
+Los tamaños, pesos e interletrados los decide cada página. Como referencia, las maquetas usan una escala de cuarta justa (×1,333) a partir de 15 px y pesos intermedios (560, 620, 680), posibles por ser una fuente variable. `app.css` ofrece utilidades ya usadas (`type-hero`, `type-display`, `type-page-title`, `type-title`, `type-metric`, `type-body`, `type-small`, `type-caption`) que se pueden reutilizar o no.
 
-- Escala de espaciado: 4, 8, 12, 16, 20 y 24 px. Los huecos entre bloques son mayores que los huecos dentro de un bloque.
-- Las superficies se colocan como bloques sobre `ground`, separados por 8 px.
-- Radios según jerarquía: 6 px en controles, 8 px en contenedores internos y 12 px en paneles y nodos. Sin formas de píldora.
-- El contorno (`outline`) solo se usa para el foco y la selección.
+## Forma
 
-## Estructura general
+Los radios forman parte de la identidad porque los comparten todos los componentes: 6 px en controles, 8 px en contenedores internos y 12 px en paneles, cards, diálogos y nodos. Sin formas de píldora.
 
-- **Barra superior**: marca, ruta actual como texto (por ejemplo, `Canvases / Checkout under pressure`), estado de la ejecución y acciones de la pantalla.
-- **Espacio de trabajo** (canvas y ejecución): lienzo a la izquierda, panel de acciones a la derecha y telemetría debajo. Los nodos conservan su posición al pasar del canvas a la ejecución.
-- **Lienzo**: sin rejilla de fondo; las guías de alineación aparecen solo al arrastrar. Conexiones ortogonales con etiqueta del protocolo.
-- **Landing**: experiencia aparte, diseñada con taste-skill a partir de este documento.
-- Toda página funciona a 375 px de ancho. Cada página decide cómo se reorganiza.
+Las superficies se separan por tono y por un borde de 1 px derivado de la tinta. Las sombras se reservan para lo que flota sobre la página: menús, popovers y diálogos.
+
+Las conexiones del lienzo son trazos de 1,5 px en reposo y de 2,5 px cuando están degradadas o rotas.
+
+El `outline` se reserva para el foco y la selección, para que nunca se confunda con un borde.
 
 ## Estados
 
@@ -91,43 +120,34 @@ Vocabulario común para nodos, conexiones, eventos y métricas:
 
 | Estado | Color | Icono | Tratamiento en el lienzo |
 | --- | --- | --- | --- |
-| Sano | `healthy-text` | marca de verificación | Nodo en `surface`, conexión `connection` |
-| Degradado | `degraded-fill` / `degraded-text` | triángulo de aviso | Nodo relleno en ámbar, conexión discontinua en ámbar |
-| Fallo | `failed-text` | círculo con aspa | Por definir con la primera vista que muestre un fallo |
-| Pausado | Por definir | pausa | Por definir |
-| Recuperando | Por definir | flecha circular | Por definir |
+| Sano | `healthy-text` | marca de verificación | Nodo en `surface`, sin relleno; conexión `connection` |
+| Degradado | `degraded-fill` / `degraded-text` | triángulo de aviso | Nodo relleno en `degraded-fill` con texto `on-degraded`; conexión continua en `degraded-fill` |
+| Fallo | `failed-fill` / `failed-text` | círculo con aspa | Nodo relleno en `failed-fill` con texto `on-failed` y nombre en voz afilada; conexión discontinua en `failed-fill` |
+| Recuperando | `recovering-text` | flecha circular | Nodo en `surface` con borde discontinuo de 1,5 px en `recovering-text`; conexión `connection` |
+| Pausado | `ink-muted` | pausa | Nodo en `surface` con texto `ink-muted`; sin color: un componente parado está frío |
 
-Un nodo seleccionado lleva un `outline` de 2 px en `ink` separado 3 px.
+Un elemento seleccionado lleva un `outline` de 2 px en `ink` separado 3 px.
 
-## Componentes base
+## Accesibilidad e interacción
 
-Los controles habituales (botones, campos, selects, pestañas, diálogos, menús, avisos) son los de shadcn, con sus tamaños y variantes. Sobre ellos, este documento solo fija:
-
-- **Botón principal**: variante por defecto de shadcn, que toma el color `action`. Uno por zona como máximo.
-- **Botón de icono**: siempre con `aria-label`.
-- **Campo de formulario**: etiqueta visible encima, nunca solo el placeholder. Debajo, una ayuda que dice la regla real del campo, por ejemplo "3 to 20 letters, numbers or underscores.". Si hay error, el error sustituye a la ayuda y explica cómo arreglarlo, no solo qué falla.
-- **Límites**: cada campo lleva `maxLength` con el mismo límite que la entidad del backend. Las reglas complejas, como la política de contraseñas, solo las valida el servidor.
-- **Contraseña**: siempre con botón para mostrarla u ocultarla (`InputGroup` de shadcn, con `aria-label` y `aria-pressed`).
-- **Envío**: `<Form method="post">` de React Router, nunca un `<form>` sin método, que mandaría los campos en la URL. Mientras se envía, el botón principal se desactiva y muestra `Spinner` y un texto en gerundio ("Signing in…").
-- **Sin scroll en formularios cortos**: un formulario de acceso o de alta cabe entero en una ventana de portátil (unos 650 px de alto útil). En ventanas de menos de 720 px de alto se reducen el título y el espacio entre campos. La ayuda solo aparece en los campos con una regla que no se adivina.
-- **Errores que aparecen tras enviar**: entran con la clase `enter-soft` (opacidad y 4 px de desplazamiento, 200 ms). Con movimiento reducido, solo opacidad.
-- **Mensaje de estado**: componente `Alert` con icono, título y detalle del estado.
-
-Componente propio de Infracture, sin equivalente en shadcn:
-
-- **Nodo**: icono del tipo en un cuadrado de 40 px, tipo (12 px), nombre (15 px), barra de capacidad y métrica en Paper Mono. Sobre `surface`, sin borde ni sombra; en estado degradado, relleno `degraded-fill`.
+- Texto normal con contraste mínimo de 4,5:1 y texto grande (24 px o más) de 3:1, en ambos temas. Los gráficos necesarios para entender el contenido, como las conexiones, de 3:1.
+- El foco siempre es visible: en los componentes de shadcn, su anillo con `--ring`; en lo propio, `:focus-visible` con `outline`.
+- El movimiento solo explica un cambio causado por el usuario o por la ejecución. El cambio de temperatura de un nodo es el único momento orquestado (unos 400 ms, salida suave); las respuestas a acciones duran entre 120 y 200 ms. Se animan `transform`, `opacity` y colores, y siempre dentro de `prefers-reduced-motion: no-preference`. Con movimiento reducido, como mucho un cambio de opacidad.
+- El hover solo en dispositivos con puntero (`@media (hover: hover) and (pointer: fine)`). Todo lo pulsable tiene estado `:active`.
+- Toda página funciona a 375 px de ancho y con el texto ampliado.
+- Los botones de icono llevan `aria-label`.
 
 ## Sistema de componentes
 
-La interfaz se construye con **Tailwind CSS** (ya instalado en `frontend/`) y **shadcn/ui** como registro de componentes. shadcn es el estándar de la interfaz: sus componentes se aceptan con su diseño por defecto y solo se personalizan mediante los tokens globales. Un cambio dentro de un componente se decide al diseñar una página, y solo cuando choque claramente con los principios.
+La interfaz se construye con **Tailwind CSS** y **shadcn/ui** como registro de componentes. Los controles habituales (botones, campos, selects, pestañas, diálogos, menús, avisos) son los de shadcn, aceptados con su diseño por defecto y personalizados solo mediante los tokens globales.
 
 ### Inicialización
 
 Se ejecuta dentro de `frontend/`, con la plantilla de React Router ya detectada:
 
 - **Base**: Base UI (`--base base`), la opción por defecto de shadcn. Radix solo si hay un motivo concreto.
-- **Estilo**: `vega`, el estilo clásico de shadcn. Sus controles usan `rounded-md` y sus cards `rounded-xl`, así que los radios fijados abajo se aplican sin tocar los componentes. `maia` se descartó porque usa formas de píldora (`rounded-4xl`). El estilo fija la geometría de los componentes; los tokens fijan colores, fuentes y radios.
-- **Iconos**: Lucide (`lucide-react`), elegido en la inicialización.
+- **Estilo**: `vega`. Sus controles usan `rounded-md` y sus cards `rounded-xl`, así que los radios de este documento se aplican sin tocar los componentes. `maia` se descartó porque usa formas de píldora.
+- **Iconos**: Lucide (`lucide-react`).
 
 ### Tokens
 
@@ -142,58 +162,58 @@ Todo se define en `frontend/app/app.css`, el único archivo de estilos globales.
 | `--muted-foreground` | `ink-muted` |
 | `--accent` | `surface-selected` |
 | `--primary` | `action` |
-| `--primary-foreground` | `surface` en claro, `ground` en oscuro |
+| `--primary-foreground` | `surface` |
 | `--destructive` | `failed-text` |
 | `--ring` | `ink` |
 
-Los tokens sin equivalente en shadcn (`connection`, `degraded-fill`, `degraded-text`, `healthy-text`) se declaran como variables propias y se registran en `@theme inline` (por ejemplo, `--color-degraded-fill`), para usarlos como `bg-degraded-fill`.
+Los tokens sin equivalente en shadcn (`connection`, `healthy-text`, `recovering-text`, `degraded-fill`, `degraded-text`, `failed-fill`, `on-degraded`, `on-failed` y los niveles `heat-1` a `heat-4` de la escala térmica) se declaran como variables propias y se registran en `@theme inline` (por ejemplo, `--color-failed-fill`), para usarlos como `bg-failed-fill`.
 
-- **Modo oscuro**: cada token se define una sola vez con `light-dark(claro, oscuro)` y `:root` declara `color-scheme: light dark`, así que el tema sigue la preferencia del sistema. La clase `.theme-dark` fuerza el tema oscuro en una zona concreta; las páginas de acceso la usan entera. La variante `dark:` de Tailwind se activa con `@media (prefers-color-scheme: dark)` o dentro de `.theme-dark`, para que los componentes de shadcn también la respeten.
+- **Modo oscuro**: cada token se define una sola vez con `light-dark(claro, oscuro)` y `:root` declara `color-scheme: light dark`. La clase `.theme-dark` fuerza el tema oscuro en una zona concreta. La variante `dark:` de Tailwind se activa con `@media (prefers-color-scheme: dark)` o dentro de `.theme-dark`, para que los componentes de shadcn también la respeten.
 - **Radios**: se fijan uno a uno en `@theme inline`, sin derivarlos de `--radius`: `--radius-md: 6px` (elementos de menú), `--radius-lg: 6px` (botones, campos, pestañas) y `--radius-xl: 12px` (cards y diálogos). El resto se queda como lo trae shadcn.
-- **Fuentes**: `--font-sans` apunta a Atkinson Hyperlegible Next, `--font-display` a Mona Sans y `--font-mono` a Paper Mono, todas alojadas en el propio proyecto. `--font-heading` usa la misma fuente que `--font-sans`.
+- **Fuentes**: `--font-sans`, `--font-heading` y `--font-display` apuntan a Geologica y `--font-mono` a JetBrains Mono. La voz afilada la ponen la clase `font-display` y las utilidades de titular (`type-hero`, `type-headline`), que fijan sus `font-variation-settings` en un solo sitio; nunca se repiten los valores en cada componente. `font-mono` activa el cero con barra.
 - **Escala tipográfica**: como utilidades `@utility type-*`, no como claves `--text-*`, para que no choquen con las clases de color.
-- Bordes, sombras y foco se quedan como los trae shadcn. Solo cambia el color de `--border` y `--input`, que se deriva de `ink` con `color-mix` (14 % y 24 % en claro, 10 % y 15 % en oscuro) para que los campos se vean sobre `ground` y sobre `surface`.
+- Foco como lo trae shadcn. El color de `--border` y `--input` se deriva de `ink` con `color-mix` (14 % y 24 % en claro, 10 % y 15 % en oscuro).
 
 ### Usar los componentes
 
-- Se usan las variantes que ya existen (`variant`, `size`) antes que estilos propios. `className` se usa solo para layout.
+- Se usan las variantes que ya existen (`variant`, `size`) antes que estilos propios. `className` se usa para layout.
 - Si un componente se modifica, se editan sus variantes `cva` y se mantienen los nombres de variante.
 - Las alturas de control cambian juntas: si cambia la del botón, también la de campos, selects, pestañas y toggles.
+- Animaciones: primero las transiciones de CSS y las utilidades que shadcn ya trae. Una librería como Motion se añade solo cuando una interacción concreta lo necesite.
 
-Animaciones: primero las transiciones de CSS y las utilidades que shadcn ya trae para entrar y salir. Una librería como Motion se añade solo cuando una interacción concreta lo necesite.
+### Formularios
 
-## Interacción y movimiento
+Son comportamiento, no composición, y se aplican igual en todas las páginas:
 
-- El foco siempre es visible: en los componentes de shadcn, su anillo con `--ring`; en lo propio, `:focus-visible` con `outline`.
-- El hover solo en dispositivos con puntero (`@media (hover: hover) and (pointer: fine)`). Todo lo pulsable tiene estado `:active`.
-- El movimiento solo explica un cambio causado por el usuario o por la ejecución. Se animan `transform` y `opacity`, y siempre dentro de `prefers-reduced-motion: no-preference`.
-- Las decisiones de movimiento se toman con las skills de Emil Kowalski (`animate`, `review-animations`).
+- **Etiqueta visible** en cada campo, nunca solo el placeholder. Si el campo tiene una regla que no se adivina, una ayuda dice la regla real, por ejemplo "3 to 20 letters, numbers or underscores.". Si hay error, el error sustituye a la ayuda y explica cómo arreglarlo.
+- **Límites**: cada campo lleva `maxLength` con el mismo límite que la entidad del backend. Las reglas complejas, como la política de contraseñas, solo las valida el servidor.
+- **Contraseña**: siempre con botón para mostrarla u ocultarla (`InputGroup` de shadcn, con `aria-label` y `aria-pressed`).
+- **Envío**: `<Form method="post">` de React Router, nunca un `<form>` sin método, que mandaría los campos en la URL. Mientras se envía, el botón principal se desactiva y muestra `Spinner` y un texto en gerundio ("Signing in…").
+- **Mensaje de estado**: componente `Alert` con icono, título y detalle.
 
-## Qué no hacemos
+## Diseñar una página
 
-Se aplica a lo que diseñamos nosotros: páginas, composición y componentes propios. Los componentes de shadcn mantienen su diseño estándar aunque coincidan en algo con esta lista.
+La composición de cada página se diseña desde cero:
 
-- Degradados decorativos, halos, brillos y efecto cristal (`backdrop-filter`).
-- Bordes de 1 px para separar y sombras en elementos en reposo.
-- Formas de píldora en botones, badges o contenedores.
-- Monospace fuera de los datos técnicos.
-- Etiquetas pequeñas sobre los títulos, mayúsculas espaciadas y numeraciones 01/02/03 que no sean secuencias reales.
-- Datos unidos con puntos medios (`A · B · C`) y flechas añadidas al texto de botones o enlaces.
-- Una palabra resaltada dentro de un titular.
-- Un color de marca brillante sobre fondo oscuro, o crema con terracota. El único color intenso es el del estado.
-- Emoji y textos de relleno.
+1. Partir del trabajo de la página y de su contenido real: qué viene a hacer el usuario y qué tiene que ver primero.
+2. Mirar como **referencia** el mock de la Fase 1 (`../infracture-ui-prototype`, capturas en `output/playwright/v2`) para pantallas, navegación, contenido y anatomía del nodo, y las [maquetas de la identidad térmica](#herramientas) para ver cómo se aplican color, tipografía y estados. Ninguno de los dos es una plantilla: su estructura se puede seguir, cambiar o descartar.
+3. No copiar por defecto la estructura de otra página de Infracture. Si dos páginas acaban pareciéndose, que sea porque su trabajo es parecido.
+4. Proponer la composición como prototipo antes de implementarla, usando las skills de diseño.
+5. Comprobar que cumple este documento: color solo para estado, Infrarrojo solo para el fallo, familias, voces y radios, accesibilidad y componentes de shadcn.
 
 ## Decisiones abiertas
 
-- Colores de fallo (relleno), pausado y recuperando.
-- Contraste medido con herramienta de los tokens en ambos temas.
+- Tema de las páginas de acceso: hoy fuerzan el oscuro (`.theme-dark`) mientras el resto sigue al sistema.
+- Uso del isotipo en momentos de marca, por ejemplo dejando ver Infrarrojo a través de su grieta.
 - Presencia y forma del Lab Mentor (el mock usaba una mascota).
 
 ## Herramientas
 
-- **frontend-design**: decisiones de identidad y diseño de cada página.
+- **frontend-design**: composición y dirección visual de cada página, incluida su lista de patrones genéricos que conviene evitar.
 - **shadcn**: añadir, componer y adaptar componentes del registro.
 - **good-css**: antes de escribir o revisar CSS.
-- **Skills de Emil Kowalski**: componentes, interacción y movimiento; `break-ui` para probar cada pantalla con datos extremos.
-- **taste-skill**: solo para la landing.
-- Lienzo de comparación en Claude Design (privado): https://claude.ai/artifact/VHMZXN9e9ryACUAUHcTnFY
+- **Skills de Emil Kowalski**: componentes, interacción y movimiento (`animate`, `review-animations`); `break-ui` para probar cada pantalla con datos extremos.
+- **taste-skill**: landing y páginas de presentación.
+- **Ajustar la paleta**: [OKLCH Color Picker](https://oklch.com/) para retocar un token, [Harmonizer](https://evilmartians.com/opensource/harmonizer) y [Leonardo](https://leonardocolor.io/) para generar escalas con contraste constante. Tras cualquier cambio se vuelve a medir el contraste de la tabla de [Color](#color).
+- Propuesta de la identidad térmica, con auditoría y referentes (privada): https://claude.ai/artifact/5yNnayNzeAB6Y3MAtKQizH
+- Maquetas de pantallas con la identidad térmica, en claro y oscuro (privadas): https://claude.ai/artifact/NHDL3uHf4KC1pWaquru8Cx

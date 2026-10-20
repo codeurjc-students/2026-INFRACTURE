@@ -10,7 +10,7 @@ export async function login(email: string, password: string): Promise<void> {
 }
 
 export function register(user: RegisterUserDTO): Promise<UserDTO> {
-  return apiFetch<UserDTO>("/api/v1/users/", {
+  return apiFetch<UserDTO>("/api/v1/users", {
     method: "POST",
     body: JSON.stringify(user),
   });

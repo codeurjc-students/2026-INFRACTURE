@@ -141,7 +141,7 @@ class UserControllerTests {
 
     @Test
     void rejectsRegistrationWithoutCsrfBeforeCallingService() throws Exception {
-        mvc.perform(post("/api/v1/users/")
+        mvc.perform(post("/api/v1/users")
                 .contentType(MediaType.APPLICATION_JSON).content(REGISTRATION))
             .andExpect(status().isForbidden());
 
@@ -162,7 +162,7 @@ class UserControllerTests {
             .andExpect(cookie().exists("XSRF-TOKEN"))
             .andReturn().getResponse().getCookie("XSRF-TOKEN");
 
-        return post("/api/v1/users/").cookie(token).header("X-XSRF-TOKEN", token.getValue())
+        return post("/api/v1/users").cookie(token).header("X-XSRF-TOKEN", token.getValue())
             .contentType(MediaType.APPLICATION_JSON).content(REGISTRATION);
     }
 }

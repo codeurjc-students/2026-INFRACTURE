@@ -52,12 +52,19 @@ describe("private account page", () => {
     } as UserDTO);
     renderAccount();
 
-    expect(await screen.findByRole("heading", { name: "Your account" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Your account" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Your account" }),
+    ).toHaveTextContent("A");
   });
 
   it("sends a visitor without a session to the login and remembers the page", async () => {
-    vi.mocked(getCurrentUser).mockRejectedValue(new HttpError(401, "Unauthorized"));
+    vi.mocked(getCurrentUser).mockRejectedValue(
+      new HttpError(401, "Unauthorized"),
+    );
     renderAccount();
 
     expect(await screen.findByText("Login page /account")).toBeInTheDocument();
