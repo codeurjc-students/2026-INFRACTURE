@@ -1,9 +1,12 @@
 package es.codeurjc.infracture.project.api;
 
+import static es.codeurjc.infracture.shared.api.ProblemResponses.problem;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
 import es.codeurjc.infracture.project.persistence.ProjectRepository;
@@ -133,6 +136,57 @@ class ProjectApiSystemTests {
         alice.write().body("{\"name\":\"Valid lab\",\"description\":\"" + "d".repeat(281) + "\"}")
             .put("/api/v1/projects/" + id).then().statusCode(400);
         alice.read().get("/api/v1/projects/" + id).then().body("description", nullValue());
+    }
+
+    @Test
+    void returnsServiceValidationAsProblemDetail() {
+        Session alice = signUp();
+
+        alice.write().body("{\"name\":\"   \"}").post("/api/v1/projects")
+            .then().spec(problem(400, "Project name is required"));
+    }
+
+    @Test
+    void returnsMalformedRequestsAsProblemDetail() {
+        Session alice = signUp();
+
+        alice.read().queryParam("size", 101).get("/api/v1/projects")
+            .then().spec(problem(400, not(emptyOrNullString())));
+        alice.read().get("/api/v1/projects/not-a-number")
+            .then().spec(problem(400, not(emptyOrNullString())));
+        alice.write().body("{\"name\":").post("/api/v1/projects")
+            .then().spec(problem(400, not(emptyOrNullString())));
+        alice.write().body("{\"name\":\"Tampered\",\"ownerId\":1}").post("/api/v1/projects")
+            .then().spec(problem(400, not(emptyOrNullString())));
+    }
+
+    @Test
+    void returnsMissingOrOtherUsersProjectAsProblemDetail() {
+        Session alice = signUp();
+        Session bob = signUp();
+        long id = alice.write().body("{\"name\":\"Private lab\"}").post("/api/v1/projects")
+            .then().statusCode(201).extract().jsonPath().getLong("id");
+
+        bob.read().get("/api/v1/projects/" + id).then().spec(problem(404, "Project not found"));
+        alice.read().get("/api/v1/projects/" + (id + 1000)).then().spec(problem(404, "Project not found"));
+    }
+
+    @Test
+    void returnsUnknownApiRouteAsProblemDetail() {
+        Session alice = signUp();
+
+        alice.read().get("/api/v1/unknown-resource")
+            .then().spec(problem(404, "The requested resource does not exist."));
+    }
+
+    @Test
+    void returnsMethodNotAllowedAsProblemDetail() {
+        Session alice = signUp();
+        long id = alice.write().body("{\"name\":\"Kept lab\"}").post("/api/v1/projects")
+            .then().statusCode(201).extract().jsonPath().getLong("id");
+
+        alice.write().delete("/api/v1/projects/" + id).then().spec(problem(405, not(emptyOrNullString())));
+        assertThat(repository.existsById(id)).isTrue();
     }
 
     private Session signUp() {

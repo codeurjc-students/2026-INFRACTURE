@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { getProjects } from "~/features/projects/api/project-service";
+import { getProject, getProjects } from "~/features/projects/api/project-service";
 import { clientAction as logoutAction } from "~/routes/logout";
 import { clientAction as createAction } from "~/routes/new-project";
 import {
@@ -122,9 +122,7 @@ describe("projects client against the real API", () => {
     );
 
     expect(result).toEqual({
-      error: expect.stringContaining(
-        "Project name must contain at most 30 characters",
-      ),
+      error: "Project name must contain at most 30 characters",
     });
   });
 
@@ -156,6 +154,10 @@ describe("projects client against the real API", () => {
       projectLoader({ params: { projectId } } as never),
     ).rejects.toMatchObject({
       init: { status: 404 },
+    });
+    await expect(getProject(String(projectId))).rejects.toMatchObject({
+      status: 404,
+      message: "Project not found",
     });
     await expect(getProjects()).resolves.toMatchObject({
       page: { totalElements: 0 },

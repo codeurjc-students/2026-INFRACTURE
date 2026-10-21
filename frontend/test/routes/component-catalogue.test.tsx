@@ -98,7 +98,10 @@ describe("component catalogue route", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
     expect(screen.getByText("HTTP_SERVICE")).toBeInTheDocument();
     expect(screen.getByText("http-service")).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledExactlyOnceWith("/api/v1/component-templates?page=0");
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(
+      "/api/v1/component-templates?page=0",
+      expect.anything(),
+    );
     expect(screen.queryByRole("button", { name: "More results" })).not.toBeInTheDocument();
   });
 
@@ -164,6 +167,9 @@ describe("component catalogue route", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
     expect(screen.getAllByRole("heading", { name: "PostgreSQL" })).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "More results" })).not.toBeInTheDocument();
-    expect(fetch).toHaveBeenLastCalledWith("/api/v1/component-templates?page=1");
+    expect(fetch).toHaveBeenLastCalledWith(
+      "/api/v1/component-templates?page=1",
+      expect.anything(),
+    );
   });
 });

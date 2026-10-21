@@ -4,6 +4,7 @@ import es.codeurjc.infracture.identity.application.UserService;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.persistence.ProjectRepository;
+import es.codeurjc.infracture.shared.NotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
@@ -42,7 +43,7 @@ public class ProjectService {
     public Project getOwnProject(String ownerEmail, Long id) {
         User owner = userService.getUserByEmail(ownerEmail);
         return projectRepository.findByIdAndOwnerId(id, owner.getId())
-                .orElseThrow(ProjectNotFoundException::new);
+                .orElseThrow(() -> new NotFoundException("Project not found"));
     }
 
     @Transactional

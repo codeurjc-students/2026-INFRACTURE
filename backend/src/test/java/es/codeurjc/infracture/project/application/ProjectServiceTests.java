@@ -13,6 +13,7 @@ import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.persistence.ProjectRepository;
+import es.codeurjc.infracture.shared.NotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
@@ -101,9 +102,9 @@ class ProjectServiceTests {
         when(repository.findByIdAndOwnerId(99L, 7L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getOwnProject(OWNER_EMAIL, 99L))
-                .isInstanceOf(ProjectNotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
         assertThatThrownBy(() -> service.updateProject(OWNER_EMAIL, 99L, "Taken over", null))
-                .isInstanceOf(ProjectNotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
         verify(repository, never()).saveAndFlush(any());
     }
 

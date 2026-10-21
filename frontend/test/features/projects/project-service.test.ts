@@ -97,7 +97,13 @@ describe("project service", () => {
       vi
         .fn()
         .mockResolvedValue(
-          Response.json({ detail: "Project not found" }, { status: 404 }),
+          Response.json(
+            { status: 404, detail: "Project not found" },
+            {
+              status: 404,
+              headers: { "Content-Type": "application/problem+json" },
+            },
+          ),
         ),
     );
 

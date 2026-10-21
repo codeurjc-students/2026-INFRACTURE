@@ -1,5 +1,6 @@
 package es.codeurjc.infracture.identity.api;
 
+import static es.codeurjc.infracture.shared.api.ProblemResponses.problem;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -187,6 +188,68 @@ class AuthenticationApiSystemTests {
         assertThat(repository.findAll().stream().filter(user -> identifier.equals("username")
             ? user.getUsername().equalsIgnoreCase(firstUsername)
             : user.getEmail().equalsIgnoreCase(firstEmail))).hasSize(1);
+    }
+
+    @Test
+    void returnsPasswordPolicyViolationAsProblemDetail() {
+        CookieFilter cookies = new CookieFilter();
+        String body = registration("weakpassword", "weak@example.com").replace(PASSWORD, "Short 1!");
+
+        write(cookies, csrf(cookies)).body(body).post("/api/v1/users")
+            .then().spec(problem(400, "Password must contain between 15 and 128 characters"));
+    }
+
+    @Test
+    void returnsBadLoginCredentialsAsProblemDetail() {
+        CookieFilter cookies = new CookieFilter();
+        String csrf = csrf(cookies);
+        write(cookies, csrf).body(registration("badlogin", "badlogin@example.com"))
+            .post("/api/v1/users").then().statusCode(201);
+
+        write(cookies, csrf).body("""
+                {"email":"badlogin@example.com","password":"Incorrect password 2026!"}
+                """).post("/api/v1/auth/login")
+            .then().spec(problem(401, "Invalid email or password."));
+    }
+
+    @Test
+    void returnsMissingExpiredOrInvalidAuthenticationAsProblemDetail() {
+        CookieFilter cookies = new CookieFilter();
+        given().port(port).get("/api/v1/users/me")
+            .then().spec(problem(401, "Authentication is required."));
+
+        String csrf = csrf(cookies);
+        write(cookies, csrf).body(registration("expireduser", "expired@example.com"))
+            .post("/api/v1/users").then().statusCode(201);
+        write(cookies, csrf).body("""
+                {"email":"expired@example.com","password":"%s"}
+                """.formatted(PASSWORD)).post("/api/v1/auth/login").then().statusCode(200);
+        clock.advance(TokenType.ACCESS.duration.plus(Duration.ofSeconds(1)));
+        given().port(port).filter(cookies).get("/api/v1/users/me")
+            .then().spec(problem(401, "Authentication is required."));
+
+        CookieFilter anonymous = new CookieFilter();
+        write(anonymous, csrf(anonymous)).post("/api/v1/auth/refresh")
+            .then().spec(problem(401, "Authentication is required."));
+    }
+
+    @Test
+    void returnsMissingCsrfAsProblemDetail() {
+        given().port(port).contentType(ContentType.JSON).body(registration("nocsrf", "nocsrf@example.com"))
+            .post("/api/v1/users")
+            .then().spec(problem(403, "You do not have permission to perform this action."));
+        assertThat(repository.existsByUsernameIgnoreCase("nocsrf")).isFalse();
+    }
+
+    @Test
+    void returnsDuplicateAccountAsProblemDetail() {
+        CookieFilter cookies = new CookieFilter();
+        String csrf = csrf(cookies);
+        write(cookies, csrf).body(registration("duplicate", "duplicate@example.com"))
+            .post("/api/v1/users").then().statusCode(201);
+
+        write(cookies, csrf).body(registration("DUPLICATE", "another@example.com"))
+            .post("/api/v1/users").then().spec(problem(409, "Username is already in use"));
     }
 
     private String csrf(CookieFilter cookies) {

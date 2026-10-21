@@ -49,5 +49,5 @@ it("renders catalogue data persisted by the real backend", async () => {
 });
 
 it("rejects an invalid page through the real API", async () => {
-  await expect(getComponentTemplates(-1)).rejects.toThrow("Failed to fetch component templates");
+  await expect(getComponentTemplates(-1)).rejects.toMatchObject({ status: 400 });
 });

@@ -2,6 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiFetch, HttpError } from "~/shared/api/api-fetch";
 
+function problem(status: number, detail: string) {
+  return new Response(JSON.stringify({ status, detail }), {
+    status,
+    headers: { "Content-Type": "application/problem+json" },
+  });
+}
+
 function clearCsrfCookie() {
   document.cookie = "XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 }
@@ -37,14 +44,7 @@ describe("apiFetch", () => {
   it("throws an HttpError with the status and the ProblemDetail message of a failed response", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          Response.json(
-            { status: 409, detail: "Username is already in use" },
-            { status: 409 },
-          ),
-        ),
+      vi.fn().mockResolvedValue(problem(409, "Username is already in use")),
     );
 
     const error = await apiFetch("/api/v1/users", {
@@ -59,7 +59,23 @@ describe("apiFetch", () => {
     });
   });
 
-  it("falls back to the status text when a failed response is not ProblemDetail JSON", async () => {
+  it("ignores a detail field when a failed response is not ProblemDetail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ detail: "Internal stack trace" }, { status: 500 }),
+        ),
+    );
+
+    await expect(apiFetch("/api/v1/users/me")).rejects.toMatchObject({
+      status: 500,
+      message: "Something went wrong. Try again in a moment.",
+    });
+  });
+
+  it("uses a generic message when a failed response is not JSON", async () => {
     vi.stubGlobal(
       "fetch",
       vi
@@ -74,7 +90,7 @@ describe("apiFetch", () => {
 
     await expect(apiFetch("/api/v1/users/me")).rejects.toMatchObject({
       status: 502,
-      message: "Bad Gateway",
+      message: "Something went wrong. Try again in a moment.",
     });
   });
 
