@@ -110,6 +110,27 @@ class SecurityConfigTests {
     }
 
     @Test
+    void rejectsLoginOfInactiveAccountWithoutRevealingAccountState() throws Exception {
+        when(userDetailsService.loadUserByUsername("student@example.com"))
+            .thenReturn(User.withUsername("student@example.com")
+                .password(passwordEncoder.encode("un bosque con café"))
+                .roles("USER")
+                .disabled(true)
+                .build());
+        Cookie csrfCookie = csrfCookie();
+
+        mvc.perform(post("/api/v1/auth/login")
+                .cookie(csrfCookie)
+                .header("X-XSRF-TOKEN", csrfCookie.getValue())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"student@example.com\",\"password\":\"un bosque con café\"}"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.detail").value("Invalid email or password."))
+            .andExpect(cookie().doesNotExist("AuthToken"));
+    }
+
+    @Test
     void rejectsPreviouslyIssuedTokensWhenAccountBecomesInactive() throws Exception {
         var activeUser = User.withUsername("student@example.com")
             .password("stored-password-hash")
@@ -159,7 +180,8 @@ class SecurityConfigTests {
 
         mvc.perform(request)
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.status").value("FAILURE"))
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.detail").value("Authentication is required."))
             .andExpect(cookie().doesNotExist("AuthToken"));
     }
 

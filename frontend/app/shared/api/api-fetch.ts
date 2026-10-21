@@ -2,6 +2,7 @@ const CSRF_COOKIE = "XSRF-TOKEN";
 const CSRF_HEADER = "X-XSRF-TOKEN";
 const CSRF_PATH = "/api/v1/auth/csrf";
 const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
+const GENERIC_ERROR = "Something went wrong. Try again in a moment.";
 
 export class HttpError extends Error {
   constructor(
@@ -20,8 +21,12 @@ function readCookie(name: string) {
     ?.slice(name.length + 1);
 }
 
-// Errors come as JSON with the detail field
-function problemDetail(text: string): string | undefined {
+// Errors come as ProblemDetail JSON with the detail field
+function problemDetail(response: Response, text: string): string | undefined {
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (!contentType.startsWith("application/problem+json")) {
+    return undefined;
+  }
   try {
     return JSON.parse(text).detail;
   } catch {
@@ -62,7 +67,7 @@ export async function apiFetch<T>(
   if (!response.ok) {
     throw new HttpError(
       response.status,
-      problemDetail(text) ?? response.statusText,
+      problemDetail(response, text) ?? GENERIC_ERROR,
     );
   }
   return (text ? JSON.parse(text) : undefined) as T;

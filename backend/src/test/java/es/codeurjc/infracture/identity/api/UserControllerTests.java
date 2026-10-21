@@ -1,6 +1,7 @@
 package es.codeurjc.infracture.identity.api;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import es.codeurjc.infracture.identity.application.PasswordPolicyException;
 import es.codeurjc.infracture.identity.application.UserAlreadyExistsException;
 import es.codeurjc.infracture.identity.application.UserService;
 import es.codeurjc.infracture.identity.domain.User;
@@ -135,7 +137,7 @@ class UserControllerTests {
     static Stream<Arguments> registrationFailures() {
         return Stream.of(
                 Arguments.of(new ConstraintViolationException("Email must be valid", Set.of()), 400),
-                Arguments.of(new IllegalArgumentException("Password is required"), 400),
+                Arguments.of(new PasswordPolicyException("Password is required"), 400),
                 Arguments.of(new UserAlreadyExistsException("Username is already in use"), 409));
     }
 
@@ -149,12 +151,16 @@ class UserControllerTests {
     }
 
     @Test
-    void letsUnexpectedFailuresReachServerErrorHandling() {
+    void hidesUnexpectedFailuresBehindGenericProblemDetail() throws Exception {
         when(userService.registerUser(any(User.class)))
             .thenThrow(new DataAccessResourceFailureException("Database unavailable"));
 
-        assertThatThrownBy(() -> mvc.perform(registrationRequest()))
-            .hasRootCauseInstanceOf(DataAccessResourceFailureException.class);
+        mvc.perform(registrationRequest())
+            .andExpect(status().isInternalServerError())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.status").value(500))
+            .andExpect(jsonPath("$.detail").value("An unexpected error occurred."))
+            .andExpect(content().string(not(containsString("Database unavailable"))));
     }
 
     private MockHttpServletRequestBuilder registrationRequest() throws Exception {

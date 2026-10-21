@@ -27,7 +27,7 @@ class PasswordPolicyTests {
     @MethodSource("rejectedPasswords")
     void rejectsPasswordsViolatingPolicy(String password, String message) {
         assertThatThrownBy(() -> policy.validate(password, "alice", "alice@example.com", "Alice"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(PasswordPolicyException.class)
                 .hasMessageContaining(message);
     }
 

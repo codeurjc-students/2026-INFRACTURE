@@ -58,7 +58,10 @@ describe("auth client against the real API", () => {
     const signedOut = (await logoutAction()) as Response;
     expect(signedOut.headers.get("Location")).toBe("/login");
     expect(cookies.has("AuthToken")).toBe(false);
-    await expect(getCurrentUser()).rejects.toMatchObject({ status: 401 });
+    await expect(getCurrentUser()).rejects.toMatchObject({
+      status: 401,
+      message: "Authentication is required.",
+    });
   });
 
   it("shows the backend message for a duplicate account", async () => {

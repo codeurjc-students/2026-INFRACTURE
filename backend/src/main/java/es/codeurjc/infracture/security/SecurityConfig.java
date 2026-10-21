@@ -5,6 +5,7 @@ import es.codeurjc.infracture.security.jwt.JwtTokenProvider;
 import es.codeurjc.infracture.security.jwt.UnauthorizedHandlerJwt;
 import jakarta.servlet.DispatcherType;
 import java.time.Clock;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,6 +19,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @Configuration
 @EnableWebSecurity
@@ -47,10 +49,14 @@ public class SecurityConfig {
             DaoAuthenticationProvider authenticationProvider,
             UserDetailsService userDetailsService,
             JwtTokenProvider jwtTokenProvider,
-            UnauthorizedHandlerJwt unauthorizedHandlerJwt) throws Exception {
+            UnauthorizedHandlerJwt unauthorizedHandlerJwt,
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) throws Exception {
 
         http.authenticationProvider(authenticationProvider)
-                .exceptionHandling(handling -> handling.authenticationEntryPoint(unauthorizedHandlerJwt))
+                .exceptionHandling(handling -> handling
+                        .authenticationEntryPoint(unauthorizedHandlerJwt)
+                        .accessDeniedHandler((request, response, exception) ->
+                                resolver.resolveException(request, response, null, exception)))
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR)
                         .permitAll()

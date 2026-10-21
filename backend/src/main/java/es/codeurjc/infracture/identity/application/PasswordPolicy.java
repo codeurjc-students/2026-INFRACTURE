@@ -38,17 +38,17 @@ public class PasswordPolicy {
 
     public String validate(String password, String username, String email, String displayName) {
         if (password == null) {
-            throw new IllegalArgumentException("Password is required");
+            throw new PasswordPolicyException("Password is required");
         }
 
         String normalized = Normalizer.normalize(password, Normalizer.Form.NFC);
         int length = normalized.codePointCount(0, normalized.length());
 
         if (length < MIN_LENGTH || length > MAX_LENGTH) {
-            throw new IllegalArgumentException("Password must contain between 15 and 128 characters");
+            throw new PasswordPolicyException("Password must contain between 15 and 128 characters");
         }
         if (INVALID_CHARACTERS.matcher(normalized).find()) {
-            throw new IllegalArgumentException("Password must contain valid Unicode without control characters");
+            throw new PasswordPolicyException("Password must contain valid Unicode without control characters");
         }
 
         String candidate = normalized.strip().toLowerCase(Locale.ROOT);
@@ -56,11 +56,11 @@ public class PasswordPolicy {
                 || candidate.equals(comparisonValue(username))
                 || candidate.equals(comparisonValue(email))
                 || candidate.equals(comparisonValue(displayName))) {
-            throw new IllegalArgumentException("Choose a password that is not common or based on your account details");
+            throw new PasswordPolicyException("Choose a password that is not common or based on your account details");
         }
 
         if (!REQUIRED_CHARACTERS.matcher(normalized).matches()) {
-            throw new IllegalArgumentException(
+            throw new PasswordPolicyException(
                     "Password must contain an uppercase letter, a lowercase letter, a number and a special character");
         }
         return normalized;

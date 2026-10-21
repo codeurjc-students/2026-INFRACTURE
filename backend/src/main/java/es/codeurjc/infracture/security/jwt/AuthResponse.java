@@ -7,7 +7,7 @@ public class AuthResponse {
     private String error;
 
     public enum Status {
-        SUCCESS, FAILURE
+        SUCCESS
     }
 
     public AuthResponse() {
