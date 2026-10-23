@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatUpdated } from "~/features/projects/project-form-data";
+import { formatUpdated } from "~/features/projects/details-form-data";
 
 const now = Date.parse("2026-10-20T15:00:00Z");
 

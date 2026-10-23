@@ -10,10 +10,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
 import es.codeurjc.infracture.project.persistence.ProjectRepository;
-import io.restassured.filter.cookie.CookieFilter;
-import io.restassured.http.ContentType;
 import io.restassured.response.Response;
-import io.restassured.specification.RequestSpecification;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,8 +30,6 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @Testcontainers
 class ProjectApiSystemTests {
 
-    private static final String PASSWORD = "A secure integration password 2026!";
-
     @Container
     @ServiceConnection
     static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18.6-alpine");
@@ -45,8 +40,6 @@ class ProjectApiSystemTests {
     @Autowired
     private ProjectRepository repository;
 
-    private static int accounts;
-
     @BeforeEach
     void clearProjects() {
         repository.deleteAllInBatch();
@@ -54,7 +47,7 @@ class ProjectApiSystemTests {
 
     @Test
     void createsReadsAndEditsOwnPrivateProject() {
-        Session alice = signUp();
+        ApiSession alice = signUp();
 
         Response created = alice.write().body("""
                 {"name":"  Cache lab  ","description":"Redis in front of PostgreSQL"}
@@ -78,8 +71,8 @@ class ProjectApiSystemTests {
 
     @Test
     void pagesOnlyOwnProjectsNewestFirst() {
-        Session alice = signUp();
-        Session bob = signUp();
+        ApiSession alice = signUp();
+        ApiSession bob = signUp();
         for (int number = 1; number <= 11; number++) {
             alice.write().body("{\"name\":\"Alice lab " + number + "\"}").post("/api/v1/projects")
                 .then().statusCode(201);
@@ -100,8 +93,8 @@ class ProjectApiSystemTests {
 
     @Test
     void hidesProjectsFromOtherAccountsAndVisitors() {
-        Session alice = signUp();
-        Session bob = signUp();
+        ApiSession alice = signUp();
+        ApiSession bob = signUp();
         long id = alice.write().body("{\"name\":\"Private lab\"}").post("/api/v1/projects")
             .then().statusCode(201).extract().jsonPath().getLong("id");
 
@@ -116,7 +109,7 @@ class ProjectApiSystemTests {
     @ParameterizedTest
     @ValueSource(strings = {"id", "ownerId", "owner", "createdAt", "visibility"})
     void rejectsFieldsControlledByTheServerWithoutCreatingProject(String field) {
-        Session alice = signUp();
+        ApiSession alice = signUp();
 
         alice.write().body("{\"name\":\"Tampered\",\"" + field + "\":1}").post("/api/v1/projects")
             .then().statusCode(400);
@@ -125,7 +118,7 @@ class ProjectApiSystemTests {
 
     @Test
     void rejectsInvalidProjectDetails() {
-        Session alice = signUp();
+        ApiSession alice = signUp();
 
         alice.write().body("{\"name\":\"   \"}").post("/api/v1/projects")
             .then().statusCode(400).body("detail", org.hamcrest.Matchers.containsString("Project name is required"));
@@ -140,7 +133,7 @@ class ProjectApiSystemTests {
 
     @Test
     void returnsServiceValidationAsProblemDetail() {
-        Session alice = signUp();
+        ApiSession alice = signUp();
 
         alice.write().body("{\"name\":\"   \"}").post("/api/v1/projects")
             .then().spec(problem(400, "Project name is required"));
@@ -148,7 +141,7 @@ class ProjectApiSystemTests {
 
     @Test
     void returnsMalformedRequestsAsProblemDetail() {
-        Session alice = signUp();
+        ApiSession alice = signUp();
 
         alice.read().queryParam("size", 101).get("/api/v1/projects")
             .then().spec(problem(400, not(emptyOrNullString())));
@@ -162,8 +155,8 @@ class ProjectApiSystemTests {
 
     @Test
     void returnsMissingOrOtherUsersProjectAsProblemDetail() {
-        Session alice = signUp();
-        Session bob = signUp();
+        ApiSession alice = signUp();
+        ApiSession bob = signUp();
         long id = alice.write().body("{\"name\":\"Private lab\"}").post("/api/v1/projects")
             .then().statusCode(201).extract().jsonPath().getLong("id");
 
@@ -173,7 +166,7 @@ class ProjectApiSystemTests {
 
     @Test
     void returnsUnknownApiRouteAsProblemDetail() {
-        Session alice = signUp();
+        ApiSession alice = signUp();
 
         alice.read().get("/api/v1/unknown-resource")
             .then().spec(problem(404, "The requested resource does not exist."));
@@ -181,7 +174,7 @@ class ProjectApiSystemTests {
 
     @Test
     void returnsMethodNotAllowedAsProblemDetail() {
-        Session alice = signUp();
+        ApiSession alice = signUp();
         long id = alice.write().body("{\"name\":\"Kept lab\"}").post("/api/v1/projects")
             .then().statusCode(201).extract().jsonPath().getLong("id");
 
@@ -189,39 +182,7 @@ class ProjectApiSystemTests {
         assertThat(repository.existsById(id)).isTrue();
     }
 
-    private Session signUp() {
-        accounts++;
-        String username = "projects_user_" + accounts;
-        String email = username + "@example.com";
-        CookieFilter cookies = new CookieFilter();
-        Session session = new Session(cookies);
-        session.write().body("""
-                {"username":"%s","displayName":"Project User","email":"%s","password":"%s"}
-                """.formatted(username, email, PASSWORD)).post("/api/v1/users").then().statusCode(201);
-        session.write().body("""
-                {"email":"%s","password":"%s"}
-                """.formatted(email, PASSWORD)).post("/api/v1/auth/login").then().statusCode(200);
-        return session;
-    }
-
-    private final class Session {
-
-        private final CookieFilter cookies;
-
-        private Session(CookieFilter cookies) {
-            this.cookies = cookies;
-        }
-
-        RequestSpecification read() {
-            return given().port(port).filter(cookies);
-        }
-
-        RequestSpecification write() {
-            given().port(port).filter(cookies).get("/api/v1/auth/csrf").then().statusCode(204);
-            String csrf = cookies.getCookieStore().getCookies().stream()
-                .filter(cookie -> cookie.getName().equals("XSRF-TOKEN"))
-                .findFirst().orElseThrow().getValue();
-            return given().port(port).filter(cookies).header("X-XSRF-TOKEN", csrf).contentType(ContentType.JSON);
-        }
+    private ApiSession signUp() {
+        return ApiSession.signUp(port);
     }
 }

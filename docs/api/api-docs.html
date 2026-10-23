@@ -212,6 +212,13 @@ font-style: italic;
   <li><a href="#getOwnProjects"><code><span class="http-method">get</span> /api/v1/projects</code></a></li>
   <li><a href="#updateProject"><code><span class="http-method">put</span> /api/v1/projects/{id}</code></a></li>
   </ul>
+  <h4><a href="#ScenarioController">ScenarioController</a></h4>
+  <ul>
+  <li><a href="#createScenario"><code><span class="http-method">post</span> /api/v1/projects/{projectId}/scenarios</code></a></li>
+  <li><a href="#getScenario"><code><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios/{id}</code></a></li>
+  <li><a href="#getScenarios"><code><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios</code></a></li>
+  <li><a href="#updateScenario"><code><span class="http-method">put</span> /api/v1/projects/{projectId}/scenarios/{id}</code></a></li>
+  </ul>
   <h4><a href="#UserController">UserController</a></h4>
   <ul>
   <li><a href="#getUserLogged"><code><span class="http-method">get</span> /api/v1/users/me</code></a></li>
@@ -1008,6 +1015,410 @@ font-style: italic;
         <a href="#ProjectDTO">ProjectDTO</a>
   </div> <!-- method -->
   <hr/>
+  <h1><a name="ScenarioController">ScenarioController</a></h1>
+  <div class="method"><a name="createScenario"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /api/v1/projects/{projectId}/scenarios</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">createScenario</span>)</div>
+    <div class="method-notes"></div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">projectId (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div>
+    </div>  <!-- field-items -->
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">SaveScenarioDTO <a href="#SaveScenarioDTO">SaveScenarioDTO</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ScenarioDTO">ScenarioDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "name" : "name",
+  "description" : "description",
+  "id" : 0,
+  "revision" : 6,
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#ScenarioDTO">ScenarioDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getScenario"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios/{id}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getScenario</span>)</div>
+    <div class="method-notes"></div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">projectId (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div><div class="param">id (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div>
+    </div>  <!-- field-items -->
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ScenarioDTO">ScenarioDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "name" : "name",
+  "description" : "description",
+  "id" : 0,
+  "revision" : 6,
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#ScenarioDTO">ScenarioDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getScenarios"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getScenarios</span>)</div>
+    <div class="method-notes"></div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">projectId (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div>
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Query parameters</h3>
+    <div class="field-items">
+      <div class="param">page (optional)</div>
+
+      <div class="param-desc"><span class="param-type">Query Parameter</span> &mdash;  default: 0 format: int32</div><div class="param">size (optional)</div>
+
+      <div class="param-desc"><span class="param-type">Query Parameter</span> &mdash;  default: 10 format: int32</div>
+    </div>  <!-- field-items -->
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#PagedModelScenarioDTO">PagedModelScenarioDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "page" : {
+    "number" : 6,
+    "size" : 0,
+    "totalPages" : 5,
+    "totalElements" : 1
+  },
+  "content" : [ {
+    "createdAt" : "2000-01-23T04:56:07.000+00:00",
+    "name" : "name",
+    "description" : "description",
+    "id" : 0,
+    "revision" : 6,
+    "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+  }, {
+    "createdAt" : "2000-01-23T04:56:07.000+00:00",
+    "name" : "name",
+    "description" : "description",
+    "id" : 0,
+    "revision" : 6,
+    "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+  } ]
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#PagedModelScenarioDTO">PagedModelScenarioDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="updateScenario"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="put"><code class="huge"><span class="http-method">put</span> /api/v1/projects/{projectId}/scenarios/{id}</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">updateScenario</span>)</div>
+    <div class="method-notes"></div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">projectId (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div><div class="param">id (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div>
+    </div>  <!-- field-items -->
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">SaveScenarioDTO <a href="#SaveScenarioDTO">SaveScenarioDTO</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ScenarioDTO">ScenarioDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "name" : "name",
+  "description" : "description",
+  "id" : 0,
+  "revision" : 6,
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#ScenarioDTO">ScenarioDTO</a>
+  </div> <!-- method -->
+  <hr/>
   <h1><a name="UserController">UserController</a></h1>
   <div class="method"><a name="getUserLogged"/>
     <div class="method-path">
@@ -1203,10 +1614,13 @@ font-style: italic;
     <li><a href="#PageMetadata"><code>PageMetadata</code> - </a></li>
     <li><a href="#PagedModelComponentTemplateDTO"><code>PagedModelComponentTemplateDTO</code> - </a></li>
     <li><a href="#PagedModelProjectDTO"><code>PagedModelProjectDTO</code> - </a></li>
+    <li><a href="#PagedModelScenarioDTO"><code>PagedModelScenarioDTO</code> - </a></li>
     <li><a href="#ProblemDetail"><code>ProblemDetail</code> - </a></li>
     <li><a href="#ProjectDTO"><code>ProjectDTO</code> - </a></li>
     <li><a href="#RegisterUserDTO"><code>RegisterUserDTO</code> - </a></li>
     <li><a href="#SaveProjectDTO"><code>SaveProjectDTO</code> - </a></li>
+    <li><a href="#SaveScenarioDTO"><code>SaveScenarioDTO</code> - </a></li>
+    <li><a href="#ScenarioDTO"><code>ScenarioDTO</code> - </a></li>
     <li><a href="#UserDTO"><code>UserDTO</code> - </a></li>
   </ol>
 
@@ -1267,6 +1681,14 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="PagedModelScenarioDTO"><code>PagedModelScenarioDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">content (optional)</div><div class="param-desc"><span class="param-type"><a href="#ScenarioDTO">array[ScenarioDTO]</a></span>  </div>
+<div class="param">page (optional)</div><div class="param-desc"><span class="param-type"><a href="#PageMetadata">PageMetadata</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="ProblemDetail"><code>ProblemDetail</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -1305,6 +1727,26 @@ font-style: italic;
     <div class="field-items">
       <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">description (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="SaveScenarioDTO"><code>SaveScenarioDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">description (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ScenarioDTO"><code>ScenarioDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">id (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">description (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">revision (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+<div class="param">createdAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+<div class="param">updatedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">

@@ -1,13 +1,25 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { getProject, getProjects } from "~/features/projects/api/project-service";
+import {
+  getProject,
+  getProjects,
+} from "~/features/projects/api/project-service";
+import { getScenarios } from "~/features/projects/api/scenario-service";
 import { clientAction as logoutAction } from "~/routes/logout";
 import { clientAction as createAction } from "~/routes/new-project";
+import {
+  clientAction as createScenarioAction,
+  clientLoader as newScenarioLoader,
+} from "~/routes/new-scenario";
 import {
   clientAction as updateAction,
   clientLoader as projectLoader,
 } from "~/routes/project";
 import { clientAction as registerAction } from "~/routes/register";
+import {
+  clientAction as updateScenarioAction,
+  clientLoader as scenarioLoader,
+} from "~/routes/scenario";
 
 const nodeFetch = globalThis.fetch;
 const cookies = new Map<string, string>();
@@ -80,8 +92,24 @@ async function create(name: string, description = "") {
   return location.split("/").pop()!;
 }
 
+async function createScenario(projectId: string, name: string) {
+  const created = (await createScenarioAction({
+    ...submit(`/projects/${projectId}/scenarios/new`, {
+      name,
+      description: "",
+    }),
+    params: { projectId },
+  } as never)) as Response;
+  const location = created.headers.get("Location")!;
+  expect(location).toMatch(
+    new RegExp(`^/projects/${projectId}/scenarios/\\d+$`),
+  );
+  return location.split("/").pop()!;
+}
+
 describe("projects client against the real API", () => {
   let projectId = "";
+  let scenarioId = "";
 
   it("creates, edits and reopens a private project", async () => {
     await signUp("owner");
@@ -146,6 +174,39 @@ describe("projects client against the real API", () => {
     ]);
   });
 
+  it("creates, renames and reopens empty scenarios in the project", async () => {
+    scenarioId = await createScenario(projectId, "Cold cache");
+    const otherId = await createScenario(projectId, "Warm cache");
+
+    await expect(
+      updateScenarioAction({
+        ...submit(`/projects/${projectId}/scenarios/${scenarioId}`, {
+          name: "Cold start",
+          description: "Empty Redis.",
+        }),
+        params: { projectId, scenarioId },
+      } as never),
+    ).resolves.toEqual({ saved: true });
+
+    await expect(
+      scenarioLoader({ params: { projectId, scenarioId } } as never),
+    ).resolves.toMatchObject({
+      scenario: {
+        name: "Cold start",
+        description: "Empty Redis.",
+        revision: 1,
+      },
+    });
+    await expect(
+      scenarioLoader({ params: { projectId, scenarioId: otherId } } as never),
+    ).resolves.toMatchObject({ scenario: { name: "Warm cache" } });
+    const scenarios = await getScenarios(projectId);
+    expect(scenarios.content.map((scenario) => scenario.name)).toEqual([
+      "Warm cache",
+      "Cold start",
+    ]);
+  });
+
   it("treats another account's project as not found", async () => {
     await logoutAction();
     await signUp("visitor");
@@ -155,6 +216,12 @@ describe("projects client against the real API", () => {
     ).rejects.toMatchObject({
       init: { status: 404 },
     });
+    await expect(
+      newScenarioLoader({ params: { projectId } } as never),
+    ).rejects.toMatchObject({ init: { status: 404 } });
+    await expect(
+      scenarioLoader({ params: { projectId, scenarioId } } as never),
+    ).rejects.toMatchObject({ init: { status: 404 } });
     await expect(getProject(String(projectId))).rejects.toMatchObject({
       status: 404,
       message: "Project not found",

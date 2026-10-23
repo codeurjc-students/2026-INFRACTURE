@@ -1,30 +1,29 @@
 import { HttpError } from "~/shared/api/api-fetch";
-import type { SaveProjectDTO } from "./model/SaveProjectDTO";
 
 export const NAME_MAX_LENGTH = 30;
 export const DESCRIPTION_MAX_LENGTH = 280;
 
-export type ProjectFormResult = {
+export type DetailsFormResult = {
   error?: string;
   nameError?: string;
 };
 
-export function readProjectForm(form: FormData): {
-  project: SaveProjectDTO;
-  nameError?: string;
-} {
-  const project = {
+export function readDetailsForm(
+  form: FormData,
+  subject: "project" | "scenario",
+) {
+  const details = {
     name: String(form.get("name") ?? "").trim(),
     description: String(form.get("description") ?? "").trim(),
   };
   return {
-    project,
-    nameError: project.name ? undefined : "Enter a name for the project.",
+    details,
+    nameError: details.name ? undefined : `Enter a name for the ${subject}.`,
   };
 }
 
 // The backend explains validation errors (400); anything else gets a general message.
-export function projectErrorMessage(error: unknown) {
+export function detailsErrorMessage(error: unknown) {
   return error instanceof HttpError && error.status === 400
     ? error.message
     : "Something went wrong. Try again in a moment.";

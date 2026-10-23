@@ -16,5 +16,7 @@ export default [
     route("projects", "routes/projects.tsx"),
     route("projects/new", "routes/new-project.tsx"),
     route("projects/:projectId", "routes/project.tsx"),
+    route("projects/:projectId/scenarios/new", "routes/new-scenario.tsx"),
+    route("projects/:projectId/scenarios/:scenarioId", "routes/scenario.tsx"),
   ]),
 ] satisfies RouteConfig;

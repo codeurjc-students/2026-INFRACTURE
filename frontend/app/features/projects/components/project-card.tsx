@@ -1,7 +1,7 @@
 import { LockIcon, NetworkIcon, PauseIcon } from "lucide-react";
 import { Link } from "react-router";
 import type { ProjectDTO } from "../model/ProjectDTO";
-import { formatUpdated } from "../project-form-data";
+import { formatUpdated } from "../details-form-data";
 
 // Sample run histories until executions exist (#86): h healthy, d degraded, f failed, r recovering.
 // An empty one means the project has not run yet.

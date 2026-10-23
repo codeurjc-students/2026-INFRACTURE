@@ -2,9 +2,10 @@ import type { Route } from "./+types/projects";
 import { PlusIcon } from "lucide-react";
 import { Link, useRevalidator } from "react-router";
 import AppHeader from "~/components/app-header";
+import PagedList from "~/components/paged-list";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { getProjects } from "~/features/projects/api/project-service";
-import ProjectList from "~/features/projects/components/project-list";
+import ProjectCard from "~/features/projects/components/project-card";
 
 export function meta() {
   return [{ title: "Projects | Infracture" }];
@@ -113,7 +114,12 @@ export default function ProjectsRoute({
         </div>
       }
     >
-      <ProjectList initialPage={projects} />
+      <PagedList
+        initialPage={projects}
+        loadPage={getProjects}
+        noun="projects"
+        renderItem={(project) => <ProjectCard project={project} />}
+      />
     </ProjectsPage>
   );
 }
