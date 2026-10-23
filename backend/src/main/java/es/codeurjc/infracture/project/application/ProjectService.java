@@ -1,5 +1,8 @@
 package es.codeurjc.infracture.project.application;
 
+import static es.codeurjc.infracture.project.application.DetailNormalizer.normalizeDescription;
+import static es.codeurjc.infracture.project.application.DetailNormalizer.normalizeText;
+
 import es.codeurjc.infracture.identity.application.UserService;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.project.domain.Project;
@@ -8,7 +11,6 @@ import es.codeurjc.infracture.shared.NotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
-import java.text.Normalizer;
 import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -59,14 +61,5 @@ public class ProjectService {
         if (!violations.isEmpty()) {
             throw new ConstraintViolationException(violations);
         }
-    }
-
-    private String normalizeText(String value) {
-        return value == null ? null : Normalizer.normalize(value.strip(), Normalizer.Form.NFC);
-    }
-
-    private String normalizeDescription(String value) {
-        String description = normalizeText(value);
-        return description == null || description.isEmpty() ? null : description;
     }
 }
