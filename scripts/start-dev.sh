@@ -29,8 +29,9 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "Required command not found: $1"
 }
 
-java_version_from_home() {
-  "${1}/bin/java" -version 2>&1 | awk -F '"' 'NR == 1 { print $2 }'
+# Only the major version is pinned so security patch updates keep working.
+java_major_version_from_home() {
+  "${1}/bin/java" -version 2>&1 | awk -F '"' 'NR == 1 { split($2, version, "."); print version[1] }'
 }
 
 select_java_home() {
@@ -38,7 +39,7 @@ select_java_home() {
 
   if [[ -n "${JAVA_HOME:-}" && -x "${JAVA_HOME}/bin/java" ]]; then
     candidate="${JAVA_HOME}"
-    if [[ "$(java_version_from_home "${candidate}")" == "${REQUIRED_JAVA_VERSION}" ]]; then
+    if [[ "$(java_major_version_from_home "${candidate}")" == "${REQUIRED_JAVA_VERSION}" ]]; then
       JAVA_HOME_FOR_PROJECT="${candidate}"
       return
     fi
@@ -47,7 +48,7 @@ select_java_home() {
   if [[ "$(uname -s)" == "Darwin" && -x /usr/libexec/java_home ]]; then
     candidate="$(/usr/libexec/java_home -v "${REQUIRED_JAVA_VERSION}" 2>/dev/null || true)"
     if [[ -n "${candidate}" ]] &&
-      [[ "$(java_version_from_home "${candidate}")" == "${REQUIRED_JAVA_VERSION}" ]]; then
+      [[ "$(java_major_version_from_home "${candidate}")" == "${REQUIRED_JAVA_VERSION}" ]]; then
       JAVA_HOME_FOR_PROJECT="${candidate}"
       return
     fi
