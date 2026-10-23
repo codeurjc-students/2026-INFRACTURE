@@ -4,27 +4,30 @@ import { Form, Link, redirect, useNavigation } from "react-router";
 import AppHeader from "~/components/app-header";
 import { buttonVariants } from "~/components/ui/button";
 import { createProject } from "~/features/projects/api/project-service";
-import ProjectForm from "~/features/projects/components/project-form";
+import DetailsForm from "~/features/projects/components/details-form";
 import ProjectsBreadcrumb from "~/features/projects/components/projects-breadcrumb";
 import {
-  projectErrorMessage,
-  readProjectForm,
-} from "~/features/projects/project-form-data";
+  detailsErrorMessage,
+  readDetailsForm,
+} from "~/features/projects/details-form-data";
 
 export function meta() {
   return [{ title: "New project | Infracture" }];
 }
 
 export async function clientAction({ request }: Route.ClientActionArgs) {
-  const { project, nameError } = readProjectForm(await request.formData());
+  const { details, nameError } = readDetailsForm(
+    await request.formData(),
+    "project",
+  );
   if (nameError) {
     return { nameError };
   }
   try {
-    const created = await createProject(project);
+    const created = await createProject(details);
     return redirect(`/projects/${created.id}`);
   } catch (error) {
-    return { error: projectErrorMessage(error) };
+    return { error: detailsErrorMessage(error) };
   }
 }
 
@@ -52,8 +55,9 @@ export default function NewProjectRoute({
             </p>
           </div>
           <Form method="post" noValidate>
-            <ProjectForm
+            <DetailsForm
               {...actionData}
+              namePlaceholder="Cache lab"
               errorTitle="Could not create the project"
               submitLabel="Create project"
               pendingLabel="Creating…"

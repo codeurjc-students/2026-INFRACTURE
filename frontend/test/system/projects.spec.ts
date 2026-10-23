@@ -118,3 +118,122 @@ test("creates, edits and reopens a private project that another account cannot r
     await visitor.close();
   });
 });
+
+test("creates, renames and reopens empty scenarios that another account cannot open", async ({
+  browser,
+  page,
+}, testInfo) => {
+  let scenarioUrl = "";
+  const scenarios = page
+    .getByRole("region", { name: "Scenarios" })
+    .getByRole("list")
+    .getByRole("link");
+
+  async function post(path: string, name: string) {
+    const response = await page.request.post(path, {
+      data: { name, description: "" },
+      headers: {
+        "X-XSRF-TOKEN": (await page.context().cookies()).find(
+          (c) => c.name === "XSRF-TOKEN",
+        )!.value,
+      },
+    });
+    expect(response.status()).toBe(201);
+    return response.json();
+  }
+
+  await test.step("Create two empty scenarios in a project", async () => {
+    await register(page, account("scenarios"));
+    const project = await post("/api/v1/projects", "Cache lab");
+    await page.goto(`/projects/${project.id}`);
+
+    await expect(
+      page.getByRole("heading", { name: "No scenarios yet" }),
+    ).toBeVisible();
+    await page
+      .getByRole("link", { name: "Create your first scenario" })
+      .click();
+    await page.getByLabel("Name").fill("Cold cache");
+    await page.getByRole("button", { name: "Create scenario" }).click();
+
+    await expect(page).toHaveURL(/\/projects\/\d+\/scenarios\/\d+$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Cold cache" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "No components yet" }),
+    ).toBeVisible();
+    scenarioUrl = new URL(page.url()).pathname;
+
+    await page
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: "Cache lab" })
+      .click();
+    await page.getByRole("link", { name: "New scenario" }).click();
+    await page.getByLabel("Name").fill("Warm cache");
+    await page.getByRole("button", { name: "Create scenario" }).click();
+    await expect(page).toHaveURL(/\/scenarios\/\d+$/);
+    expect(new URL(page.url()).pathname).not.toBe(scenarioUrl);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Warm cache" }),
+    ).toBeVisible();
+  });
+
+  await test.step("Rename one scenario and reopen both", async () => {
+    await page.goto(scenarioUrl);
+    await page.getByRole("button", { name: "Edit details" }).click();
+    await page.getByLabel("Name").fill("Cold start");
+    await page.getByLabel("Description").fill("Redis starts empty.");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByText("Changes saved")).toBeVisible();
+
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Cold start" }),
+    ).toBeVisible();
+    await expect(page.getByText("Redis starts empty.")).toBeVisible();
+    await testInfo.attach("scenario.png", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+
+    await page
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: "Cache lab" })
+      .click();
+    await expect(scenarios).toHaveCount(2);
+    await scenarios.filter({ hasText: "Warm cache" }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Warm cache" }),
+    ).toBeVisible();
+  });
+
+  await test.step("Browse more than ten scenarios", async () => {
+    const projectPath = scenarioUrl.replace(/\/scenarios\/\d+$/, "");
+    for (let index = 1; index <= 9; index++) {
+      await post(`/api/v1${projectPath}/scenarios`, `Scenario ${index}`);
+    }
+
+    await page.goto(projectPath);
+    await expect(scenarios).toHaveCount(10);
+    await page.getByRole("button", { name: "More results" }).click();
+    await expect(scenarios).toHaveCount(11);
+    await expect(scenarios.last()).toContainText("Cold start");
+    await testInfo.attach("scenarios.png", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  });
+
+  await test.step("Another account cannot open the scenario", async () => {
+    const other = await browser.newPage({
+      baseURL: testInfo.project.use.baseURL,
+    });
+    await register(other, account("intruder"));
+    await other.goto(scenarioUrl);
+    await expect(
+      other.getByRole("heading", { name: "Scenario not found" }),
+    ).toBeVisible();
+    await other.close();
+  });
+});

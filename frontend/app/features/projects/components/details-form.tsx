@@ -1,5 +1,5 @@
 import { CircleAlertIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Field, FieldLabel } from "~/components/ui/field";
@@ -9,12 +9,13 @@ import { Textarea } from "~/components/ui/textarea";
 import {
   DESCRIPTION_MAX_LENGTH,
   NAME_MAX_LENGTH,
-  type ProjectFormResult,
-} from "../project-form-data";
+  type DetailsFormResult,
+} from "../details-form-data";
 
-type ProjectFormProps = ProjectFormResult & {
+type DetailsFormProps = DetailsFormResult & {
   defaultName?: string;
   defaultDescription?: string;
+  namePlaceholder: string;
   errorTitle: string;
   submitLabel: string;
   pendingLabel: string;
@@ -28,10 +29,11 @@ function length(value: string) {
   return [...value].length;
 }
 
-// Fields and actions shared by the create and edit forms. The page provides the <Form>.
-export default function ProjectForm({
+// Name and description fields shared by the project and scenario forms. The page provides the <Form>.
+export default function DetailsForm({
   defaultName = "",
   defaultDescription = "",
+  namePlaceholder,
   error,
   nameError,
   errorTitle,
@@ -40,7 +42,8 @@ export default function ProjectForm({
   pending,
   cancel,
   onNameChange,
-}: ProjectFormProps) {
+}: DetailsFormProps) {
+  const id = useId();
   const [nameLength, setNameLength] = useState(length(defaultName));
   const [descriptionLength, setDescriptionLength] = useState(
     length(defaultDescription),
@@ -56,20 +59,20 @@ export default function ProjectForm({
         </Alert>
       )}
       <Field data-invalid={Boolean(nameError)}>
-        <FieldLabel htmlFor="project-name" className="font-semibold">
+        <FieldLabel htmlFor={`${id}-name`} className="font-semibold">
           Name
         </FieldLabel>
         <Input
-          id="project-name"
+          id={`${id}-name`}
           name="name"
           defaultValue={defaultName}
           maxLength={NAME_MAX_LENGTH}
           autoComplete="off"
           autoFocus
           required
-          placeholder="Cache lab"
+          placeholder={namePlaceholder}
           aria-invalid={Boolean(nameError)}
-          aria-describedby="project-name-help"
+          aria-describedby={`${id}-name-help`}
           onChange={(event) => {
             setNameLength(length(event.target.value));
             onNameChange?.(event.target.value);
@@ -78,7 +81,7 @@ export default function ProjectForm({
         />
         <div className="flex justify-between gap-4 type-small">
           <p
-            id="project-name-help"
+            id={`${id}-name-help`}
             className={nameError ? "text-destructive" : "text-muted-foreground"}
           >
             {nameError ?? `Up to ${NAME_MAX_LENGTH} characters.`}
@@ -92,21 +95,21 @@ export default function ProjectForm({
         </div>
       </Field>
       <Field>
-        <FieldLabel htmlFor="project-description" className="font-semibold">
+        <FieldLabel htmlFor={`${id}-description`} className="font-semibold">
           Description
         </FieldLabel>
         <Textarea
-          id="project-description"
+          id={`${id}-description`}
           name="description"
           defaultValue={defaultDescription}
           maxLength={DESCRIPTION_MAX_LENGTH}
           rows={3}
-          aria-describedby="project-description-help"
+          aria-describedby={`${id}-description-help`}
           onChange={(event) => setDescriptionLength(length(event.target.value))}
           className="min-h-28 px-4 py-3 text-[15px] leading-[22px] md:text-[15px]"
         />
         <div className="flex justify-between gap-4 type-small">
-          <p id="project-description-help" className="text-muted-foreground">
+          <p id={`${id}-description-help`} className="text-muted-foreground">
             Optional. What do you want to learn from it?
           </p>
           <span

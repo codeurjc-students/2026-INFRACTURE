@@ -1,24 +1,28 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
   createMemoryRouter,
   RouterProvider,
   useLoaderData,
 } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getProject,
   updateProject,
 } from "~/features/projects/api/project-service";
+import { getScenarios } from "~/features/projects/api/scenario-service";
 import type { ProjectDTO } from "~/features/projects/model/ProjectDTO";
+import type { ScenarioDTO } from "~/features/projects/model/ScenarioDTO";
 import ProjectRoute, {
   clientAction,
   clientLoader,
   ErrorBoundary,
 } from "~/routes/project";
 import { HttpError } from "~/shared/api/api-fetch";
+import type { PageDTO } from "~/shared/model/PageDTO";
 
 vi.mock("~/features/projects/api/project-service");
+vi.mock("~/features/projects/api/scenario-service");
 
 const project: ProjectDTO = {
   id: 7,
@@ -27,6 +31,29 @@ const project: ProjectDTO = {
   createdAt: "2026-10-18T10:00:00Z",
   updatedAt: "2026-10-20T10:00:00Z",
 };
+
+function scenarioPage(
+  ids: number[],
+  number: number,
+  totalElements: number,
+): PageDTO<ScenarioDTO> {
+  return {
+    content: ids.map((id) => ({
+      id,
+      name: `Scenario ${id}`,
+      description: id === 1 ? "Empty Redis." : null,
+      revision: 1,
+      createdAt: "2026-10-20T10:00:00Z",
+      updatedAt: "2026-10-20T10:00:00Z",
+    })),
+    page: {
+      size: 10,
+      number,
+      totalElements,
+      totalPages: Math.ceil(totalElements / 10),
+    },
+  };
+}
 
 const activeRouters: ReturnType<typeof createMemoryRouter>[] = [];
 
@@ -49,6 +76,10 @@ function renderProject(id = "7") {
         ErrorBoundary,
       },
       { path: "/projects", Component: () => <p>Projects page</p> },
+      {
+        path: "/projects/:projectId/scenarios/new",
+        Component: () => <p>New scenario page</p>,
+      },
     ],
     { initialEntries: [`/projects/${id}`] },
   );
@@ -63,6 +94,10 @@ function edit(name: string, description: string) {
     target: { value: description },
   });
 }
+
+beforeEach(() => {
+  vi.mocked(getScenarios).mockResolvedValue(scenarioPage([], 0, 0));
+});
 
 afterEach(() => {
   activeRouters.splice(0).forEach((router) => router.dispose());
@@ -202,5 +237,54 @@ describe("project route", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Cache lab" }),
     ).toBeInTheDocument();
+  });
+
+  it("lists the scenarios of the project and adds the next page", async () => {
+    const firstTen = Array.from({ length: 10 }, (_, index) => 11 - index);
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenarios)
+      .mockResolvedValueOnce(scenarioPage(firstTen, 0, 11))
+      .mockResolvedValueOnce(scenarioPage([1], 1, 11));
+    renderProject();
+
+    const scenarios = await screen.findByRole("region", { name: "Scenarios" });
+    const cards = within(scenarios).getAllByRole("link", {
+      name: /^Scenario/,
+    });
+    expect(cards).toHaveLength(10);
+    expect(cards[0]).toHaveAttribute("href", "/projects/7/scenarios/11");
+    expect(within(scenarios).getByRole("status")).toHaveTextContent(
+      "Showing 10 of 11",
+    );
+    expect(
+      within(scenarios).getByRole("link", { name: "New scenario" }),
+    ).toHaveAttribute("href", "/projects/7/scenarios/new");
+    fireEvent.click(
+      within(scenarios).getByRole("button", { name: "More results" }),
+    );
+
+    expect(
+      await within(scenarios).findByRole("heading", { name: "Scenario 1" }),
+    ).toBeInTheDocument();
+    expect(within(scenarios).getByText("Empty Redis.")).toBeInTheDocument();
+    expect(
+      within(scenarios).queryByRole("button", { name: "More results" }),
+    ).not.toBeInTheDocument();
+    expect(getScenarios).toHaveBeenCalledWith("7");
+    expect(getScenarios).toHaveBeenLastCalledWith("7", 1);
+  });
+
+  it("invites the owner to create a first scenario when there are none", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    renderProject();
+
+    expect(
+      await screen.findByRole("heading", { name: "No scenarios yet" }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("link", { name: "Create your first scenario" }),
+    );
+
+    expect(await screen.findByText("New scenario page")).toBeInTheDocument();
   });
 });
