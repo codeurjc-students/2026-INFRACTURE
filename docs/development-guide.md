@@ -29,12 +29,12 @@ Infracture se desarrolla como una aplicación web **SPA**: el navegador carga el
 
 ## Tecnologías
 
-- [Eclipse Temurin (Java)](https://adoptium.net/) 25.0.4.1 y [Spring Boot](https://spring.io/projects/spring-boot/) implementan la API y las capas de aplicación, dominio y persistencia.
+- [Eclipse Temurin (Java)](https://adoptium.net/) 25 LTS y [Spring Boot](https://spring.io/projects/spring-boot/) implementan la API y las capas de aplicación, dominio y persistencia.
 - [PostgreSQL](https://www.postgresql.org/) 18.6 almacena el catálogo; [Flyway](https://documentation.red-gate.com/fd) aplica las migraciones versionadas al arrancar el backend.
 - [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [React Router](https://reactrouter.com/) y [Vite](https://vite.dev/) forman el cliente SPA. React Router se configura con `ssr: false`.
 - [Docker](https://docs.docker.com/) y [Docker Compose](https://docs.docker.com/compose/) proporcionan el PostgreSQL de desarrollo. El motor Docker también es necesario para los PostgreSQL desechables de las pruebas con Testcontainers.
 
-Las versiones precisas de Java y Node.js requeridas por los scripts están en [`.java-version`](../.java-version) y [`.nvmrc`](../.nvmrc). El contenedor y las credenciales por defecto del entorno local están declarados en [`compose.yaml`](../compose.yaml).
+La versión mayor de Java y la versión exacta de Node.js que requieren los scripts están en [`.java-version`](../.java-version) y [`.nvmrc`](../.nvmrc). El contenedor y las credenciales por defecto del entorno local están declarados en [`compose.yaml`](../compose.yaml).
 
 ## Herramientas
 
