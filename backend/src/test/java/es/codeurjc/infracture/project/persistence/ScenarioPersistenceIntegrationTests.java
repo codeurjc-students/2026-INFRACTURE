@@ -54,8 +54,8 @@ class ScenarioPersistenceIntegrationTests {
     void persistsMembershipDetailsAndInitialRevisionAcrossReopening() {
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", "Empty Redis"));
         repository.saveAndFlush(new Scenario(cacheLab, "Warm cache", null));
-        Instant projectUpdatedAt = cacheLab.getUpdatedAt();
         entityManager.clear();
+        Instant projectUpdatedAt = entityManager.find(Project.class, cacheLab.getId()).getUpdatedAt();
 
         Scenario saved = repository.findById(scenario.getId()).orElseThrow();
         assertThat(saved.getProject().getId()).isEqualTo(cacheLab.getId());
