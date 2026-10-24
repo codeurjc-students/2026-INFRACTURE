@@ -78,14 +78,12 @@ describe("apiFetch", () => {
   it("uses a generic message when a failed response is not JSON", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response("<html>Bad Gateway</html>", {
-            status: 502,
-            statusText: "Bad Gateway",
-          }),
-        ),
+      vi.fn().mockResolvedValue(
+        new Response("<html>Bad Gateway</html>", {
+          status: 502,
+          statusText: "Bad Gateway",
+        }),
+      ),
     );
 
     await expect(apiFetch("/api/v1/users/me")).rejects.toMatchObject({
@@ -115,6 +113,80 @@ describe("apiFetch", () => {
     expect(csrfCalls).toHaveLength(1);
     expect(loginHeaders.get("X-XSRF-TOKEN")).toBe("token-123");
     expect(loginHeaders.get("Content-Type")).toBe("application/json");
+  });
+
+  it("renews an expired session once and repeats the request", async () => {
+    document.cookie = "XSRF-TOKEN=token-123";
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(problem(401, "Authentication is required."))
+      .mockResolvedValueOnce(Response.json({ status: "SUCCESS" }))
+      .mockResolvedValueOnce(Response.json({ name: "Ada" }));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(apiFetch("/api/v1/users/me")).resolves.toEqual({
+      name: "Ada",
+    });
+    expect(fetch.mock.calls.map(([input]) => input)).toEqual([
+      "/api/v1/users/me",
+      "/api/v1/auth/refresh",
+      "/api/v1/users/me",
+    ]);
+  });
+
+  it("keeps the 401 when the session cannot be renewed", async () => {
+    document.cookie = "XSRF-TOKEN=token-123";
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(problem(401, "Authentication is required."))
+      .mockResolvedValueOnce(problem(401, "Authentication is required."));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(apiFetch("/api/v1/users/me")).rejects.toMatchObject({
+      status: 401,
+      message: "Authentication is required.",
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not renew the session for authentication requests", async () => {
+    document.cookie = "XSRF-TOKEN=token-123";
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(problem(401, "Invalid email or password."));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(
+      apiFetch("/api/v1/auth/login", { method: "POST", body: "{}" }),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("renews the session once for requests that expire together", async () => {
+    document.cookie = "XSRF-TOKEN=token-123";
+    let renewed = false;
+    const fetch = vi.fn((input: RequestInfo | URL) => {
+      if (input === "/api/v1/auth/refresh") {
+        renewed = true;
+        return Promise.resolve(Response.json({ status: "SUCCESS" }));
+      }
+      return Promise.resolve(
+        renewed
+          ? Response.json({ ok: true })
+          : problem(401, "Authentication is required."),
+      );
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await Promise.all([
+      apiFetch("/api/v1/users/me"),
+      apiFetch("/api/v1/projects"),
+    ]);
+
+    const refreshCalls = fetch.mock.calls.filter(
+      ([input]) => input === "/api/v1/auth/refresh",
+    );
+    expect(refreshCalls).toHaveLength(1);
   });
 
   it("does not ask for a CSRF token on reads", async () => {

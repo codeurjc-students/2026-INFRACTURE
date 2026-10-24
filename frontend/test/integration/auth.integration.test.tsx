@@ -85,8 +85,16 @@ describe("auth client against the real API", () => {
       .resolves.toMatchObject({ username: account.username });
   });
 
+  it("renews an expired access token with the refresh token", async () => {
+    cookies.set("AuthToken", "stale-or-expired-token");
+
+    await expect(getCurrentUser()).resolves.toMatchObject({ username: account.username });
+    expect(cookies.get("AuthToken")).not.toBe("stale-or-expired-token");
+  });
+
   it("sends a session the backend rejects to the login, remembering the page", async () => {
     cookies.set("AuthToken", "stale-or-expired-token");
+    cookies.set("RefreshToken", "stale-or-expired-token");
 
     const redirect = await requireUser(new Request(new URL("/account", window.location.origin)))
       .catch((thrown) => thrown);
