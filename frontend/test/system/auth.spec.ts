@@ -57,9 +57,21 @@ test("registers, signs out and returns to a private page after signing in again"
     });
   });
 
-  await test.step("Recover from a session the backend no longer accepts", async () => {
+  await test.step("Stay signed in when the access token expires", async () => {
     const [authToken] = (await sessionCookies(page)).filter((cookie) => cookie.name === "AuthToken");
     await page.context().addCookies([{ ...authToken, value: "stale-or-expired-token" }]);
+
+    await page.reload();
+    await expect(page).toHaveURL("/account");
+    await expect(page.getByText(account.email)).toBeVisible();
+    const [renewed] = (await sessionCookies(page)).filter((cookie) => cookie.name === "AuthToken");
+    expect(renewed.value).not.toBe("stale-or-expired-token");
+  });
+
+  await test.step("Recover from a session the backend no longer accepts", async () => {
+    await page.context().addCookies(
+      (await sessionCookies(page)).map((cookie) => ({ ...cookie, value: "stale-or-expired-token" })),
+    );
 
     await page.reload();
     await expect(page).toHaveURL("/login?redirectTo=%2Faccount");

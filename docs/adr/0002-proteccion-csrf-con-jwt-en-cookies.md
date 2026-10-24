@@ -26,7 +26,7 @@ Antes de la primera escritura, el cliente obtendrá la cookie mediante un `GET` 
 
 Ambas cookies son `HttpOnly`, usan `Path=/` y su `Max-Age` coincide con la duración del token. El servidor no guarda estado de sesión: valida la firma y la caducidad de cada JWT. La clave de firma se genera al arrancar el backend, por lo que un reinicio invalida todas las sesiones abiertas.
 
-El logout borra las dos cookies, pero no revoca en el servidor copias de tokens todavía vigentes; la revocación queda como [mejora opcional](0007-revocacion-jwt-como-mejora-opcional.md). Con el token de acceso caducado, la API responde `401`. El frontend lleva entonces a `/login?redirectTo=<página>` y, tras iniciar sesión, vuelve a esa página si pertenece a la aplicación. La renovación automática desde el frontend no está implementada.
+El logout borra las dos cookies, pero no revoca en el servidor copias de tokens todavía vigentes; la revocación queda como [mejora opcional](0007-revocacion-jwt-como-mejora-opcional.md). Con el token de acceso caducado, la API responde `401`. El frontend llama entonces una vez a `POST /api/v1/auth/refresh` y repite la petición; las peticiones que caducan a la vez comparten esa renovación. Si la renovación también falla, lleva a `/login?redirectTo=<página>` y, tras iniciar sesión, vuelve a esa página si pertenece a la aplicación.
 
 No se fijan `Secure` ni `SameSite` en las cookies de sesión; la protección frente a peticiones forjadas la aporta CSRF. Marcar `Secure` queda pendiente del despliegue con HTTPS.
 
