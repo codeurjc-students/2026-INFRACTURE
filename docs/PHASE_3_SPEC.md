@@ -4,6 +4,8 @@
 
 **Revisión — 4 y 6 de octubre de 2026:** la guía fija las versiones y sustituye el aplazamiento anterior por instrucción del alumno.
 
+**Revisión del modelo de ejecución — 30 de octubre de 2026:** el alumno aprobó una revisión del catálogo, las conexiones, la carga y el motor. Una sola versión ejecutable por contrato ([ADR 0010](adr/0010-una-sola-version-ejecutable-del-contrato.md)), puertos que piden capacidades y grafo acíclico ([ADR 0011](adr/0011-puertos-con-nombre-que-piden-capacidades.md)), la carga como `Workload` del escenario en lugar del Load Generator ([ADR 0012](adr/0012-la-carga-es-un-workload-del-escenario.md)) y un motor basado en Docker Compose con acceso a Docker mediante proxy ([ADR 0013](adr/0013-motor-de-ejecucion-con-docker-compose.md)). Se añade el Load Balancer como sexto tipo de 0.1.0. Las historias e ID afectados se han actualizado; la [arquitectura de ejecución](EXECUTION_ARCHITECTURE.md) explica el modelo completo. La traducción de la issue #60 queda pendiente de sincronizar.
+
 **Idiomas — 5 de octubre de 2026:** esta copia permanente se conserva en español por petición del alumno; la [issue #60](https://github.com/codeurjc-students/2026-INFRACTURE/issues/60) contiene su traducción al inglés. Ambas versiones mantienen el mismo alcance y los identificadores US/ID/TD/C. La sincronización es de contenido, no de igualdad textual o de huella; los cambios acordados deben reflejarse en ambos idiomas.
 
 Esta spec cubre toda la Fase 3. Los detalles expresamente aplazados siguen identificados por bloque en Further Notes. Su etiqueta `ready-for-agent` permite preparar trabajo concreto; no autoriza delegación, implementación, commits, releases ni cierre automático de la fase.
@@ -20,7 +22,7 @@ Entregar Infracture 0.1.0 como una aplicación web local instalable desde un Com
 
 El visitante consultará proyectos y perfiles públicos. El usuario registrado diseñará proyectos privados, podrá publicarlos voluntariamente y gestionará escenarios con componentes controlados. Run guardará, validará y ejecutará exactamente la misma revisión del Scenario. Docker ejecutará el experimento en recursos temporales identificados, con una sola Execution activa en la instancia, límites, comprobaciones de salud y Stop global con limpieza.
 
-La observación mostrará datos reales y conservará estados, eventos, logs resumidos, métricas, snapshot e identidades históricas. El administrador gestionará cuentas y fichas de catálogo dentro de los permisos acordados. Se incluirán los seis ComponentType y todos los perfiles documentados, avatares, iconos administrables, portadas automáticas y gráfica temporal de CPU y memoria por componente.
+La observación mostrará datos reales y conservará estados, eventos, logs resumidos, métricas, snapshot e identidades históricas. El administrador gestionará cuentas y fichas de catálogo dentro de los permisos acordados. Se incluirán los seis ComponentType (HTTP Service, Worker, PostgreSQL, Redis, RabbitMQ y Load Balancer), todos sus perfiles y los cuatro perfiles de `Workload`, avatares, iconos administrables, portadas automáticas y gráfica temporal de CPU y memoria por componente.
 
 La entrega estará respaldada por seis categorías de pruebas por funcionalidad, cobertura mínima del 70 % en backend y frontend, CI y análisis correctos, publicación de imagen y Compose, instalación verificada en los sistemas acordados y documentación del comportamiento real.
 
@@ -107,7 +109,7 @@ Las historias utilizan el formato «Como actor, quiero función, para beneficio�
 
 ### Catálogo y perfiles ejecutables — F05
 
-51. Como usuario, quiero consultar fichas de HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ, para elegir los seis tipos controlados. (US051)
+51. Como usuario, quiero consultar fichas de HTTP Service, Worker, PostgreSQL, Redis, RabbitMQ y Load Balancer, para elegir entre los seis tipos controlados. (US051)
 52. Como usuario, quiero que cada ficha muestre nombre, icono y opciones reconocidas de configuración, para entender qué puedo instanciar. (US052)
 53. Como usuario, quiero recibir los valores iniciales de una ficha y cambiar perfil y parámetros dentro del mismo tipo y contrato permitido, para adaptar el nodo. (US053)
 54. Como usuario, quiero que los cambios administrativos de valores iniciales afecten solo a nodos nuevos, para conservar mi configuración existente. (US054)
@@ -118,22 +120,26 @@ Las historias utilizan el formato «Como actor, quiero función, para beneficio�
 59. Como usuario, quiero ejecutar `DOWNSTREAM_HTTP` con otro HTTP Service, para observar una operación compuesta en una cadena sin ciclos. (US059)
 60. Como usuario, quiero ejecutar un Worker que consuma, procese y confirme tareas de RabbitMQ con reintentos acotados, para observar procesamiento en segundo plano. (US060)
 61. Como usuario, quiero que el Worker pueda guardar resultados en un único destino opcional PostgreSQL o Redis, para observar su persistencia permitida. (US061)
-62. Como usuario, quiero generar carga `CONSTANT_HTTP`, `REPEATED_READ`, `WEIGHTED_CRUD` y `TASK_PRODUCER` contra capacidades compatibles, para ensayar todos los perfiles incluidos. (US062)
-63. Como usuario, quiero configurar frecuencia, concurrencia, duración, datos y semilla dentro de límites, para producir carga acotada y repetible. (US063)
+62. Como usuario, quiero configurar el `Workload` del escenario con `CONSTANT_HTTP`, `REPEATED_READ`, `WEIGHTED_CRUD` o `TASK_PRODUCER` contra un objetivo con capacidades compatibles, para ensayar todos los perfiles incluidos. (US062)
+63. Como usuario, quiero configurar en el `Workload` frecuencia, concurrencia, duración, datos y semilla dentro de límites, para producir carga acotada y repetible. (US063)
 64. Como usuario, quiero disponer de PostgreSQL, Redis y RabbitMQ temporales con configuración y datos controlados, para experimentar sin usar los datos permanentes de la plataforma. (US064)
 65. Como usuario, quiero conservar conexiones al cambiar de perfil y ver las incompatibles señaladas, para decidir cómo corregir mi diseño. (US065)
-66. Como usuario, quiero consultar escenarios antiguos con fichas deshabilitadas y ejecutarlos si su contrato sigue permitido, para conservar el trabajo anterior. (US066)
-67. Como usuario, quiero recibir el rechazo de un nuevo Run cuando su contrato esté bloqueado y permitir que una ejecución ya reservada termine con su snapshot, para entender la disponibilidad sin alterar el pasado. (US067)
+66. Como usuario, quiero consultar escenarios antiguos con fichas deshabilitadas y ejecutarlos si siguen siendo válidos, para conservar el trabajo anterior. (US066)
+67. Como usuario, quiero que un cambio incompatible del contrato migre mis nodos guardados, señale como error lo que no pueda convertirse y no altere los snapshots de ejecuciones anteriores, para conservar mi trabajo y mi historial. (US067)
+
+Añadida el 30 de octubre de 2026 al incorporar el Load Balancer:
+
+- **US141.** Como usuario, quiero repartir el tráfico entre varios HTTP Service con un Load Balancer `ROUND_ROBIN` o `LEAST_CONNECTIONS` que retire los backends caídos, para observar el reparto y la tolerancia a fallos de un servicio.
 
 ### Conexiones y validación — F06
 
 68. Como usuario, quiero que una flecha indique que el origen depende del destino, para interpretar el grafo de forma consistente. (US068)
 69. Como usuario, quiero ver las relaciones de publicación y consumo apuntando a RabbitMQ con etiquetas claras, para distinguir dependencia de recorrido del mensaje. (US069)
-70. Como usuario, quiero validar tipos, dirección, perfil, capacidades, parámetros, cardinalidades y cuotas, para conocer si se puede intentar Run. (US070)
-71. Como usuario, quiero que cada generador tenga un destino HTTP compatible y cada perfil HTTP sus dependencias requeridas, para evitar conexiones sin comportamiento reconocido. (US071)
+70. Como usuario, quiero validar perfil, puertos, capacidades, parámetros, cardinalidades, ciclos, `Workload` y cuotas, para conocer si se puede intentar Run. (US070)
+71. Como usuario, quiero que el `Workload` tenga un objetivo que ofrezca la capacidad de su perfil y que cada perfil tenga conectados sus puertos obligatorios, para evitar conexiones sin comportamiento reconocido. (US071)
 72. Como usuario, quiero que cada Worker tenga un RabbitMQ y como máximo un destino opcional PostgreSQL o Redis, para respetar el contrato inicial. (US072)
 73. Como usuario, quiero compartir una dependencia entre varios componentes cuando el contrato lo permita, para representar topologías útiles. (US073)
-74. Como usuario, quiero que ciclos HTTP, llamadas a sí mismo, duplicados, referencias externas y conexiones no admitidas se señalen y bloqueen Run, para corregir errores del grafo. (US074)
+74. Como usuario, quiero que ciclos de dependencias, llamadas a sí mismo, duplicados, referencias externas y conexiones no admitidas se señalen y bloqueen Run, para corregir errores del grafo. (US074)
 75. Como usuario, quiero ver incidencias sobre el nodo o conexión afectado con motivo y severidad, para saber qué cambiar. (US075)
 76. Como usuario, quiero distinguir errores bloqueantes de advertencias, para ejecutar situaciones válidas como ausencia de carga o productor sin Worker con conocimiento de su efecto. (US076)
 77. Como usuario, quiero que el backend repita la validación sobre la revisión reservada, para que una comprobación previa o un cliente manipulado no evite las reglas. (US077)
@@ -184,9 +190,9 @@ Las historias utilizan el formato «Como actor, quiero función, para beneficio�
 113. Como administrador, quiero que el borrado conserve catálogo compartido y datos de otras cuentas, para limitarlo a su propietario. (US113)
 114. Como único administrador, quiero que mi desactivación y eliminación se rechacen en interfaz y API, para mantener la administración disponible. (US114)
 115. Como administrador, quiero consultar o modificar proyectos privados ajenos según la matriz de permisos, para gestionarlos sin concederme implícitamente ejecución o historial ajenos. (US115)
-116. Como administrador, quiero crear varias ComponentTemplate de cada uno de los seis tipos con nombre, icono y valores iniciales permitidos, para ofrecer variantes útiles. (US116)
+116. Como administrador, quiero crear varias ComponentTemplate de cada tipo con nombre, icono y configuración inicial permitida, para ofrecer variantes útiles. (US116)
 117. Como administrador, quiero editar metadatos y sustituir iconos manteniendo fijo el tipo, para conservar la identidad de la ficha. (US117)
-118. Como administrador, quiero deshabilitar una ficha para nuevas incorporaciones y bloquear por separado una versión de contrato para nuevos Run, para distinguir los dos efectos. (US118)
+118. Como administrador, quiero deshabilitar una ficha para nuevas incorporaciones sin afectar a los nodos existentes, para retirar una variante sin romper escenarios. (US118)
 119. Como administrador, quiero que mis formularios y la API rechacen imágenes Docker, comandos o versiones ejecutables arbitrarias, para mantener el catálogo controlado. (US119)
 120. Como usuario ordinario o visitante, quiero que el acceso administrativo se rechace también por API directa, para que los roles sean efectivos. (US120)
 
@@ -221,7 +227,7 @@ Estas decisiones sintetizan requisitos académicos, arquitectura del proyecto y 
 
 - **ID01.** Mantener Java 25 LTS, Spring Boot como monolito modular, PostgreSQL/JPA/Flyway y capas `api`, `application`, `domain`, `persistence`: controlador → servicio → repositorio, DTO y mapper. Encapsular Docker/S3; reutilizar catálogo y cliente HTTP, sin infraestructura genérica especulativa.
 - **ID02.** React, TypeScript y React Router, con componentes separados de servicios HTTP/contratos. Tailwind/shadcn/ui para interfaz, React Flow para canvas y Recharts para CPU/memoria. Son elecciones documentadas; no todas están integradas.
-- **ID03.** Usar el glosario único: Project organiza Scenario; Component/Connection son editables; Execution conserva revisión exacta mediante Execution snapshot, ExecutedComponent y ExecutedConnection. ComponentType es familia, ComponentTemplate ficha y Template contract definición versionada permitida.
+- **ID03.** Usar el glosario único: Project organiza Scenario; Component/Connection son editables; Execution conserva revisión exacta mediante Execution snapshot, ExecutedComponent y ExecutedConnection. ComponentType es familia, ComponentTemplate ficha con configuración inicial y Template contract definición con una sola versión ejecutable. El `Workload` es la carga del escenario.
 - **ID04.** Responsabilidades: identidad, proyectos/escenarios, catálogo/contratos, ejecución, observación e imágenes. Observación puede comenzar en ejecución. Persistir progresivamente User, Project, Scenario, Component, Connection, ComponentTemplate, Execution, ExecutedComponent, ExecutedConnection, ExecutionEvent y MetricSample. Proteger propiedad, claves e integridad; `jsonb` no sustituye tipos/validación.
 
 ### Permisos, cuenta e imágenes
@@ -237,37 +243,41 @@ Estas decisiones sintetizan requisitos académicos, arquitectura del proyecto y 
 
 - **ID11.** Project privado inicialmente y publicable de forma reversible. Scenario vacío/incompleto guardable con referencias coherentes, claves estables y extremos propios. Borrar nodo elimina conexiones. Guardado atómico del agregado, revisión esperada e incremento; conflicto nunca sobrescribe silenciosamente.
 - **ID12.** Run guarda, valida y ejecuta la misma revisión: fallos/conflictos/errores bloquean; advertencias permiten. Revalidar al reservar/snapshot. Scenario solo lectura desde reserva hasta fin de limpieza en UI/API, admin y otras pestañas incluidos; otros escenarios editables. Coordinar reserva/guardado concurrentes. [Motivo de la revisión inmutable](adr/0004-ejecuciones-ligadas-a-una-revision-inmutable.md).
-- **ID13.** Seis ComponentType: HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ. Varias fichas por tipo y nodos por ficha dentro de cuotas. Nombre/icono/defaults reconocidos; tipo inmutable. Migración aditiva elimina unicidad actual por tipo conservando clave única y migraciones aplicadas.
-- **ID14.** Component conserva tipo, contrato concreto, perfil y parámetros. Defaults de ficha editables en nodo dentro del mismo tipo/contrato; cambios administrativos solo afectan nodos nuevos. Cambiar perfil conserva conexiones, señala incompatibles y permite borrador coherente, pero bloquea Run hasta corregir.
-- **ID15.** Deshabilitar ficha bloquea nuevas incorporaciones; existentes consultables/ejecutables si contrato permitido. Acción separada bloquea versión de contrato para nuevos Run, potencialmente varias fichas; no para reservas/arranques/ejecuciones previas. Orden concurrente bloqueo/reserva comprobable. Panel no crea código/versiones ejecutables.
-- **ID16.** Contrato versionado único para canvas/validación/compilación: configuración tipada, campos/límites, requisitos/capacidades, cardinalidades, conectores, imagen/salud/evidencia. Backend deriva protocolo/puertos/credenciales/variables/imágenes/comandos; sin texto libre. Matriz concreta previa en P05/P07. [Motivo del catálogo controlado y versionado](adr/0003-catalogo-controlado-con-contratos-versionados.md).
+- **ID13.** Seis ComponentType en 0.1.0: HTTP Service, Worker, PostgreSQL, Redis, RabbitMQ y Load Balancer ([sección 14 de la arquitectura](EXECUTION_ARCHITECTURE.md#14-load-balancer)); el Load Generator deja de ser un tipo y pasa a ser el `Workload` del escenario ([ADR 0012](adr/0012-la-carga-es-un-workload-del-escenario.md)). Todo tipo tiene al menos un perfil (`DEFAULT` en PostgreSQL, Redis y RabbitMQ; `CONSUMER` en Worker). Varias fichas por tipo y nodos por ficha dentro de cuotas. Nombre/icono/configuración inicial reconocidos; tipo inmutable. Migración aditiva elimina unicidad actual por tipo conservando clave única y migraciones aplicadas.
+- **ID14.** Component conserva tipo, ficha, perfil y parámetros enteros (decimales rechazados). La configuración inicial vive en la ficha y se copia al crear el nodo; editable en el nodo dentro del contrato; cambios administrativos solo afectan nodos nuevos. Cambiar perfil conserva conexiones, señala incompatibles y permite borrador coherente, pero bloquea Run hasta corregir.
+- **ID15.** Deshabilitar ficha bloquea nuevas incorporaciones; existentes consultables/ejecutables si son válidos. Solo existe la versión actual de cada contrato: un cambio incompatible llega con una migración Flyway de los nodos y fichas guardados; lo no convertible queda como ERROR que bloquea Run. Los snapshots no se migran. Panel no crea código/versiones ejecutables. [Motivo de la versión única](adr/0010-una-sola-version-ejecutable-del-contrato.md).
+- **ID16.** Contrato único para canvas/validación/compilación (`ContractCatalog` inyectado): por perfil, parámetros con límites, puertos con nombre (capacidad pedida, cardinalidad, etiqueta), capacidades ofrecidas y nombres de evidencias. Imagen, salud y lectura de métricas pertenecen al driver de cada tipo y a la release; la imagen no forma parte de la versión. Backend deriva protocolo/puertos/credenciales/variables/imágenes/comandos; sin texto libre. Matriz concreta previa en P05/P07. [Motivo del catálogo controlado y versionado](adr/0003-catalogo-controlado-con-contratos-versionados.md).
 
-| Componente/perfil incluido | Comportamiento que debe demostrarse | Dependencia obligatoria |
+| Componente/perfil incluido | Comportamiento que debe demostrarse | Puertos (capacidad pedida · cardinalidad) | Ofrece |
+| --- | --- | --- | --- |
+| HTTP `STATELESS` | Respuesta HTTP básica sin otra dependencia. | Ninguno. | `HTTP` |
+| HTTP `DATABASE_CRUD` | Lectura, creación y actualización persistentes. | `database` (`SQL_DATABASE` · 1). | `HTTP`, `RESOURCE_READ`, `RESOURCE_WRITE` |
+| HTTP `CACHE_ASIDE` | Redis primero; si no hay copia, PostgreSQL y poblar caché; al modificar, actualizar origen e invalidar caché. | `cache` (`KEY_VALUE` · 1), `database` (`SQL_DATABASE` · 1). | `HTTP`, `RESOURCE_READ`, `RESOURCE_WRITE` |
+| HTTP `QUEUE_PRODUCER` | Recibir petición HTTP, publicar tarea y responder según contrato. | `queue` (`MESSAGE_BROKER` · 1), «Publica en». | `HTTP`, `TASK_CREATE` |
+| HTTP `DOWNSTREAM_HTTP` | Invocar otro servicio HTTP mediante una cadena sin ciclos. | `downstream` (`HTTP` · 1). | `HTTP` |
+| Worker `CONSUMER` | Consumir, procesar, confirmar y aplicar reintentos acotados. | `queue` (`MESSAGE_BROKER` · 1), «Consume de»; `result` (`SQL_DATABASE` o `KEY_VALUE` · 0..1). | — |
+| PostgreSQL `DEFAULT` | Persistencia temporal y datos iniciales controlados, separada de la plataforma. | Ninguno. | `SQL_DATABASE` |
+| Redis `DEFAULT` | Caché o clave-valor temporal y evidencia disponible de uso; no conecta directamente a PostgreSQL. | Ninguno. | `KEY_VALUE` |
+| RabbitMQ `DEFAULT` | Cola controlada, publicación, entrega y confirmación, mensajes preparados y no confirmados. | Ninguno. | `MESSAGE_BROKER` |
+| Load Balancer `ROUND_ROBIN` / `LEAST_CONNECTIONS` | HAProxy reparte por turnos o al backend con menos conexiones; comprobaciones de salud activas retiran y devuelven backends; evidencias por backend. | `backends` (`HTTP` · 1..N). | `HTTP` y las capacidades comunes a todos sus backends |
+
+| Perfil de `Workload` | Comportamiento que debe demostrarse | Capacidad que pide al objetivo |
 | --- | --- | --- |
-| HTTP `STATELESS` | Respuesta HTTP básica sin otra dependencia. | Ninguna. |
-| HTTP `DATABASE_CRUD` | Lectura, creación y actualización persistentes. | Una PostgreSQL mediante `DATABASE`. |
-| HTTP `CACHE_ASIDE` | Redis primero; si no hay copia, PostgreSQL y poblar caché; al modificar, actualizar origen e invalidar caché. | Una Redis `CACHE` y una PostgreSQL `DATABASE`. |
-| HTTP `QUEUE_PRODUCER` | Recibir petición HTTP, publicar tarea y responder según contrato. | Una RabbitMQ `PUBLISHES_TO`. |
-| HTTP `DOWNSTREAM_HTTP` | Invocar otro HTTP Service mediante una cadena sin ciclos. | Un HTTP Service `HTTP_CALL`. |
-| Worker | Consumir, procesar, confirmar y aplicar reintentos acotados. | Una RabbitMQ `CONSUMES_FROM`; opcionalmente un único destino PostgreSQL `DATABASE` o Redis `CACHE`. |
-| Load `CONSTANT_HTTP` | Repetir una petición a frecuencia controlada. | Un HTTP con capacidad básica compatible. |
-| Load `REPEATED_READ` | Lecturas repetidas de un conjunto reducido. | Un HTTP con lectura compatible. |
-| Load `WEIGHTED_CRUD` | Lecturas, creaciones y actualizaciones ponderadas; secuencias con estado admitidas por el contrato. | Un HTTP con operaciones CRUD compatibles. |
-| Load `TASK_PRODUCER` | Producir tareas mediante peticiones HTTP. | Un HTTP `QUEUE_PRODUCER`. |
-| PostgreSQL | Persistencia temporal y datos iniciales controlados. | Consumida por servicios/Worker; separada de la plataforma. |
-| Redis | Caché o clave-valor temporal y evidencia disponible de uso. | Consumida por servicios/Worker; no conecta directamente a PostgreSQL. |
-| RabbitMQ | Cola controlada, publicación, entrega y confirmación, mensajes preparados y no confirmados. | Relaciones permitidas de productores y consumidores. |
+| `CONSTANT_HTTP` | Repetir una petición a frecuencia controlada. | `HTTP` |
+| `REPEATED_READ` | Lecturas repetidas de un conjunto reducido. | `RESOURCE_READ` |
+| `WEIGHTED_CRUD` | Lecturas, creaciones y actualizaciones ponderadas; secuencias con estado admitidas por el contrato. | `RESOURCE_READ`, `RESOURCE_WRITE` |
+| `TASK_PRODUCER` | Producir tareas mediante peticiones HTTP. | `TASK_CREATE` |
 
-- **ID17.** Todos los perfiles de la tabla incluidos en 0.1.0. HTTP/Worker con código/imágenes distribuibles, salud/evidencia. k6 recibe perfiles generados y parámetros/semilla acotados, conservados en snapshot; sin scripts libres. Generador solo llama HTTP. Spring coordina/observa, no genera cada petición ni ejecuta el negocio demostrativo.
-- **ID18.** `A → B` expresa dependencia. Admitir Load→HTTP LOAD_TARGET; HTTP→HTTP HTTP_CALL, →PostgreSQL DATABASE, →Redis CACHE, →RabbitMQ PUBLISHES_TO; Worker→RabbitMQ CONSUMES_FROM, →PostgreSQL DATABASE o →Redis CACHE. Etiquetar, especialmente mensajería; compatibilidad por perfil/capacidad.
-- **ID19.** Run rechaza ciclos HTTP/autollamadas, duplicados, incompatibilidad, cardinalidades incorrectas, incoherencia, contratos bloqueados y cuotas excedidas. Generador: un HTTP; HTTP: una conexión por requisito; Worker: un RabbitMQ y hasta un destino PostgreSQL o Redis, nunca ambos. Dependencias compartibles. Errores de ejecución guardables en borrador estructuralmente coherente.
-- **ID20.** Run requiere al menos un nodo. Sin generador advierte falta de tráfico; productor sin Worker puede advertir acumulación sin bloquear. Incidencias con severidad/motivo/objetivo. Validez estática permite intentar arranque; no garantiza salud real.
+- **ID17.** Todos los perfiles de las tablas incluidos en 0.1.0. HTTP/Worker comparten una imagen de demostración distribuible (`APP_ROLE`/`APP_MODE`) con salud/evidencia. Un `Workload` por escenario como máximo, guardado con el grafo en `scenario_workload` y conservado en snapshot; k6 trae un script fijo por perfil y solo recibe parámetros/semilla acotados por variables de entorno; sin scripts libres. La carga solo llama HTTP. Spring coordina/observa, no genera cada petición ni ejecuta el negocio demostrativo.
+- **ID18.** `A → B` expresa dependencia. Una Connection sale de un puerto con nombre del perfil de A y es válida si B ofrece la capacidad que pide ese puerto. Cada puerto tiene etiqueta visible, especialmente en mensajería («Publica en», «Consume de»). El `Workload` no es una Connection: se dibuja como tráfico entrante en su objetivo. [Motivo de puertos y capacidades](adr/0011-puertos-con-nombre-que-piden-capacidades.md).
+- **ID19.** El grafo de dependencias completo debe ser acíclico (incluye autollamadas); su orden topológico es el orden de arranque. Run rechaza ciclos, duplicados, capacidades incompatibles, cardinalidades de puerto incorrectas, incoherencia, `Workload` sin objetivo compatible y cuotas excedidas. Dependencias compartibles. Validación en dos niveles: lo estructural se rechaza al guardar (400); lo demás se guarda como borrador y se devuelve como `ValidationIssue`.
+- **ID20.** Run requiere al menos un nodo. Sin `Workload` advierte falta de tráfico; productor sin Worker puede advertir acumulación sin bloquear. Cada `ValidationIssue` lleva `severity` (ERROR/WARNING), `code`, `message`, `target` (COMPONENT, CONNECTION, WORKLOAD o SCENARIO con su clave) y `field` opcional. Validez estática permite intentar arranque; no garantiza salud real.
 
 ### Ejecución, observación y eliminación
 
 - **ID21.** Reserva global atómica incluye arranque/limpieza; segundo Run rechazado incluso de otro usuario. Reintentos equivalentes no duplican recursos. Snapshot/identidades corresponden a revisión autorizada e independencia histórica. Concretar mecanismo de idempotencia en P06.
-- **ID22.** Compilar plan interno con nombres/alias/credenciales/red/dependencias/límites. Adaptador docker-java crea recursos etiquetados por instancia/Execution, inicia dependencias/servicios, espera salud con timeout y después carga. Persistir progreso recuperable, sin transacción SQL abierta esperando Docker.
-- **ID23.** Separar plataforma permanente y experimento temporal: credenciales/volúmenes/ciclo de vida. Sin privilegios/montajes/puertos elegidos por usuario; experimentos sin motor/secretos de plataforma. Limpiar solo propiedad etiquetada, no nombres parecidos. Concretar red/telemetría desde backend contenedorizado y acceso protegido al motor.
+- **ID22.** Compilar el snapshot a un `ExecutionPlan` con forma Compose (servicios, red, salud, `depends_on` con espera de salud, límites, etiquetas por instancia/Execution), guardado en el snapshot sin secretos. Aplicarlo como proyecto Compose propio con `docker compose up -d --wait` y retirarlo con `down -v`; `docker-java` queda como adaptador alternativo con el mismo plan. Después de la salud, arrancar la carga. Stop, tiempo, fallo y borrado piden la fase `STOPPED` y se retira por etiqueta hasta no dejar nada; no se persiste el paso de arranque. Sin transacción SQL abierta esperando Docker. [Motivo del motor](adr/0013-motor-de-ejecucion-con-docker-compose.md).
+- **ID23.** Separar plataforma permanente y experimento temporal: credenciales/volúmenes/ciclo de vida. Sin privilegios/montajes/puertos elegidos por usuario; experimentos sin motor/secretos de plataforma. Limpiar solo propiedad etiquetada, no nombres parecidos. El backend accede al Docker de la máquina mediante `docker-socket-proxy` (`DOCKER_HOST=tcp://docker-proxy:2375`); solo el proxy monta el socket. El backend se une a la red de cada ejecución para medir. El plan guardado solo lleva referencias a credenciales; las temporales no se guardan ni se muestran. Una prueba al inicio de P06 lo confirma en Windows, macOS y Linux.
 - **ID24.** Stop global asíncrono/idempotente: parada → cancelar carga → recoger evidencia → detener componentes → retirar contenedores/red/volúmenes temporales. Liberar reserva/desbloquear tras reconciliar recursos. Fallo registrado/reintentable, nunca éxito por limpiar. Cerrar pestaña/SSE no detiene.
 - **ID25.** Máximo inicial configurable/revisable 30 minutos, aplicado por backend incluso sin navegador. Registrar fin por duración, parar/limpiar. Concretar inicio del reloj y timeouts independientes. Limpieza fallida mantiene Run bloqueado; probar con límite reducido.
 - **ID26.** Tras caída, reconciliar registro/recursos antes de Run. Marcar interrumpida, conservar snapshot/evidencia disponible y limpiar sin reanudación automática. Docker ausente/recursos pendientes: diagnóstico, bloqueo y reintento idempotente. Continuar borrados previos: preservar una interrupción no anula eliminación solicitada. [Motivo de la recuperación sin reanudación](adr/0005-recuperacion-sin-reanudacion-automatica.md).
@@ -301,7 +311,7 @@ Se aplican durante cada vertical según las operaciones y pantallas que introduc
 - **ID36.** Imagen conjunta React estático/Spring, HTTPS/443. Compose estable/desarrollo en carpeta de distribución exigida, separado del PostgreSQL para programar. PostgreSQL oficial/MinIO permanentes con volúmenes, healthcheck/espera y variables. El ejemplo MySQL no cambia la alternativa adoptada.
 - **ID37.** P06 prueba backend contenedorizado controlando/observando/limpiando Docker. Distribuir imágenes demostrativas compatibles y dependencias/k6. OCI resuelve todos los recursos fuera del checkout, TLS/configuración incluidos, sin Vite/Java/Node en usuario. Localhost del contenedor no presupone el host.
 - **ID38.** Verificar Windows/macOS con Docker Desktop y Linux con Engine/Compose: sistema/arquitectura/versiones, OCI, HTTPS, reinicio y recorrido completo. No declarar combinaciones sin pruebas.
-- **ID39.** Ejemplos/imágenes representativos activables, repetibles y no destructivos. Separar Flyway/catálogo/admin/ejemplos. Proyectos públicos/privados, escenarios seis tipos/todos perfiles y listas >10. Sin Run automático al cargar. Configuración local documentada; secretos reales fuera de código/imagen/OCI/logs/respuestas.
+- **ID39.** Ejemplos/imágenes representativos activables, repetibles y no destructivos. Separar Flyway/catálogo/admin/ejemplos. Proyectos públicos/privados, escenarios con todos los tipos y perfiles de 0.1.0, con `Workload`, y listas >10. Sin Run automático al cargar. Configuración local documentada; secretos reales fuera de código/imagen/OCI/logs/respuestas.
 - **ID40.** Actions publica imagen y Compose OCI en DockerHub del alumno: main integrado→dev; release→tags exigidos/latest; manual→rama/commit válido, tag rama-fecha-hora-commit. Lógica compartida y procedencia por SHA/digest. Repositorios/concurrencia se cierran P11; las versiones de entrega se fijan en ID41.
 - **ID41.** Guía de Fase 3 como autoridad de versiones por indicación posterior del alumno. PR anterior: backend/frontend 0.1.0 y docker/docker-compose.yml con imagen 0.1. Release/tag Git 0.1; imagen 0.1.0 y alias 0.1 del mismo digest; OCI 0.1 y latest de ambos. PR posterior: main con backend 0.2.0-SNAPSHOT, frontend 0.2.0 y Compose 0.2, sin mover tag ni artefactos estables. Se adopta el estado final de §5.5 frente a su mención previa 0.2.0; conservar diferencia con rúbrica 0.1.0. Este procedimiento no se aplaza ni añade funcionalidades futuras.
 - **ID42.** GitHub Flow: mantener main estable, integrar mediante PR revisada y evitar commits directos. Cada issue se completa por su resultado verificado; un padre requiere el resultado integrado de sus subissues. Los controles de trabajo y entrega del repositorio se mantienen.
@@ -336,7 +346,7 @@ La guía fija seis categorías por funcionalidad; la pregunta confirmó cómo ac
 
 - **TD05. Seguridad:** actores/propiedad, campos/roles fraudulentos, privados/historial ajenos, logout/desactivación en API/SSE/imágenes y reactivación sin revivir tokens. Protección del único admin sin impedir operaciones propias.
 - **TD06. Grafo/catálogo:** vacío, incoherencia externa rechazada, borrador con errores ejecutables, ciclos/autollamada/duplicados/cardinalidades, dependencias compartidas, Worker con ambos destinos rechazado, perfiles/capacidades/límites y disponibilidad. Defaults solo nuevos nodos, conexiones conservadas tras perfil e historia inmutable.
-- **TD07. Concurrencia:** guardados competitivos, Run con cambios, revisión entre validación/reserva, guardado contra reserva, Run de dos usuarios, respuesta perdida/doble envío y bloqueo de contrato contra reserva. Orden coherente sin duplicación ni mutación durante limpieza.
+- **TD07. Concurrencia:** guardados competitivos, Run con cambios, revisión entre validación/reserva, guardado contra reserva, Run de dos usuarios, respuesta perdida/doble envío y migración de contrato con escenarios guardados. Orden coherente sin duplicación ni mutación durante limpieza.
 - **TD08. Motor real:** Docker/pull/arranque/salud fallidos, Stop durante arranque/repetido/por tiempo, limpieza parcial y caída en cada fase. Inspeccionar etiquetas/recursos, bloqueo/reintento/resultados y recursos ajenos/plataforma; assertions sin limpieza no cierran.
 - **TD09. Imágenes/borrados:** MinIO real, límites/permisos/reemplazo, fallos SQL/S3 sin perder imagen anterior y limpieza de huérfanos. Portada elegida/otro/vacío/sin escenarios/borrado/fallo; borrados de cuenta/proyecto/escenario en reposo/ejecución con fallo/reinicio/reintento, sin pendientes propios ni pérdidas ajenas.
 - **TD10. Observación:** datos/unidades/comportamiento real por perfil, ausencia frente a cero, secretos excluidos, SSE recuperación/deduplicación/revocación/límites, historia tras reinicio/edición. Retención con reloj/plazos controlados, conservando resumen/snapshot y distinguiendo caducidad/ausencia.
@@ -357,7 +367,7 @@ La guía fija seis categorías por funcionalidad; la pregunta confirmó cómo ac
 - Comparación de ejecuciones, comparación esperado/observado, análisis de impacto de fallos mediante BFS y sus gráficos avanzados. La validación y CPU/memoria temporal están incluidas; no se declara el validador sustituto académico del algoritmo de impacto.
 - Estrellas, seguimiento y clonación privada de proyectos públicos.
 - Todos los laboratorios: consulta, administración, edición/publicación, realización, revisiones, objetivos, intentos, puntuación, conceptos acreditados y Lab Mentor. No añadir sus entidades, migraciones, endpoints o pantallas para cerrar esta fase.
-- Nuevos tipos de componente como gateway/balanceador, imágenes/comandos Docker o scripts k6 libres, puertos/montajes/variables arbitrarios y nuevas versiones ejecutables creadas desde el panel administrativo.
+- Nuevos tipos de componente distintos de los seis incluidos (por ejemplo un gateway), imágenes/comandos Docker o scripts k6 libres, puertos/montajes/variables arbitrarios y nuevas versiones ejecutables creadas desde el panel administrativo.
 - Subir fotografías como portada; edición del Scenario ejecutado mediante una revisión paralela; reanudación automática tras caída; múltiples ejecuciones simultáneas; autoeliminación de cuenta no acordada.
 - Proveedores externos de autenticación, recuperación por correo y otros flujos de identidad no definidos.
 - Controles dinámicos avanzados de recursos, despliegue cloud del segundo TFG, despliegue/automatización de despliegue de fases posteriores. La documentación sobre situación del despliegue externo se mantiene como condición académica de P12.
@@ -384,11 +394,11 @@ Pendientes aplazados, no funciones omitidas. Resolver el contrato antes de progr
 | C01 / P01 | DTO/error/paginación, orden/desempate/límites y códigos/asíncronía. Superficie REST de Scope §17.2 sigue propuesta; cerrar OpenAPI/cliente conjuntamente. |
 | C02 / P02, P08 | JWT en cookies, CSRF, duración, caducidad y renovación en el [ADR de sesión y CSRF](adr/0002-proteccion-csrf-con-jwt-en-cookies.md), integrados en React; revocación como [mejora opcional](adr/0007-revocacion-jwt-como-mejora-opcional.md) y administrador inicial en su [ADR](adr/0008-administrador-inicial-desde-configuracion.md). Concretar la protección de SSE e imágenes cuando se introduzcan. |
 | C03 / P03, P04 | Formatos/dimensiones/tamaño, lectura autorizada, reemplazo/huérfanos y generación/almacenamiento de miniaturas. |
-| C04 / P05, P07, P09 | Matriz versionada de campos/defaults/límites, capacidades/conectores, API demostrativa, procesamiento/cola/reintentos/datos. Aplazar un perfil requiere acuerdo del alumno y actualización de alcance/tareas. |
+| C04 / P05, P07, P09 | Matriz de parámetros/límites, puertos/capacidades por perfil (base en la tabla de ID16), API demostrativa, procesamiento/cola/reintentos/datos y evidencias. Aplazar un perfil requiere acuerdo del alumno y actualización de alcance/tareas. |
 | C05 / P06, P09 | Reserva/idempotencia, orden concurrente, estados/transiciones y progreso de reconciliación. STOPPING/COMPLETED/FAILED son términos existentes; interrupción nunca implica éxito. |
 | C06 / P04–P09 | Seguimiento asíncrono de borrado, cascadas, progreso/compensaciones SQL/S3/Docker y continuación tras caída. |
-| C07 / P06–P08 | Relojes/purga/captura, límites CPU/memoria/carga/evidencias/SSE, timeouts/reintentos. Máximo de componentes según consumo medido de seis tipos; no fijar número ahora. |
-| C08 / P06, P08, P10 | Motor protegido por plataforma, redes/telemetría/salud y TLS/configuración instalable desde OCI; combinaciones realmente probadas. |
+| C07 / P06–P08 | Relojes/purga/captura, límites CPU/memoria/carga/evidencias/SSE, timeouts/reintentos. Máximo de componentes según consumo medido de los tipos de 0.1.0; no fijar número ahora. |
+| C08 / P06, P08, P10 | Acceso a Docker resuelto con socket proxy (ID23); queda la prueba inicial de P06, redes/telemetría/salud y TLS/configuración instalable desde OCI; combinaciones realmente probadas. |
 | C09 / P08 | Cursor o equivalente, estado recuperable/eventos caducados, clientes lentos/límites, revocación y ausencia de muestras. |
 | C10 / P11, P12 | Repositorios DockerHub, imágenes compatibles, digests, rama/commit normalizados y concurrencia. Aplicar versiones y dos PR ya fijadas en ID41; no volver a aplazarlas ni inferir una release 0.2. |
 | C11 / P12 | Calendario concreto (guía: 15 de diciembre sin año) y tratamiento documental de despliegue externo en seguimiento académico; sin añadir cloud a la implementación. |
@@ -405,8 +415,8 @@ No son tickets creados ni calendario estimado. El posterior desglose debe produc
 | P03 | Avatar/MinIO y ejemplos no destructivos; ampliar ejemplos al crecer recorridos. | P02, C03. |
 | P04 | Proyectos privados/públicos, perfil público, portadas y borrado. | P02; imágenes con P03; C03/C06. |
 | P05 | Scenario/canvas/contratos y validación F04–F06. | P04, C04/C05 para revisión y bloqueo. |
-| P06 | Primera ejecución real HTTP + carga desde backend contenedorizado, observación básica/Stop/limpieza. | P05, C05–C08. |
-| P07 | Completar seis tipos y todos los perfiles, datos, caché y mensajería. | P06, C04/C07. |
+| P06 | Prueba inicial del motor (CLI Compose, red y limpieza por etiqueta en Windows/macOS/Linux) y primera ejecución real HTTP + `Workload` desde backend contenedorizado, observación básica/Stop/limpieza. | P05, C05–C08. |
+| P07 | Completar los seis tipos, todos los perfiles y los cuatro `Workload`: datos, caché, mensajería y Load Balancer con HAProxy. | P06, C04/C07. |
 | P08 | SSE, métricas, gráfica e historial completo con retención. | Comienza con P06; completa con P07 y C02/C07/C09. |
 | P09 | Gestión protegida de cuentas y catálogo con efectos completos. | P02/P05 e integración de ejecución/borrados P06–P08. |
 | P10 | Distribución HTTPS con motor, datos e imágenes persistentes. | Ensayo con P06; cierre P03/P07/P08/P09, C08. |
@@ -470,7 +480,7 @@ O1, O2 y O3 se registran como **No aplica** por decisión del alumno. SSE perman
 
 ### Definición de terminado
 
-- [ ] F01–F09/US001–US140 con permisos, errores y evidencia; seis tipos/todos perfiles o ajuste explícito aprobado y trazado.
+- [ ] F01–F09/US001–US141 con permisos, errores y evidencia; tipos de 0.1.0/todos perfiles/`Workload` o ajuste explícito aprobado y trazado.
 - [ ] C01–C11 resueltas y documentadas antes de su bloque; ninguna propuesta presentada como acuerdo.
 - [ ] Revisión exacta/reserva única/snapshot/aislamiento/salud/límites/Stop/recuperación/borrado/limpieza reales comprobados.
 - [ ] Imágenes/portadas/listas/responsive/SSE/gráfica/historial cumplen contratos sin simulaciones como sustituto.
