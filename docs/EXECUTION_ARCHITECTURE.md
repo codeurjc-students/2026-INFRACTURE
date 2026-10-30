@@ -1,621 +1,910 @@
-# Modelo de componentes, conexiones y ejecución de Infracture Local
+# Arquitectura de ejecución de Infracture
 
 [Volver al README principal](../README.md)
 
-Este documento amplía la definición funcional de Infracture Local para explicar cómo se traducirá un escenario visual a un experimento ejecutable sobre Docker. Su finalidad es servir como material de apoyo para revisar con el tutor la viabilidad del catálogo controlado, los perfiles de comportamiento, la generación de carga, la validación del grafo y el ciclo de vida de una ejecución.
+Este documento explica cómo Infracture convierte un diagrama dibujado en el canvas en un experimento real sobre Docker, y cómo lo observa, lo detiene y lo conserva en el historial. Recorre el camino completo: el catálogo de componentes, las reglas que unen los nodos, la validación, la compilación a Docker, el ciclo de vida de una ejecución y las evidencias que produce.
 
-El contenido describe una propuesta de diseño de la Fase 1. Todavía no constituye una implementación ni una especificación cerrada de clases o *endpoints*.
+Está escrito para dos lectores: quien vaya a programar el motor y quien quiera entender el funcionamiento sin leer el código. Los términos siguen el [glosario](../GLOSSARY.md). Las decisiones que fijan este diseño están en los [ADR](adr/) y los criterios de aceptación en la [spec de la Fase 3](PHASE_3_SPEC.md).
+
+> **Estado.** Este documento describe el diseño aprobado el 30 de octubre de 2026 para Infracture 0.1.0. En `main` existen el catálogo de fichas, los proyectos y los escenarios; el guardado del grafo está en desarrollo (#79). El motor de ejecución, la observación y el historial están pendientes. Cada sección indica las piezas que quedan fuera de la Fase 3.
 
 ## Índice
 
-- [1. Idea principal](#1-idea-principal)
-- [2. Plataforma y escenarios](#2-plataforma-y-escenarios)
-- [3. Plantillas e instancias](#3-plantillas-e-instancias)
-- [4. Catálogo inicial](#4-catálogo-inicial)
-- [5. Perfiles y capacidades](#5-perfiles-y-capacidades)
-- [6. Conexiones y significado de las flechas](#6-conexiones-y-significado-de-las-flechas)
-- [7. Validación previa a la ejecución](#7-validación-previa-a-la-ejecución)
-- [8. Compilación y arranque](#8-compilación-y-arranque)
-- [9. Generación continua de carga](#9-generación-continua-de-carga)
-- [10. Flujos principales](#10-flujos-principales)
-- [11. Fallos controlados](#11-fallos-controlados)
-- [12. Salud, métricas y evidencias](#12-salud-métricas-y-evidencias)
-- [13. Duración, parada y limpieza](#13-duración-parada-y-limpieza)
-- [14. Aplicación a los laboratorios](#14-aplicación-a-los-laboratorios)
-- [15. Responsabilidades del backend](#15-responsabilidades-del-backend)
-- [16. Prototipo vertical recomendado](#16-prototipo-vertical-recomendado)
-- [17. Aspectos que se expondrán al tutor](#17-aspectos-que-se-expondrán-al-tutor)
-- [18. Referencias para el aprendizaje](#18-referencias-para-el-aprendizaje)
+- [1. La idea en una página](#1-la-idea-en-una-página)
+- [2. Vocabulario esencial](#2-vocabulario-esencial)
+- [3. Plataforma y experimento](#3-plataforma-y-experimento)
+- [4. El catálogo controlado](#4-el-catálogo-controlado)
+- [5. Perfiles, puertos y capacidades](#5-perfiles-puertos-y-capacidades)
+- [6. El escenario y su guardado](#6-el-escenario-y-su-guardado)
+- [7. La carga (Workload)](#7-la-carga-workload)
+- [8. La validación](#8-la-validación)
+- [9. El motor de ejecución](#9-el-motor-de-ejecución)
+- [10. Ciclo de vida de una Execution](#10-ciclo-de-vida-de-una-execution)
+- [11. Observación: salud, métricas y eventos](#11-observación-salud-métricas-y-eventos)
+- [12. Snapshot e historial](#12-snapshot-e-historial)
+- [13. Recorridos de ejemplo](#13-recorridos-de-ejemplo)
+- [14. Load Balancer](#14-load-balancer)
+- [15. Evolución fuera de la Fase 3](#15-evolución-fuera-de-la-fase-3)
+- [16. Mapa al código](#16-mapa-al-código)
+- [17. Decisiones y referencias](#17-decisiones-y-referencias)
 
-## 1. Idea principal
+## 1. La idea en una página
 
-Infracture no permitirá que un usuario ejecute cualquier imagen o comando. Ofrecerá un catálogo de componentes cuyo comportamiento es conocido por la aplicación.
+Infracture no ejecuta imágenes ni comandos que elija el usuario. Ofrece un **catálogo cerrado** de piezas cuyo comportamiento conoce: un servicio HTTP, un Worker, PostgreSQL, Redis, RabbitMQ y un Load Balancer. La variedad no sale de permitir código arbitrario. Sale de combinar esas piezas, elegir para cada una un **perfil** de comportamiento, unirlas con **conexiones** y aplicarles una **carga**.
 
-Cada plantilla actuará como un contrato que define:
-
-- el comportamiento que puede ejecutar;
-- los parámetros que el usuario puede modificar;
-- las conexiones de entrada y salida admitidas;
-- las dependencias requeridas por cada perfil;
-- la comprobación de salud;
-- las métricas y eventos observables;
-- los fallos que Infracture puede aplicar;
-- la forma de traducir el componente a recursos Docker.
-
-El usuario compondrá escenarios combinando estos contratos. La variedad no procederá de permitir código arbitrario, sino de combinar tipos de componentes, perfiles, números de nodos, conexiones, cargas y fallos.
-
-## 2. Plataforma y escenarios
-
-Debe diferenciarse la infraestructura permanente de Infracture de los recursos temporales creados para un escenario.
-
-```mermaid
-flowchart TB
-    subgraph PLATFORM["Plataforma Infracture Local"]
-        React["React"]
-        Backend["Spring Boot"]
-        PlatformDb["PostgreSQL de la plataforma"]
-        MinIO["MinIO"]
-        Docker["Docker Engine"]
-
-        React --> Backend
-        Backend --> PlatformDb
-        Backend --> MinIO
-        Backend --> Docker
-    end
-
-    subgraph EXECUTION["Escenario temporal"]
-        Load["Load Generator"]
-        Http["HTTP Service"]
-        Redis["Redis"]
-        ScenarioDb["PostgreSQL del escenario"]
-        Rabbit["RabbitMQ"]
-        Worker["Worker"]
-    end
-
-    Docker --> EXECUTION
-```
-
-El PostgreSQL de la plataforma almacena usuarios, proyectos, escenarios y ejecuciones. Una instancia de PostgreSQL arrastrada al canvas será otro contenedor, creado únicamente para el experimento. Ambos utilizan la misma tecnología para reducir la variedad operativa, pero sus datos, credenciales, redes y ciclos de vida permanecen completamente separados. MinIO pertenece a la plataforma y no aparece como componente del escenario. Toxiproxy también será infraestructura interna del motor de ejecución, aunque sus efectos se controlen desde el canvas.
-
-Durante una ejecución existen dos planos:
-
-- **Plano de control:** Spring Boot crea recursos, aplica fallos, recopila datos y actualiza la interfaz.
-- **Plano de datos:** Load Generator, HTTP Service, Redis, PostgreSQL, RabbitMQ y Worker intercambian peticiones y mensajes.
-
-El backend de Infracture no realiza las operaciones de negocio del escenario; las organiza y observa.
-
-## 3. Plantillas e instancias
-
-`ComponentTemplate` representa una definición reutilizable. `Component` representa una instancia concreta dentro de un escenario.
-
-Por ejemplo, una sola plantilla `HTTP_SERVICE` puede originar:
-
-```text
-users-api
-orders-api
-payments-api
-```
-
-Los tres componentes comparten el contrato de HTTP Service, pero poseen nombre, posición, perfil y configuración propios.
-
-`Scenario` mantiene la coherencia del grafo editable. Las claves de sus componentes y conexiones son estables y únicas dentro del escenario. Toda conexión une componentes de ese mismo escenario; eliminar un componente elimina sus conexiones en la misma operación. Cada guardado incrementa una revisión utilizada para detectar ediciones concurrentes y para asegurar que se ejecuta exactamente el contenido validado.
-
-El usuario solo manejará opciones de dominio mediante formularios controlados. Infracture generará internamente:
-
-- nombres de contenedor y red;
-- alias DNS;
-- puertos internos;
-- credenciales temporales;
-- variables de entorno;
-- comprobaciones de salud;
-- rutas a través de Toxiproxy;
-- etiquetas para identificar y limpiar los recursos.
-
-## 4. Catálogo inicial
-
-| Plantilla | Responsabilidad | Configuración visible | Dependencias y conexiones | Evidencias principales |
-| --- | --- | --- | --- | --- |
-| HTTP Service | Recibir peticiones HTTP y ejecutar comportamientos reproducibles. | Nombre, perfil y parámetros acotados. | Puede depender de HTTP Service, PostgreSQL, Redis o RabbitMQ. | Salud, peticiones, errores, latencia y contadores del comportamiento. |
-| Worker | Consumir tareas y procesarlas en segundo plano. | Cola, perfil de procesamiento y reintentos acotados. | Depende de RabbitMQ y puede utilizar PostgreSQL o Redis. | Tareas procesadas o fallidas, tiempo de procesamiento y estado. |
-| Load Generator | Producir tráfico HTTP controlado y reproducible. | Objetivo, perfil de carga, frecuencia, concurrencia, datos y semilla. | Solo apunta a un HTTP Service que exponga capacidades compatibles. | Peticiones, errores, latencia y rendimiento. |
-| PostgreSQL | Proporcionar persistencia relacional durante el experimento. | Nombre lógico y conjunto inicial de datos. | Acepta conexiones de HTTP Service y Worker. | Salud, conexiones y consumo del contenedor. |
-| Redis | Proporcionar caché o almacenamiento temporal de clave-valor. | Nombre lógico y política segura. | Acepta conexiones de HTTP Service y Worker. | Salud, memoria, claves y datos de caché disponibles. |
-| RabbitMQ | Almacenar y distribuir tareas entre productores y consumidores. | Nombre lógico y topología de cola controlada. | Recibe publicaciones de HTTP Service y es consumido por Worker. | Mensajes preparados, no confirmados, publicados y consumidos. |
-
-Las seis plantillas son tipos reutilizables, no un máximo de seis nodos. Un escenario puede contener varias instancias de un mismo tipo dentro de los límites locales.
-
-## 5. Perfiles y capacidades
-
-No se programará cada escenario por separado. Se programarán perfiles reutilizables que declaren requisitos y capacidades.
-
-### 5.1 Perfiles del HTTP Service
-
-| Perfil | Comportamiento | Dependencias requeridas | Capacidades expuestas |
-| --- | --- | --- | --- |
-| `STATELESS` | Responder sin consultar otra dependencia. | Ninguna. | Petición HTTP básica. |
-| `DATABASE_CRUD` | Consultar y modificar información persistente. | Una conexión `DATABASE` con PostgreSQL. | Lectura, creación y actualización de recursos. |
-| `CACHE_ASIDE` | Consultar Redis y recurrir a PostgreSQL cuando no exista una copia válida. | Una conexión `CACHE` con Redis y una conexión `DATABASE` con PostgreSQL. | Lectura y modificación de recursos con caché. |
-| `QUEUE_PRODUCER` | Convertir peticiones HTTP en tareas asíncronas. | Una conexión `PUBLISHES_TO` con RabbitMQ. | Creación de tareas. |
-| `DOWNSTREAM_HTTP` | Invocar otro servicio HTTP. | Una conexión `HTTP_CALL` con otro HTTP Service. | Operación HTTP compuesta. |
-
-La implementación podrá utilizar una imagen controlada como `infracture-demo-service`, capaz de activar diferentes comportamientos mediante una configuración generada por el backend.
-
-### 5.2 Perfiles del Worker
-
-El Worker inicial actuará como consumidor de tareas. Su contrato requerirá una conexión `CONSUMES_FROM` con RabbitMQ y podrá admitir conexiones opcionales `DATABASE` o `CACHE` para guardar resultados.
-
-Los parámetros controlados podrán incluir:
-
-- perfil de procesamiento;
-- duración simulada de una tarea;
-- política acotada de reintento;
-- dependencia en la que guardar el resultado.
-
-### 5.3 Perfiles del Load Generator
-
-El Load Generator no necesita saber si el HTTP Service utiliza Redis, PostgreSQL o RabbitMQ. Solo conoce la API pública y las capacidades que expone su objetivo.
-
-| Perfil | Comportamiento de carga | Capacidad requerida en el objetivo |
-| --- | --- | --- |
-| `CONSTANT_HTTP` | Repetir una petición HTTP a una frecuencia constante. | Petición HTTP básica. |
-| `REPEATED_READ` | Leer repetidamente un conjunto reducido de identificadores. | Lectura de recursos. |
-| `WEIGHTED_CRUD` | Combinar lecturas, creaciones y actualizaciones con pesos. | Operaciones CRUD compatibles. |
-| `TASK_PRODUCER` | Crear tareas continuamente mediante peticiones HTTP. | Creación de tareas. |
-
-Por ejemplo, `REPEATED_READ` puede utilizarse con `CACHE_ASIDE` porque el primero requiere lectura y el segundo expone esa capacidad. `TASK_PRODUCER` solo será compatible con un servicio configurado como `QUEUE_PRODUCER`.
-
-### 5.4 Contrato conceptual
-
-```text
-HTTP profile CACHE_ASIDE
-  requires:
-    CACHE -> REDIS
-    DATABASE -> POSTGRESQL
-  exposes:
-    RESOURCE_READ
-    RESOURCE_CREATE
-    RESOURCE_UPDATE
-
-Workload REPEATED_READ
-  requires target capability:
-    RESOURCE_READ
-```
-
-Los perfiles podrán formar parte del catálogo controlado y de su esquema de configuración, definidos mediante reglas tipadas en el backend. No es necesario introducir una entidad independiente para cada perfil en la primera propuesta.
-
-`TemplateContractRegistry` resolverá una versión concreta del contrato de cada plantilla. El resultado reunirá la configuración admitida, capacidades, dependencias y cardinalidades, conectores, comprobación de salud y fallos compatibles. Al crear un componente, este conservará `templateKey` y `contractVersion`; los metadatos actuales del catálogo podrán cambiar, mientras que una ejecución conservará la versión de contrato resuelta en su snapshot.
-
-Los documentos persistidos como `jsonb` tendrán tipos de dominio y validadores explícitos, por ejemplo `ComponentConfiguration`, `ExecutionSnapshot`, `LabObjective` y `SuccessRule`. La persistencia serializa esos valores; los casos de uso no intercambian mapas o cadenas sin validar. Protocolo, puerto y obligatoriedad se obtendrán del conector resuelto y no serán propiedades libres de una conexión dibujada por el usuario.
-
-## 6. Conexiones y significado de las flechas
-
-En el modelo de dependencias, una flecha `A -> B` significa que A depende de B para ejecutar alguna parte de su comportamiento.
-
-| Origen | Destino permitido | Tipo de conexión | Significado |
-| --- | --- | --- | --- |
-| Load Generator | HTTP Service | `LOAD_TARGET` | Genera peticiones contra la API. |
-| HTTP Service | HTTP Service | `HTTP_CALL` | Invoca otro servicio. |
-| HTTP Service | PostgreSQL | `DATABASE` | Consulta o modifica datos persistentes. |
-| HTTP Service | Redis | `CACHE` | Consulta o actualiza la caché. |
-| HTTP Service | RabbitMQ | `PUBLISHES_TO` | Publica tareas. |
-| Worker | RabbitMQ | `CONSUMES_FROM` | Consume tareas. |
-| Worker | PostgreSQL | `DATABASE` | Guarda resultados persistentes. |
-| Worker | Redis | `CACHE` | Consulta o guarda información temporal. |
-
-Esta dirección representa dependencia y no siempre coincide con el recorrido visual de los datos. En mensajería:
-
-```text
-Flujo del mensaje:
-HTTP Service -> RabbitMQ -> Worker
-
-Grafo de dependencias:
-HTTP Service -> RabbitMQ <- Worker
-```
-
-La interfaz deberá etiquetar las conexiones —por ejemplo, `Publishes to` o `Consumes from`— para evitar ambigüedad.
-
-## 7. Validación previa a la ejecución
-
-Un escenario podrá guardarse vacío o incompleto, pero solo podrá ejecutarse cuando no contenga errores bloqueantes.
-
-El `ScenarioValidator` comprobará:
-
-1. que cada conexión une tipos compatibles;
-2. que la dirección y el tipo de conexión son correctos;
-3. que cada perfil tiene sus dependencias obligatorias;
-4. que se cumplen las cardinalidades mínimas y máximas;
-5. que el Load Generator solicita capacidades expuestas por su objetivo;
-6. que no existen parámetros fuera de los límites permitidos;
-7. que el escenario respeta los límites globales de la instancia local.
-
-Ejemplo válido:
+El recorrido completo tiene cinco etapas:
 
 ```mermaid
 flowchart LR
-    Load["Load Generator<br/>REPEATED_READ"] -->|"LOAD_TARGET"| Api["HTTP Service<br/>CACHE_ASIDE"]
-    Api -->|"CACHE"| Redis["Redis"]
-    Api -->|"DATABASE"| PostgreSQL["PostgreSQL"]
+    A["1 · Diseñar<br/>canvas"] --> B["2 · Guardar<br/>revisión N"]
+    B --> C["3 · Validar<br/>errores y avisos"]
+    C --> D["4 · Ejecutar<br/>snapshot → plan → Docker"]
+    D --> E["5 · Observar<br/>salud, métricas, eventos"]
+    E --> F["Stop<br/>limpieza total"]
+    F --> G["Historial<br/>snapshot + evidencias"]
 ```
 
-Resultado:
+1. **Diseñar.** El usuario coloca nodos en el canvas, elige su perfil y sus parámetros, los une con flechas y configura la carga.
+2. **Guardar.** El grafo completo se guarda con un número de revisión. Un borrador incompleto también se puede guardar.
+3. **Validar.** El backend comprueba que el diseño cumple los contratos del catálogo. Los errores bloquean la ejecución; los avisos no.
+4. **Ejecutar.** `Run` congela esa revisión en un snapshot, la traduce a un plan con forma de fichero Docker Compose y lo aplica sobre Docker.
+5. **Observar.** El backend espera a que todo esté sano, lanza la carga y recoge métricas y eventos hasta que alguien pulsa `Stop` o se agota el tiempo.
 
-```text
-HTTP Service orders-api
-  OK: perfil CACHE_ASIDE reconocido
-  OK: conexión CACHE con Redis
-  OK: conexión DATABASE con PostgreSQL
-  OK: capacidad de lectura compatible con REPEATED_READ
+Tres ideas sostienen todo el diseño:
 
-Scenario ready to run
-```
+- **El contrato manda.** Cada tipo de nodo tiene un contrato que dice qué se puede configurar, qué necesita y qué ofrece. El canvas, la validación y el motor leen ese mismo contrato.
+- **Se ejecuta exactamente lo que se validó.** Una ejecución queda ligada a una revisión concreta y a una copia inmutable de ella.
+- **Nada queda abandonado.** Cada recurso de Docker lleva etiquetas de Infracture, y cualquier forma de terminar acaba retirándolos todos.
 
-Si falta Redis, la acción `Run` se bloqueará. Si existe RabbitMQ con productores pero sin Worker, el canvas libre podrá mostrar una advertencia y permitir la ejecución, porque acumular mensajes puede ser el objetivo del experimento. Un laboratorio de recuperación de Worker sí exigirá un consumidor.
+## 2. Vocabulario esencial
 
-### 7.1 Errores y advertencias
-
-- **Error:** impide construir un plan ejecutable, por ejemplo `CACHE_ASIDE` sin Redis.
-- **Advertencia:** permite ejecutar, pero comunica un comportamiento probable, por ejemplo una cola sin consumidores.
-
-### 7.2 Dos algoritmos diferentes
-
-La validación previa y el análisis de impacto comparten el grafo, pero tienen responsabilidades distintas:
-
-| Momento | Componente lógico | Pregunta |
+| Término | Qué es | Ejemplo |
 | --- | --- | --- |
-| Antes de la ejecución | `ScenarioValidator` | ¿La arquitectura cumple los contratos y puede intentarse su ejecución? |
-| Durante un fallo | `DependencyImpactAnalyzer` | ¿Qué componentes pueden verse afectados por el fallo? |
+| `ComponentType` | Familia de comportamiento que Infracture sabe ejecutar. | HTTP Service, Redis. |
+| `Template contract` | Definición que el backend conoce para un tipo: perfiles, parámetros, puertos y capacidades. | Contrato del HTTP Service. |
+| Perfil | Forma concreta de comportarse que ofrece un tipo. | `CACHE_ASIDE`. |
+| Puerto | Hueco de salida con nombre de un perfil, que pide una capacidad. | `cache` pide `KEY_VALUE`. |
+| Capacidad | Lo que un perfil ofrece a quien se conecta a él. | Redis ofrece `KEY_VALUE`. |
+| `ComponentTemplate` | Ficha del catálogo que gestiona el administrador: nombre, icono y configuración inicial. | «API con caché». |
+| `Component` | Nodo concreto del canvas, creado a partir de una ficha. | `orders-api`. |
+| `Connection` | Flecha que sale de un puerto de un nodo hacia otro nodo. Significa «depende de». | `orders-api.cache → cache`. |
+| `Workload` | Carga del escenario: objetivo, perfil de carga, parámetros y semilla. | `REPEATED_READ` a 10 peticiones/s. |
+| `Scenario revision` | Número que identifica el estado exacto guardado de un escenario. | Revisión 8. |
+| `ValidationIssue` | Problema que encuentra la validación, con severidad y objetivo. | ERROR en el puerto `cache`. |
+| `Execution` | Experimento lanzado desde una revisión. | Ejecución del 30 de octubre. |
+| `Execution snapshot` | Copia inmutable de lo que se ejecutó. | Revisión 8, imágenes y plan. |
+| `ExecutionPlan` | Traducción del snapshot a servicios Docker, con forma de fichero Compose. | Servicios, red y salud. |
+| `ExecutedComponent` | Identidad histórica de un nodo dentro de una ejecución. | `orders-api` en la ejecución 12. |
 
-Una topología estáticamente válida no garantiza que todos los procesos arranquen. A continuación, será necesaria una validación dinámica mediante comprobaciones de salud.
+## 3. Plataforma y experimento
 
-## 8. Compilación y arranque
+Hay que distinguir dos mundos que conviven en la misma máquina:
 
-Una vez validado el escenario, el backend lo traducirá a un `ExecutionPlan`. El proceso propuesto será el siguiente:
-
-1. capturar y validar una revisión exacta del escenario;
-2. crear un snapshot inmutable y sus identidades `ExecutedComponent` y `ExecutedConnection`;
-3. crear una red Docker aislada;
-4. generar nombres, alias, credenciales y etiquetas;
-5. crear los proxies necesarios para las conexiones compatibles con latencia;
-6. iniciar las instancias de PostgreSQL, Redis y RabbitMQ;
-7. esperar a que las dependencias superen sus comprobaciones de salud;
-8. iniciar las instancias de HTTP Service y Worker;
-9. esperar a que los servicios superen sus comprobaciones de salud;
-10. iniciar la instancia de Load Generator, si existe;
-11. comenzar la recopilación de métricas, eventos y logs resumidos;
-12. habilitar las acciones de fallo;
-13. limpiar todos los recursos al finalizar.
-
-La plataforma Infracture se iniciará con Docker Compose. Los recursos variables de cada escenario se crearán mediante `docker-java` sobre Docker Engine.
-
-### 8.1 Configuración generada
-
-Para un escenario con `CACHE_ASIDE`, el backend podría generar:
-
-```text
-HTTP Service
-  APP_MODE=CACHE_ASIDE
-  REDIS_URL=redis-proxy:6379
-  DATABASE_URL=postgresql-proxy:5432
-  CACHE_TTL=60
-
-Load Generator
-  TARGET_URL=http://orders-api:8080
-  WORKLOAD=REPEATED_READ
-  REQUESTS_PER_SECOND=10
-  RANDOM_SEED=48372
-```
-
-El Load Generator no recibe direcciones de Redis ni de PostgreSQL. El HTTP Service no inspecciona el grafo en tiempo de ejecución: utiliza la configuración que Infracture ha generado después de validarlo.
-
-## 9. Generación continua de carga
-
-El Load Generator se implementará inicialmente mediante **Grafana k6**, ejecutado dentro de una imagen controlada por Infracture. El backend generará el perfil de carga y sus parámetros a partir de la configuración validada del escenario; el usuario no podrá introducir scripts arbitrarios. Spring Boot controlará el ciclo de vida del generador y recopilará sus resultados agregados, pero no enviará individualmente cada petición.
-
-El bucle conceptual será:
-
-```text
-while execution is active:
-    select a permitted operation
-    generate its data
-    send the HTTP request
-    record status and latency
-    wait according to the configured frequency
-```
-
-### 9.1 Operación repetida
-
-```text
-GET /orders/42
-GET /orders/42
-GET /orders/42
-...
-```
-
-Es apropiada para calentar una caché y comparar aciertos y fallos.
-
-### 9.2 Selección ponderada
-
-```text
-80 % GET
-10 % POST
-10 % PUT
-```
-
-Cada iteración elige una operación respetando aproximadamente los pesos configurados.
-
-### 9.3 Flujo con estado
-
-Cuando una petición depende de otra, cada usuario virtual puede repetir una secuencia:
-
-```text
-POST /orders
-guardar el identificador devuelto
-GET /orders/{id}
-PUT /orders/{id}
-GET /orders/{id}
-```
-
-### 9.4 Fases de carga
-
-Un perfil puede dividirse en calentamiento, carga estable, ráfaga o recuperación. En un laboratorio, la carga puede continuar antes, durante y después de un fallo para comparar las métricas.
-
-### 9.5 Reproducibilidad
-
-Una semilla pseudoaleatoria formará parte de la configuración y del snapshot. Con el mismo escenario, plan y semilla podrán compararse ejecuciones con una secuencia equivalente de decisiones.
-
-### 9.6 Escenarios sin Load Generator
-
-El canvas libre podrá ejecutar un escenario sin Load Generator para observar la salud y el consumo, aunque mostrará una advertencia de que no se producirá tráfico funcional. Los laboratorios que necesiten evidencias de comportamiento incluirán obligatoriamente una fuente de carga compatible.
-
-## 10. Flujos principales
-
-### 10.1 Caché mediante `CACHE_ASIDE`
-
-Redis no se conecta directamente a PostgreSQL. El HTTP Service coordina ambos:
+- **La plataforma** es Infracture: está siempre encendida y guarda los datos de los usuarios.
+- **El experimento** es temporal: nace con `Run` y desaparece con `Stop`.
 
 ```mermaid
-sequenceDiagram
-    participant L as Load Generator
-    participant H as HTTP Service
-    participant R as Redis
-    participant M as PostgreSQL
+flowchart TB
+    User(["Navegador"])
 
-    L->>H: GET /orders/42
-    H->>R: GET order:42
-    alt Cache hit
-        R-->>H: Pedido
-    else Cache miss
-        R-->>H: No existe
-        H->>M: SELECT order 42
-        M-->>H: Pedido
-        H->>R: SET order:42 con TTL
+    subgraph PLATFORM["Plataforma Infracture (permanente)"]
+        direction TB
+        App["infracture<br/>Spring Boot + React<br/>HTTPS :443"]
+        PlatformDb[("PostgreSQL<br/>de la plataforma")]
+        MinIO[("MinIO<br/>imágenes")]
+        Proxy["docker-socket-proxy<br/>API de Docker filtrada"]
     end
-    H-->>L: HTTP 200
+
+    Engine{{"Docker Engine<br/>de la máquina"}}
+
+    subgraph EXP["Experimento (temporal)"]
+        direction LR
+        Load["k6<br/>Workload"]
+        Api["orders-api<br/>HTTP Service"]
+        Cache[("Redis")]
+        Db[("PostgreSQL<br/>del escenario")]
+    end
+
+    User -->|HTTPS| App
+    App --> PlatformDb
+    App --> MinIO
+    App -->|"DOCKER_HOST=tcp://docker-proxy:2375"| Proxy
+    Proxy -->|"/var/run/docker.sock"| Engine
+    Engine -. crea y retira .-> EXP
+    App -. "se une a la red para medir" .-> Api
+    Load --> Api
+    Api --> Cache
+    Api --> Db
 ```
 
-Para modificar un dato, la primera estrategia será actualizar PostgreSQL y eliminar la entrada de Redis. La siguiente lectura volverá a poblar la caché.
+- **Dos PostgreSQL distintos.** El de la plataforma guarda usuarios, proyectos, escenarios y ejecuciones. El PostgreSQL que el usuario arrastra al canvas es otro contenedor, creado solo para el experimento. Comparten tecnología, pero no comparten datos, credenciales, red ni ciclo de vida.
+- **Docker de la máquina con proxy.** El backend no monta el socket de Docker. Solo lo monta `docker-socket-proxy`, que deja pasar las operaciones que el motor necesita (contenedores, redes, volúmenes, imágenes) y rechaza las demás. Los contenedores del experimento nunca tienen acceso a Docker ([ADR 0013](adr/0013-motor-de-ejecucion-con-docker-compose.md)).
+- **Un proyecto Compose por ejecución.** Cada `Execution` vive en su propio proyecto Compose (por ejemplo `infracture-exec-12`), con su red aislada y sus etiquetas. Así se distingue de la plataforma y de cualquier otro contenedor del usuario.
 
-El servicio expondrá contadores como `cache_hits`, `cache_misses` y `database_queries`. El Load Generator únicamente conocerá el código HTTP y la latencia de la respuesta.
+Durante una ejecución trabajan dos planos:
 
-### 10.2 Tareas mediante RabbitMQ
+| Plano | Quién | Qué hace |
+| --- | --- | --- |
+| Control | Backend de Infracture | Crea y retira recursos, espera la salud, recoge métricas y eventos, informa al navegador. |
+| Datos | Contenedores del experimento | Se envían peticiones y mensajes entre ellos: carga → servicio → caché, base de datos o cola. |
+
+El backend organiza y observa el experimento, pero no ejecuta su lógica de negocio ni envía cada petición de la carga.
+
+## 4. El catálogo controlado
+
+### 4.1 Tres niveles: tipo, contrato y ficha
+
+```mermaid
+classDiagram
+    direction LR
+    class ComponentType {
+        <<enum>>
+        HTTP_SERVICE
+        WORKER
+        POSTGRESQL
+        REDIS
+        RABBITMQ
+        LOAD_BALANCER
+    }
+    class TemplateContract {
+        type
+        version
+        profiles
+    }
+    class ProfileContract {
+        name
+        parameters
+        ports
+        offers
+        evidence
+    }
+    class ParameterContract {
+        name
+        min
+        max
+    }
+    class PortContract {
+        name
+        label
+        requires
+        min
+        max
+    }
+    class ComponentTemplate {
+        templateKey
+        name
+        icon
+        enabled
+        initialProfile
+        initialParameters
+    }
+    class Component {
+        componentKey
+        name
+        position
+        profile
+        parameters
+    }
+    ComponentType "1" -- "1" TemplateContract : define
+    TemplateContract "1" *-- "1..*" ProfileContract
+    ProfileContract "1" *-- "*" ParameterContract
+    ProfileContract "1" *-- "*" PortContract
+    ComponentType "1" -- "*" ComponentTemplate : fichas
+    ComponentTemplate "1" -- "*" Component : crea
+```
+
+| Nivel | Quién lo cambia | Cómo cambia | Dónde vive |
+| --- | --- | --- | --- |
+| `ComponentType` | Desarrollo | Con código y una release. | Enum de Java y `CHECK` de la base de datos. |
+| `Template contract` | Desarrollo | Con código, una release y, si es incompatible, una migración. | Código del backend (`ContractCatalog`). |
+| `ComponentTemplate` | Administrador | Desde el panel, dentro de lo que permite el contrato. | Tabla `component_template`. |
+| `Component` | Usuario | Desde el canvas, dentro de lo que permite el contrato. | Tabla `components`. |
+
+- **El contrato es código, no datos.** El administrador no puede crear perfiles, imágenes ni comandos. Solo crea fichas que eligen una configuración inicial válida. Así Infracture sabe siempre cómo validar, arrancar y medir cada nodo ([ADR 0003](adr/0003-catalogo-controlado-con-contratos-versionados.md)).
+- **La configuración inicial es de la ficha.** Dos fichas del mismo tipo pueden empezar distinto, por ejemplo «API rápida» con 0 ms de retardo y «API lenta» con 500 ms. Un nodo nuevo copia la configuración de su ficha. Si después el administrador la cambia, los nodos ya creados no cambian.
+- **Los parámetros son enteros.** Todos los parámetros del catálogo son números enteros con mínimo y máximo. Un decimal se rechaza al guardar.
+- **Siempre hay un perfil.** Los tipos sin variantes (PostgreSQL, Redis y RabbitMQ) tienen un único perfil `DEFAULT`, y el Worker tiene `CONSUMER`. Así todos los nodos se tratan igual.
+- **El catálogo se inyecta.** `ContractCatalog` es un bean de Spring que reciben los servicios y el validador. Las entidades no lo consultan por su cuenta, y en las pruebas se puede sustituir por un catálogo pequeño.
+
+### 4.2 Una sola versión ejecutable
+
+El backend solo conoce **la versión actual** de cada contrato ([ADR 0010](adr/0010-una-sola-version-ejecutable-del-contrato.md)). Cuando un cambio del contrato deja de admitir algo que ya está guardado, se publica junto con una migración de Flyway que actualiza los nodos y las fichas guardados.
+
+Por ejemplo, la versión 2 del HTTP Service renombra `responseDelayMs` a `latencyMs` y baja su máximo de 5000 a 2000:
+
+```mermaid
+flowchart LR
+    subgraph BEFORE["Guardado con la versión 1"]
+        A1["orders-api<br/>responseDelayMs = 500"]
+        B1["slow-api<br/>responseDelayMs = 3000"]
+    end
+    M{{"Migración Flyway<br/>de la versión 2"}}
+    subgraph AFTER["Tras la migración"]
+        A2["orders-api<br/>latencyMs = 500 ✔"]
+        B2["slow-api<br/>latencyMs = 3000 ✖<br/>ERROR: máximo 2000"]
+    end
+    S[("Snapshot de una ejecución pasada<br/>versión 1 · responseDelayMs = 3000<br/>no se migra")]
+    A1 --> M --> A2
+    B1 --> M --> B2
+```
+
+- **Lo convertible se convierte.** El valor 500 cabe en el nuevo rango y pasa a `latencyMs`.
+- **Lo que no se puede convertir se marca.** El valor 3000 se conserva, pero la validación devuelve un error que bloquea `Run` hasta que el usuario elija un valor válido. No se pierde nada sin aviso.
+- **El historial no cambia.** El snapshot de una ejecución pasada sigue diciendo «versión 1, `responseDelayMs` = 3000», porque eso es lo que se ejecutó.
+- **La imagen no cuenta como versión.** Corregir un error de la imagen de demostración no crea una versión nueva. La imagen y su digest van con la release de Infracture y quedan anotados en cada snapshot.
+
+## 5. Perfiles, puertos y capacidades
+
+### 5.1 Cómo encaja una conexión
+
+Cada perfil declara dos cosas:
+
+- **Sus puertos.** Huecos de salida con nombre. Cada puerto pide una capacidad y admite un número mínimo y máximo de conexiones.
+- **Sus capacidades.** Lo que ofrece a quien se conecte a él.
+
+Una conexión es válida cuando el nodo de destino ofrece la capacidad que pide el puerto de origen ([ADR 0011](adr/0011-puertos-con-nombre-que-piden-capacidades.md)).
+
+```mermaid
+flowchart LR
+    subgraph API["orders-api · HTTP Service · CACHE_ASIDE"]
+        direction TB
+        P1(["puerto cache<br/>pide KEY_VALUE · 1..1"])
+        P2(["puerto database<br/>pide SQL_DATABASE · 1..1"])
+        O1["ofrece HTTP,<br/>RESOURCE_READ, RESOURCE_WRITE"]
+    end
+    R["cache · Redis<br/>ofrece KEY_VALUE"]
+    D["orders-db · PostgreSQL<br/>ofrece SQL_DATABASE"]
+    X["jobs · RabbitMQ<br/>ofrece MESSAGE_BROKER"]
+    P1 -->|"✔ encaja"| R
+    P2 -->|"✔ encaja"| D
+    P1 -.->|"✖ no ofrece KEY_VALUE"| X
+```
+
+Es como un portátil: cada puerto tiene nombre y forma, y acepta cualquier aparato que hable ese protocolo, sea de la marca que sea. Gracias a eso, el Load Balancer encajará en cualquier puerto que pida `HTTP` sin tocar las reglas del HTTP Service.
+
+### 5.2 Capacidades del catálogo
+
+| Capacidad | Significado | La ofrecen |
+| --- | --- | --- |
+| `HTTP` | Acepta peticiones HTTP. | Todos los perfiles del HTTP Service y el Load Balancer. |
+| `RESOURCE_READ` | Permite leer recursos (`GET /items/{id}`). | `DATABASE_CRUD`, `CACHE_ASIDE`. |
+| `RESOURCE_WRITE` | Permite crear y modificar recursos (`POST`, `PUT`). | `DATABASE_CRUD`, `CACHE_ASIDE`. |
+| `TASK_CREATE` | Permite crear tareas asíncronas (`POST /tasks`). | `QUEUE_PRODUCER`. |
+| `SQL_DATABASE` | Base de datos relacional. | PostgreSQL. |
+| `KEY_VALUE` | Almacén clave-valor. | Redis. |
+| `MESSAGE_BROKER` | Cola de mensajes. | RabbitMQ. |
+
+### 5.3 Perfiles por tipo
+
+**HTTP Service.** Una única imagen de demostración que cambia de comportamiento según el perfil.
+
+| Perfil | Comportamiento | Puertos (capacidad · cardinalidad) | Ofrece |
+| --- | --- | --- | --- |
+| `STATELESS` | Responde sin consultar nada. | Ninguno. | `HTTP` |
+| `DATABASE_CRUD` | Lee, crea y actualiza recursos en PostgreSQL. | `database` (`SQL_DATABASE` · 1) | `HTTP`, `RESOURCE_READ`, `RESOURCE_WRITE` |
+| `CACHE_ASIDE` | Lee primero de la caché; si falla, lee de la base de datos y rellena la caché. Al modificar, actualiza la base de datos e invalida la caché. | `cache` (`KEY_VALUE` · 1), `database` (`SQL_DATABASE` · 1) | `HTTP`, `RESOURCE_READ`, `RESOURCE_WRITE` |
+| `QUEUE_PRODUCER` | Convierte cada petición en una tarea y responde `202 Accepted`. | `queue` (`MESSAGE_BROKER` · 1), etiqueta «Publica en» | `HTTP`, `TASK_CREATE` |
+| `DOWNSTREAM_HTTP` | Llama a otro servicio HTTP y compone la respuesta. | `downstream` (`HTTP` · 1) | `HTTP` |
+
+**Worker.**
+
+| Perfil | Comportamiento | Puertos | Ofrece |
+| --- | --- | --- | --- |
+| `CONSUMER` | Consume tareas, las procesa con una duración simulada, las confirma y reintenta un número acotado de veces. | `queue` (`MESSAGE_BROKER` · 1), etiqueta «Consume de»; `result` (`SQL_DATABASE` o `KEY_VALUE` · 0..1) | Nada |
+
+**Dependencias.**
+
+| Tipo | Perfil | Ofrece | Notas |
+| --- | --- | --- | --- |
+| PostgreSQL | `DEFAULT` | `SQL_DATABASE` | Datos iniciales controlados por Infracture. |
+| Redis | `DEFAULT` | `KEY_VALUE` | Sin persistencia; política de memoria segura. |
+| RabbitMQ | `DEFAULT` | `MESSAGE_BROKER` | Cola controlada, con la interfaz de gestión para leer métricas. |
+
+Cada perfil declara también los nombres de sus **evidencias**, es decir, las métricas que producirá al ejecutarse ([sección 11](#11-observación-salud-métricas-y-eventos)). Los fallos que admite cada nodo no se declaran todavía, porque están fuera de la Fase 3.
+
+### 5.4 Qué significa una flecha
+
+Una flecha `A → B` significa siempre **«A depende de B»**: A necesita a B para hacer su trabajo. Esa dirección no siempre coincide con el recorrido de los datos. En mensajería, por ejemplo, ambas flechas apuntan a RabbitMQ:
+
+```mermaid
+flowchart LR
+    subgraph DEP["Grafo de dependencias (lo que se dibuja)"]
+        direction LR
+        H1["orders-api<br/>QUEUE_PRODUCER"] -->|"Publica en"| Q1[("jobs<br/>RabbitMQ")]
+        W1["mailer<br/>Worker"] -->|"Consume de"| Q1
+    end
+    subgraph MSG["Recorrido del mensaje (lo que ocurre)"]
+        direction LR
+        H2["orders-api"] --> Q2[("jobs")] --> W2["mailer"]
+    end
+```
+
+Por eso cada puerto tiene una etiqueta visible, como «Publica en» o «Consume de», que evita la ambigüedad.
+
+### 5.5 El grafo no puede tener ciclos
+
+El grafo de dependencias completo debe ser **acíclico**. Si A depende de B y B depende de A, ninguno de los dos puede arrancar primero. Esta regla cubre las autollamadas, los ciclos HTTP y los ciclos indirectos que aparecerían con un Load Balancer.
+
+El orden topológico del grafo es además el **orden de arranque**: primero arrancan los nodos sin dependencias y después los que dependen de ellos.
+
+```mermaid
+flowchart LR
+    subgraph L0["Nivel 0"]
+        Db[("orders-db")]
+        Cache[("cache")]
+    end
+    subgraph L1["Nivel 1"]
+        Api["orders-api"]
+    end
+    subgraph L2["Nivel 2"]
+        Gw["gateway-api<br/>DOWNSTREAM_HTTP"]
+    end
+    subgraph L3["Al final"]
+        K6["Workload (k6)"]
+    end
+    Api --> Db
+    Api --> Cache
+    Gw --> Api
+    K6 -.-> Gw
+```
+
+## 6. El escenario y su guardado
+
+El `Scenario` es el grafo editable: sus nodos, sus conexiones y su `Workload`. Se guarda **entero** en cada guardado. El ADR 0009, que llega con #79, recoge esta decisión.
 
 ```mermaid
 sequenceDiagram
-    participant L as Load Generator
-    participant H as HTTP Service
-    participant R as RabbitMQ
-    participant W as Worker
+    autonumber
+    actor U as Usuario
+    participant C as Canvas (React)
+    participant S as ScenarioService
+    participant DB as PostgreSQL
 
-    L->>H: POST /tasks
-    H->>R: Publicar mensaje
-    R-->>H: Mensaje aceptado
-    H-->>L: HTTP 202 Accepted
-    R->>W: Entregar mensaje
-    W->>W: Procesar
-    W->>R: ACK
+    U->>C: Edita nodos, flechas y carga
+    C->>S: PUT /scenarios/{id}/graph<br/>{ revision: 7, components, connections, workload }
+    S->>DB: SELECT … FOR UPDATE
+    alt revisión distinta de 7
+        S-->>C: 409 Conflict (no cambia nada)
+        C-->>U: Recargar o guardar encima
+    else error estructural
+        S-->>C: 400 Bad Request
+    else correcto
+        S->>DB: Reemplaza el grafo, revisión = 8
+        S->>S: Valida contra los contratos
+        S-->>C: 200 { revision: 8, issues: [...] }
+        C-->>U: Guardado + incidencias en el canvas
+    end
 ```
 
-El Load Generator no envía tareas directamente al Worker. El HTTP Service publica, RabbitMQ conserva y distribuye, y el Worker procesa y confirma.
+- **Revisión esperada.** El cliente envía la revisión de la que partió. Si otra pestaña guardó antes, el servidor responde `409` y no sobrescribe nada.
+- **Claves estables.** Cada nodo tiene un `componentKey` (UUID) que genera el navegador. Las conexiones y el `Workload` apuntan a esas claves, que se conservan entre guardados.
+- **Borrador permitido.** Un escenario vacío o incompleto se puede guardar. Solo se rechaza lo que rompería la coherencia del grafo (sección 8).
+- **Borrar un nodo** elimina sus conexiones en la misma operación. Si el nodo era el objetivo del `Workload`, el `Workload` se conserva sin objetivo y aparece un error.
 
-Sin Worker, las tareas permanecen preparadas en la cola. Durante el procesamiento, un mensaje estará sin confirmar. Tras el `ACK`, RabbitMQ lo elimina. Si el consumidor desaparece antes de confirmar y la conexión se cierra, el mensaje podrá volver a la cola.
+## 7. La carga (Workload)
 
-### 10.3 Llamadas entre servicios
+La carga no es un nodo del canvas: es un **ajuste del escenario** ([ADR 0012](adr/0012-la-carga-es-un-workload-del-escenario.md)). En el canvas se dibuja como una flecha de tráfico que entra en su objetivo.
 
-```text
-Load Generator -> HTTP Service A -> HTTP Service B -> PostgreSQL
+```mermaid
+flowchart LR
+    W(["Workload<br/>REPEATED_READ · 10 rps · semilla 48372"]) ==>|tráfico| Api["orders-api<br/>CACHE_ASIDE<br/>ofrece RESOURCE_READ"]
+    Api --> Cache[("cache")]
+    Api --> Db[("orders-db")]
 ```
 
-El generador solo conoce A. El servicio A conoce a B mediante la configuración generada, y B conoce PostgreSQL. Esto permite estudiar propagación de latencia y fallos en cadena.
+### 7.1 Qué contiene
 
-## 11. Fallos controlados
-
-Las acciones iniciales serán:
-
-- detener y reiniciar un componente;
-- pausar y reanudar un componente;
-- introducir y retirar latencia en una conexión compatible.
-
-Cada petición se guardará como `FaultAction`, incluyendo quién la solicitó, su objetivo, sus parámetros y si terminó aplicada o fallida. Las acciones sobre procesos apuntarán a `ExecutedComponent`; las acciones de latencia apuntarán a `ExecutedConnection`.
-
-La parada y la pausa se aplicarán al contenedor mediante Docker Engine. La latencia se introducirá interponiendo Toxiproxy en la conexión:
-
-```text
-HTTP Service -> Toxiproxy -> Redis
-```
-
-El servicio se conectará al proxy, y Spring Boot utilizará la API HTTP de Toxiproxy para añadir o retirar el retraso.
-
-En el caso de un Worker, pausar el contenedor congela el proceso mientras continúan llegando mensajes. Las tareas ya entregadas pueden permanecer sin confirmar y el comportamiento exacto dependerá de la conexión y de sus latidos (*heartbeats*). Para un laboratorio determinista de recuperación se preferirá detener y reiniciar el Worker; la pausa seguirá disponible como acción general de experimentación.
-
-## 12. Salud, métricas y evidencias
-
-Debe distinguirse entre un contenedor en ejecución y un servicio preparado:
-
-- **Running:** el proceso del contenedor continúa activo.
-- **Healthy:** la comprobación específica del servicio responde correctamente.
-
-| Componente | Comprobación prevista |
+| Campo | Qué es |
 | --- | --- |
-| HTTP Service | Endpoint de salud. |
-| Worker | Endpoint o señal de salud controlada. |
-| PostgreSQL | Comprobación de disponibilidad del servidor. |
-| Redis | Comando `PING`. |
-| RabbitMQ | Diagnóstico del broker. |
-| Load Generator | Estado y progreso de la carga. |
+| Objetivo | Clave del `Component` que recibe la carga. Debe ofrecer la capacidad que pide el perfil. |
+| Perfil de carga | Uno de los cuatro de la tabla siguiente. |
+| Parámetros | Enteros acotados: peticiones por segundo, usuarios virtuales concurrentes, duración, tamaño del conjunto de datos, pesos… |
+| Semilla | Número que hace reproducible la secuencia de decisiones aleatorias. |
 
-Las evidencias procederán de dos niveles:
+Hay como máximo un `Workload` por escenario. Se guarda en la tabla `scenario_workload`, en el mismo guardado y con la misma revisión que el grafo, y entra en el snapshot.
 
-- **Docker:** estado, CPU, memoria y eventos de contenedor.
-- **Aplicación:** peticiones, errores, aciertos de caché, consultas, mensajes y tareas.
+### 7.2 Perfiles de carga
 
-No se persistirá una entidad por cada petición. El generador y los componentes agregarán los resultados por intervalos, que se convertirán en `MetricSample`. Los cambios de estado, los fallos y las acciones significativas serán `ExecutionEvent`.
+| Perfil | Qué hace | Pide al objetivo |
+| --- | --- | --- |
+| `CONSTANT_HTTP` | Repite una petición a frecuencia constante. | `HTTP` |
+| `REPEATED_READ` | Lee una y otra vez un conjunto pequeño de recursos. Sirve para calentar una caché y ver aciertos y fallos. | `RESOURCE_READ` |
+| `WEIGHTED_CRUD` | Mezcla lecturas, creaciones y actualizaciones con pesos, por ejemplo 80 % `GET`, 10 % `POST` y 10 % `PUT`. Admite secuencias con estado: crear, leer el recurso creado y modificarlo. | `RESOURCE_READ`, `RESOURCE_WRITE` |
+| `TASK_PRODUCER` | Crea tareas continuamente con `POST /tasks`. | `TASK_CREATE` |
 
-Las métricas y eventos se vincularán a las identidades inmutables `ExecutedComponent` y `ExecutedConnection`, no a los elementos editables del escenario. Así, el historial permanece válido aunque el usuario cambie después el canvas.
+`TASK_PRODUCER` solo encaja con `QUEUE_PRODUCER`, porque es el único perfil que ofrece `TASK_CREATE`. El generador no sabe si su objetivo usa Redis, PostgreSQL o RabbitMQ: solo ve su API HTTP.
 
-Ejemplo de muestra agregada:
+### 7.3 Cómo se genera
+
+La carga la produce **Grafana k6** dentro de una imagen controlada por Infracture. Esa imagen trae **un script fijo por perfil**. El backend no genera código: solo pasa números por variables de entorno.
+
+```text
+WORKLOAD_PROFILE=REPEATED_READ
+TARGET_URL=http://orders-api:8080
+REQUESTS_PER_SECOND=10
+VIRTUAL_USERS=5
+DATASET_SIZE=20
+RANDOM_SEED=48372
+```
+
+Cada usuario virtual de k6 repite un bucle: elige una operación permitida, genera sus datos con la semilla, envía la petición, anota el código y la latencia, y espera según la frecuencia configurada. k6 agrega los resultados y el backend los recoge por intervalos; Spring no envía las peticiones una a una.
+
+- **Sin carga se puede ejecutar.** Un escenario sin `Workload` muestra la advertencia «no habrá tráfico» y deja ejecutar, por ejemplo para observar solo el arranque y el consumo.
+- **La carga arranca la última.** Solo empieza cuando todos los servicios están sanos, para que los resultados se puedan interpretar.
+
+## 8. La validación
+
+### 8.1 Dos niveles
+
+| Nivel | Cuándo | Qué comprueba | Resultado |
+| --- | --- | --- | --- |
+| **Estructural** | Al guardar | Que el grafo sea coherente: claves válidas y únicas, referencias dentro del escenario, fichas existentes y habilitadas para nodos nuevos, tipos y nombres conocidos, parámetros enteros. | `400 Bad Request`. No se guarda nada. |
+| **De contrato** | Al guardar, al pulsar `Run` y al reservar la ejecución | Que el diseño se pueda ejecutar: perfil reconocido, parámetros dentro de límites, puertos obligatorios conectados, cardinalidades, capacidades compatibles, grafo acíclico, objetivo y perfil de la carga, cuotas de la instancia. | Lista de `ValidationIssue`. El borrador se guarda igualmente. |
+
+La separación permite guardar un trabajo a medias sin perder nada, y a la vez impedir que se ejecute algo incorrecto. El backend repite la validación al reservar la ejecución, así que un cliente manipulado no puede saltársela.
+
+### 8.2 Errores y advertencias
+
+- **ERROR.** Impide construir un plan ejecutable y bloquea `Run`. Por ejemplo, `CACHE_ASIDE` sin Redis o un ciclo de dependencias.
+- **WARNING.** Deja ejecutar, pero avisa de un efecto probable. Por ejemplo, un escenario sin `Workload` o un RabbitMQ con productores pero sin Worker: acumular mensajes puede ser justo lo que se quiere estudiar.
+
+### 8.3 Forma de una incidencia
 
 ```json
 {
-  "requestCount": 100,
-  "successfulRequests": 97,
-  "failedRequests": 3,
-  "averageLatencyMs": 42,
-  "p95LatencyMs": 81
+  "severity": "ERROR",
+  "code": "MISSING_CONNECTION",
+  "message": "El puerto cache de orders-api necesita una conexión a algo que ofrezca KEY_VALUE.",
+  "target": { "kind": "COMPONENT", "key": "6f1c…" },
+  "field": "cache"
 }
 ```
 
-## 13. Duración, parada y limpieza
-
-Una ejecución libre podrá permanecer activa hasta que el usuario pulse `Stop`, pero tendrá límites de seguridad configurables. No se permitirán recursos abandonados indefinidamente.
-
-Una ejecución finalizará cuando:
-
-- termine la duración configurada;
-- el usuario solicite la parada;
-- se alcance el límite máximo de seguridad;
-- se produzca un error irrecuperable;
-- el motor detecte una situación que exija limpieza.
-
-Secuencia de parada:
-
-1. cambiar `Execution` a `STOPPING`;
-2. detener el Load Generator para no crear más trabajo;
-3. recoger las últimas métricas;
-4. detener los componentes restantes;
-5. eliminar contenedores y proxies;
-6. eliminar la red aislada;
-7. guardar el resultado final;
-8. cambiar `Execution` a `COMPLETED` o `FAILED`.
-
-La instancia local permitirá una sola ejecución activa, lo que simplifica el control de recursos y la recuperación después de errores.
-
-## 14. Aplicación a los laboratorios
-
-Cada publicación de un laboratorio conservará una revisión inmutable con su escenario inicial, objetivos, pistas, reglas, puntuación y conceptos. Un intento quedará vinculado a esa revisión y utilizará una única ejecución como evidencia al completarse. Así, una edición posterior del laboratorio no cambia el resultado ni los conceptos acreditados por intentos anteriores.
-
-### 14.1 Single Point of Failure
-
-```text
-Load Generator -> HTTP Service
-```
-
-La carga permanece activa y el usuario detiene el único servicio. Aumentan las peticiones fallidas y cae la disponibilidad observada. Sin un balanceador, el laboratorio demuestra el problema, no una conmutación automática (*failover*) entre réplicas. Un *Gateway* o *Load Balancer* será una ampliación natural del catálogo.
-
-### 14.2 Cache Failure
-
-```text
-Load Generator -> HTTP Service -> Redis
-                              -> PostgreSQL
-```
-
-El perfil de carga repite lecturas sobre un conjunto de datos frecuentes. Antes del fallo aumentan los aciertos de caché. Al detener Redis, el servicio recurre a PostgreSQL si su comportamiento de recuperación es correcto; aumentan las consultas y la latencia. Después de reiniciar Redis, la caché vuelve a poblarse.
-
-### 14.3 Worker Recovery
-
-```text
-Load Generator -> HTTP Service -> RabbitMQ <- Worker
-                                          Worker -> PostgreSQL
-```
-
-El generador crea tareas continuamente. Al detener el Worker, crece la cola. Al reiniciarlo, el número de mensajes pendientes disminuye hasta que se recupera el ritmo normal.
-
-## 15. Responsabilidades del backend
-
-La implementación podrá organizarse en torno a responsabilidades como las siguientes:
-
-| Responsabilidad | Función |
+| Campo | Para qué sirve |
 | --- | --- |
-| `TemplateContractRegistry` | Proporcionar perfiles, capacidades, requisitos y conectores permitidos. |
-| `ScenarioValidator` | Detectar errores y advertencias antes de ejecutar. |
-| `ExecutionPlanCompiler` | Traducir el snapshot a una configuración ejecutable. |
-| `DockerRuntimeAdapter` | Crear, iniciar, pausar, detener y eliminar recursos mediante `docker-java`. |
-| `WorkloadController` | Preparar y controlar el Load Generator. |
-| `TelemetryCollector` | Recoger salud, métricas y logs resumidos. |
-| `FaultInjectionService` | Aplicar acciones Docker y latencia mediante Toxiproxy. |
-| `DependencyImpactAnalyzer` | Calcular dependientes directos y transitivos ante un fallo. |
-| `ExecutionEventService` | Persistir cambios y acciones significativas. |
-| `CleanupService` | Garantizar la eliminación idempotente de recursos. |
+| `severity` | `ERROR` o `WARNING`. |
+| `code` | Identificador estable para la interfaz y las pruebas, por ejemplo `MISSING_CONNECTION`, `CAPABILITY_MISMATCH`, `DEPENDENCY_CYCLE`, `PARAMETER_OUT_OF_RANGE` o `WORKLOAD_WITHOUT_TARGET`. |
+| `message` | Texto para el usuario. |
+| `target` | Qué está mal: un `COMPONENT`, una `CONNECTION`, el `WORKLOAD` o el `SCENARIO`, con su clave. |
+| `field` | Opcional: el parámetro o puerto concreto. Permite al canvas marcar justo ese campo. |
 
-Estos nombres son conceptuales. Podrán cambiar al diseñar los módulos y clases reales.
+### 8.4 Validez estática no es salud
 
-## 16. Prototipo vertical recomendado
+Que un diseño sea válido significa que **se puede intentar** ejecutarlo. No garantiza que todos los procesos arranquen: una imagen puede no descargarse o un servicio puede no responder. Esa comprobación dinámica la hacen las comprobaciones de salud del motor ([sección 9.4](#94-arranque-ordenado-por-salud)).
 
-**Contexto del diseño inicial.** El recorrido siguiente explora también funcionalidades intermedias. Para Fase 3, el primer hito P06 demuestra HTTP Service y carga desde el backend contenedorizado, con salud, observación, Stop y limpieza; las dependencias se incorporan después. La latencia controlada y la parada/reinicio de un componente conservando la ejecución no se incluyen por este prototipo en el alcance básico.
+## 9. El motor de ejecución
 
-Antes de desarrollar todo el catálogo se validará el recorrido de extremo a extremo con:
+### 9.1 Cuatro piezas
 
-```text
-Load Generator
-    -> HTTP Service con CACHE_ASIDE
-        -> Toxiproxy -> Redis
-        -> PostgreSQL
+El motor se divide en cuatro piezas con una responsabilidad cada una ([ADR 0013](adr/0013-motor-de-ejecucion-con-docker-compose.md)):
+
+```mermaid
+flowchart LR
+    Snap[("Execution<br/>snapshot")] --> PC["PlanCompiler<br/>snapshot → ExecutionPlan<br/>(sin Docker)"]
+    Drv["ComponentDriver<br/>uno por tipo"] -. "imagen, variables,<br/>salud, métricas" .-> PC
+    PC --> Plan[["ExecutionPlan<br/>forma Compose"]]
+    Plan --> RE["RuntimeEngine<br/>apply · observe · teardown"]
+    EC["ExecutionReconciler<br/>fase deseada ↔ fase real"] --> RE
+    RE --> CLI["ComposeCliEngine<br/>docker compose"]
+    RE -. alternativa .-> DJ["DockerJavaEngine<br/>docker-java"]
+    CLI --> Docker{{"Docker Engine<br/>(vía proxy)"}}
 ```
 
-El prototipo deberá demostrar:
+| Pieza | Responsabilidad | Cómo se prueba |
+| --- | --- | --- |
+| `PlanCompiler` | Traduce un snapshot a un `ExecutionPlan`: nombres, alias, red, variables, salud, dependencias, límites y etiquetas. No toca Docker. | Pruebas unitarias con ficheros de referencia: dado este snapshot, este plan. |
+| `ComponentDriver` | Uno por `ComponentType`. Sabe qué imagen usa ese tipo, qué variables necesita cada perfil, cómo se comprueba su salud y de dónde se leen sus métricas. | Pruebas unitarias por tipo. |
+| `RuntimeEngine` | Aplica un plan, observa su estado y lo retira. Tiene dos implementaciones: `docker compose` (la principal) y `docker-java` (la alternativa). | Pruebas de integración con Docker real. |
+| `ExecutionReconciler` | Compara la fase deseada de cada ejecución con la real y actúa hasta igualarlas. | Pruebas unitarias con un `RuntimeEngine` simulado; pruebas de extremo a extremo con Docker. |
 
-1. validación del grafo;
-2. generación del plan de ejecución;
-3. creación de red y contenedores;
-4. espera mediante comprobaciones de salud;
-5. peticiones continuas;
-6. aciertos y fallos de caché;
-7. métricas y eventos en la interfaz;
-8. introducción de latencia;
-9. parada y reinicio de Redis;
-10. recuperación y limpieza completa.
+Añadir un tipo nuevo, como el Load Balancer, consiste en declarar su contrato y escribir su driver. Cambiar de `docker compose` a `docker-java` solo afecta al `RuntimeEngine`.
 
-Este recorrido valida la mayoría de los riesgos del motor. RabbitMQ y Worker se añadirán después reutilizando el mismo ciclo de validación, ejecución, observabilidad y limpieza.
+Se llama *reconciler* y no *controller* porque en el repositorio el sufijo `Controller` está reservado a los controladores REST.
 
-## 17. Aspectos que se expondrán al tutor
+### 9.2 Qué ocurre al pulsar Run
 
-La propuesta se incorporará completa al repositorio y se utilizarán estos puntos para recoger posteriormente las observaciones del tutor:
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant API as API /executions
+    participant SV as ScenarioService
+    participant EX as Execution
+    participant PC as PlanCompiler
+    participant RE as RuntimeEngine
+    participant D as Docker
 
-- adecuación académica del catálogo de perfiles controlados;
-- suficiencia de la validación del grafo como algoritmo avanzado adicional;
-- separación entre `ScenarioValidator` y `DependencyImpactAnalyzer`;
-- conveniencia de permitir escenarios libres sin carga, mostrando una advertencia;
-- obligatoriedad del Load Generator en los laboratorios con objetivos observables;
-- uso de imágenes demostrativas propias para HTTP Service y Worker;
-- ejecución interactiva hasta `Stop` con un límite máximo de seguridad;
-- preferencia de `Stop` y `Restart` para el laboratorio de Worker, y mantenimiento de `Pause` y `Resume` como acciones generales;
-- alcance del primer prototipo vertical antes de ampliar el catálogo.
+    U->>API: Run (revisión 8)
+    API->>SV: Bloquea el escenario y comprueba la revisión
+    SV->>SV: Valida de nuevo (sin ERROR)
+    API->>EX: Reserva global + snapshot inmutable
+    API-->>U: 202 Accepted (ejecución 12)
+    EX->>PC: Compila el snapshot
+    PC-->>EX: ExecutionPlan (guardado sin secretos)
+    EX->>RE: apply(plan)
+    RE->>D: docker compose -p infracture-exec-12 up -d --wait
+    D-->>RE: Dependencias y servicios sanos
+    RE->>D: Arranca k6 (Workload)
+    loop cada intervalo
+        RE->>D: Lee estado, CPU, memoria y métricas
+        RE-->>U: Eventos y muestras por SSE
+    end
+```
 
-Estos elementos no impiden presentar la Fase 1; son decisiones técnicas razonadas sobre las que el tutor podrá proponer ajustes.
+- **Una sola ejecución activa.** La instancia local admite una única `Execution` reservada, arrancando, activa o limpiándose. Un segundo `Run`, aunque sea de otro usuario, se rechaza.
+- **Run es idempotente.** Un doble clic o un reintento tras un corte de red no crean otra ejecución ni recursos duplicados.
+- **El escenario queda en solo lectura** desde la reserva hasta que termina la limpieza.
+- **Sin transacciones abiertas esperando a Docker.** La reserva y el snapshot se confirman en la base de datos antes de llamar a Docker. Lo que ocurre después se registra como eventos.
 
-## 18. Referencias para el aprendizaje
+### 9.3 El ExecutionPlan
 
-- [Docker: taller inicial](https://docs.docker.com/get-started/workshop/)
+El plan tiene la forma de un fichero Docker Compose. Este es un extracto simplificado para el escenario `CACHE_ASIDE`:
+
+```yaml
+name: infracture-exec-12
+networks:
+  exec:
+    labels: { io.infracture.execution: "12" }
+services:
+  orders-db:
+    image: postgres:18@sha256:…
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/orders-db   # referencia, no el valor
+    healthcheck: { test: ["CMD", "pg_isready"], interval: 2s, retries: 30 }
+    labels: { io.infracture.execution: "12", io.infracture.component: "orders-db" }
+    deploy: { resources: { limits: { cpus: "0.5", memory: 256M } } }
+  cache:
+    image: redis:8@sha256:…
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 2s, retries: 30 }
+    labels: { io.infracture.execution: "12", io.infracture.component: "cache" }
+  orders-api:
+    image: infracture/demo-app:0.1.0@sha256:…
+    environment:
+      APP_ROLE: http
+      APP_MODE: CACHE_ASIDE
+      CACHE_URL: redis://cache:6379
+      DATABASE_URL: postgresql://orders-db:5432/app
+      RESPONSE_DELAY_MS: "0"
+    depends_on:
+      orders-db: { condition: service_healthy }
+      cache: { condition: service_healthy }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"] }
+    labels: { io.infracture.execution: "12", io.infracture.component: "orders-api" }
+```
+
+- **Todo lo genera Infracture.** El usuario no escribe imágenes, puertos, comandos, montajes ni variables. Nombres de contenedor, alias de red, credenciales temporales, comprobaciones de salud y etiquetas salen del contrato y del driver de cada tipo.
+- **Direcciones por variable.** Cada servicio recibe la dirección de sus dependencias por variable de entorno, como `CACHE_URL`. En el futuro se podrá interponer un proxy de fallos sin tocar las imágenes ([sección 15](#15-evolución-fuera-de-la-fase-3)).
+- **Una imagen para servicio y Worker.** `infracture/demo-app` es un único programa. `APP_ROLE=http|worker` elige el papel y `APP_MODE` el perfil. Hay un solo build y un solo digest por release.
+- **Imágenes fijadas por digest.** Cada imagen se referencia por su digest, y el snapshot lo guarda. Así se sabe exactamente qué se ejecutó.
+- **Secretos fuera del plan guardado.** El plan que se guarda solo contiene referencias. Las contraseñas temporales se generan al aplicarlo y nunca se guardan ni se muestran.
+
+### 9.4 Arranque ordenado por salud
+
+El orden lo deciden las dependencias del grafo, y Compose espera la salud real antes de seguir:
+
+```mermaid
+gantt
+    title Arranque de la ejecución 12
+    dateFormat  ss
+    axisFormat  %Ss
+    section Dependencias
+    orders-db arranca y pasa pg_isready     :db, 00, 6s
+    cache arranca y pasa PING               :rc, 00, 2s
+    section Servicios
+    orders-api arranca y pasa /health       :api, after db, 4s
+    section Carga
+    k6 REPEATED_READ                        :k6, after api, 20s
+```
+
+- **`--wait`** hace que `docker compose up` no termine hasta que todos los servicios estén sanos, o falle si alguno no lo consigue a tiempo.
+- **La carga arranca después.** Solo cuando `up --wait` termina bien, el motor lanza k6.
+- **Cada espera tiene un límite.** Si una imagen no se descarga o un servicio no llega a estar sano, la ejecución pasa a fallida, se registra el motivo y se limpia.
+
+### 9.5 Fase deseada y limpieza por etiqueta
+
+El `ExecutionReconciler` funciona como un bucle de control: compara **lo que se quiere** con **lo que hay** y actúa hasta que coinciden.
+
+| Lo que ocurre | Fase deseada |
+| --- | --- |
+| El usuario pulsa `Run`. | `RUNNING` |
+| El usuario pulsa `Stop`. | `STOPPED` |
+| Se agota el tiempo máximo (30 minutos por defecto). | `STOPPED` |
+| Falla Docker, una imagen o la salud. | `STOPPED` |
+| Se borra el escenario, el proyecto o la cuenta. | `STOPPED` |
+| El backend se reinicia y encuentra una ejecución inconclusa. | `STOPPED` |
+
+Todas las formas de terminar piden lo mismo. Para alcanzar `STOPPED`, el motor sigue siempre la misma secuencia:
+
+1. Detiene k6 para que no se genere más trabajo.
+2. Recoge las últimas métricas disponibles.
+3. Ejecuta `docker compose -p infracture-exec-12 down -v`, que retira contenedores, red y volúmenes temporales.
+4. Comprueba por etiqueta (`io.infracture.execution=12`) que no queda nada. Si queda algo, lo retira y vuelve a comprobar.
+5. Registra el resultado y libera la reserva.
+
+No se guarda en qué paso iba el arranque, porque nunca se reanuda ([ADR 0005](adr/0005-recuperacion-sin-reanudacion-automatica.md)). Tras una caída, el backend solo necesita saber qué ejecuciones estaban abiertas y retirar todo lo que lleve su etiqueta. Si la limpieza falla, se registra, `Run` sigue bloqueado y la limpieza se puede reintentar sin efectos duplicados. La limpieza filtra siempre por las etiquetas de Infracture, nunca por nombres parecidos, para no tocar contenedores ajenos.
+
+### 9.6 Acceso a Docker desde el backend contenedorizado
+
+En la distribución, el backend corre dentro de un contenedor. Para crear los contenedores del experimento usa el Docker de la máquina a través de un proxy:
+
+```yaml
+services:
+  infracture:
+    environment:
+      DOCKER_HOST: tcp://docker-proxy:2375
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy
+    environment: { CONTAINERS: 1, NETWORKS: 1, VOLUMES: 1, IMAGES: 1, POST: 1 }
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro"]
+```
+
+| | Docker de la máquina con proxy (elegida) | Docker in Docker (descartada) |
+| --- | --- | --- |
+| Privilegios | El socket equivale a administrador; el proxy limita las operaciones. | `--privileged`, que también equivale a administrador. |
+| Recursos | Reutiliza el motor y la caché de imágenes. | Un segundo motor con su propia caché. |
+| Redes | El backend se une a la red de cada ejecución para medir, sin publicar puertos. | Las redes quedan dentro del otro motor. |
+| Plataformas | Linux y Docker Desktop (macOS y Windows). | Problemas de almacenamiento en algunos sistemas. |
+
+**Prueba al empezar P06.** Antes de programar el motor, una prueba corta en macOS, Windows y Linux confirmará tres cosas: que el CLI funciona desde el contenedor, que el backend puede unirse a la red de una ejecución y que la limpieza por etiqueta no toca otros contenedores. Si el CLI falla, se usa `docker-java` con el mismo plan.
+
+## 10. Ciclo de vida de una Execution
+
+```mermaid
+stateDiagram-v2
+    [*] --> RESERVED: Run aceptado snapshot creado
+    RESERVED --> STARTING: plan compilado
+    STARTING --> RUNNING: todo sano carga iniciada
+    STARTING --> STOPPING: fallo de arranque o Stop
+    RUNNING --> STOPPING: Stop, tiempo máximo, fallo o borrado
+    STOPPING --> COMPLETED: limpieza correcta tras Stop o tiempo
+    STOPPING --> FAILED: hubo un fallo
+    STOPPING --> STOPPING: limpieza incompleta reintento
+    RUNNING --> INTERRUPTED: caída del backend
+    STARTING --> INTERRUPTED: caída del backend
+    INTERRUPTED --> STOPPING: reconciliación al reiniciar
+    COMPLETED --> [*]
+    FAILED --> [*]
+```
+
+- **Una interrupción nunca es un éxito.** Tras una caída, la ejecución queda registrada como interrumpida, conserva su snapshot y sus evidencias, y se limpia sin reanudarse.
+- **Cerrar el navegador no es Stop.** La ejecución sigue hasta que alguien la detiene o se agota el tiempo, y se puede volver a consultar.
+- **Nombres por confirmar.** `STOPPING`, `COMPLETED` y `FAILED` ya aparecen en la spec. Los nombres exactos del resto de estados se fijan al implementar P06 (condición C05).
+
+## 11. Observación: salud, métricas y eventos
+
+### 11.1 Proceso activo frente a servicio sano
+
+- **Running:** el proceso del contenedor sigue vivo.
+- **Healthy:** la comprobación específica del servicio responde bien.
+
+Un contenedor puede estar activo y no estar sano, por ejemplo mientras PostgreSQL arranca. La interfaz muestra los dos estados por separado.
+
+### 11.2 Qué mide cada tipo
+
+Cada `ComponentDriver` declara sus métricas y de dónde se leen. Un único `TelemetryCollector` las recoge todas con el mismo bucle.
+
+| Tipo | Salud | Métricas propias | Fuente |
+| --- | --- | --- | --- |
+| Todos | — | CPU y memoria | API de estadísticas de Docker. |
+| HTTP Service | `GET /health` | Peticiones, errores, latencia, `cache_hits`, `cache_misses`, `database_queries`, tareas publicadas | Endpoint `/metrics` (formato Prometheus) de la imagen de demostración. |
+| Worker | Señal de salud de la imagen | Tareas procesadas, fallidas y reintentadas; tiempo de proceso | `/metrics` de la imagen de demostración. |
+| PostgreSQL | `pg_isready` | Conexiones activas | Docker y consulta de estado. |
+| Redis | `redis-cli ping` | Memoria y claves | Comando `INFO`. |
+| RabbitMQ | Diagnóstico del broker | Mensajes preparados, sin confirmar, publicados y consumidos | API de gestión de RabbitMQ. |
+| Workload (k6) | Progreso de k6 | Peticiones, errores, latencia media y p95, rendimiento | Resultados agregados de k6. |
+| Load Balancer | Comprobaciones de HAProxy | Tráfico y estado de cada backend | Endpoint Prometheus de HAProxy. |
+
+Para leer esas fuentes, el backend se une a la red de la ejecución. No hace falta publicar puertos en la máquina.
+
+### 11.3 Muestras, eventos y SSE
+
+- **`MetricSample`.** Valor agregado por intervalo y ligado a un `ExecutedComponent`. Nunca se guarda una fila por petición.
+- **`ExecutionEvent`.** Cambio significativo: arranque, salud alcanzada, fallo, `Stop`, limpieza.
+- **SSE.** El navegador recibe eventos y muestras en directo por Server-Sent Events autorizados. Si se corta la conexión, se reconecta y recupera lo que falta sin duplicar.
+- **Ausente no es cero.** Una muestra que no se pudo recoger se muestra como ausente, y un resultado incompleto como incompleto.
+
+```json
+{
+  "component": "orders-api",
+  "interval": "2026-10-30T18:42:10Z/PT5S",
+  "requestCount": 50,
+  "failedRequests": 0,
+  "averageLatencyMs": 12,
+  "p95LatencyMs": 31,
+  "cacheHits": 46,
+  "cacheMisses": 4
+}
+```
+
+## 12. Snapshot e historial
+
+Al reservar la ejecución, Infracture congela en el `Execution snapshot` todo lo necesario para explicar después qué se ejecutó:
+
+| Contenido | Por qué |
+| --- | --- |
+| Revisión del escenario: nodos, conexiones y `Workload` | Es el diseño exacto que se validó. |
+| Versión del contrato de cada nodo | Permite interpretar sus parámetros aunque el contrato cambie después. |
+| Imagen y digest de cada servicio | Identifica el código que corrió. |
+| `ExecutionPlan` compilado, sin secretos | Es la configuración real aplicada. Recalcularlo con una release posterior daría otro plan. |
+| Versión de Infracture | Sitúa la ejecución en el tiempo del producto. |
+
+Las métricas y eventos apuntan a `ExecutedComponent` y `ExecutedConnection`, no a los nodos editables. Así, editar o borrar nodos del canvas no altera el historial ([ADR 0004](adr/0004-ejecuciones-ligadas-a-una-revision-inmutable.md)).
+
+Retención inicial, configurable:
+
+| Dato | Se conserva |
+| --- | --- |
+| Logs resumidos | 7 días |
+| Métricas y eventos | 30 días |
+| Resumen y snapshot | Hasta borrar el escenario, el proyecto o la cuenta |
+
+## 13. Recorridos de ejemplo
+
+### 13.1 Caché con `CACHE_ASIDE`
+
+Redis no se conecta a PostgreSQL. Es el servicio quien coordina los dos:
+
+```mermaid
+sequenceDiagram
+    participant K as k6 (REPEATED_READ)
+    participant H as orders-api
+    participant R as cache (Redis)
+    participant P as orders-db (PostgreSQL)
+
+    K->>H: GET /items/42
+    H->>R: GET item:42
+    alt Acierto de caché
+        R-->>H: ítem
+    else Fallo de caché
+        R-->>H: (vacío)
+        H->>P: SELECT … WHERE id = 42
+        P-->>H: ítem
+        H->>R: SET item:42 con TTL
+    end
+    H-->>K: 200 OK
+```
+
+Al modificar un ítem, el servicio actualiza PostgreSQL y borra la entrada de Redis. La siguiente lectura vuelve a llenar la caché. Las evidencias muestran cómo suben los aciertos a medida que la caché se calienta.
+
+### 13.2 Tareas con RabbitMQ
+
+```mermaid
+sequenceDiagram
+    participant K as k6 (TASK_PRODUCER)
+    participant H as orders-api (QUEUE_PRODUCER)
+    participant Q as jobs (RabbitMQ)
+    participant W as mailer (Worker)
+
+    K->>H: POST /tasks
+    H->>Q: Publica el mensaje
+    Q-->>H: Aceptado
+    H-->>K: 202 Accepted
+    Q->>W: Entrega el mensaje
+    W->>W: Procesa
+    W->>Q: ACK
+```
+
+Sin Worker, las tareas se acumulan en la cola. Mientras se procesa, un mensaje está sin confirmar. Tras el `ACK`, RabbitMQ lo elimina. Si el Worker desaparece antes de confirmar, el mensaje vuelve a la cola.
+
+### 13.3 Cadena de servicios
+
+```text
+Workload → gateway-api (DOWNSTREAM_HTTP) → orders-api (DATABASE_CRUD) → orders-db
+```
+
+La carga solo conoce `gateway-api`. Este conoce `orders-api` por la variable que le genera Infracture, y `orders-api` conoce `orders-db`. Sirve para estudiar cómo se suma la latencia a lo largo de una cadena.
+
+## 14. Load Balancer
+
+El Load Balancer es el sexto `ComponentType` de 0.1.0. Se implementa con HAProxy y se construye en P07, cuando el motor ya ejecuta los otros cinco tipos.
+
+```mermaid
+flowchart LR
+    W(["Workload<br/>10 rps"]) ==> LB["edge · Load Balancer<br/>ROUND_ROBIN<br/>ofrece HTTP + lo común"]
+    LB -->|backends| A["orders-api-a<br/>CACHE_ASIDE"]
+    LB -->|backends| B["orders-api-b<br/>CACHE_ASIDE"]
+    A --> C[("cache")]
+    B --> C
+    A --> D[("orders-db")]
+    B --> D
+```
+
+| Elemento | Diseño |
+| --- | --- |
+| Perfiles | `ROUND_ROBIN` (reparto por turnos) y `LEAST_CONNECTIONS` (al que tenga menos conexiones abiertas). |
+| Puerto | `backends`, que pide `HTTP` y admite de 1 a N conexiones. |
+| Capacidades | Ofrece `HTTP` más las capacidades que comparten **todos** sus backends. Con dos `CACHE_ASIDE`, ofrece también `RESOURCE_READ` y `RESOURCE_WRITE`, así que un `Workload` `REPEATED_READ` puede apuntar a él. |
+| Parámetros | Intervalo de comprobación de salud, fallos seguidos para retirar un backend y éxitos seguidos para devolverlo. |
+| Comportamiento | Comprobaciones de salud activas: un backend caído deja de recibir tráfico y vuelve cuando se recupera. |
+| Evidencias | Tráfico y estado de cada backend, leídos del endpoint Prometheus de HAProxy. |
+
+Con el modelo de capacidades, el Load Balancer no obliga a cambiar el HTTP Service ni el `Workload`. Basta con declarar su contrato y escribir su driver.
+
+## 15. Evolución fuera de la Fase 3
+
+Estas piezas no forman parte de 0.1.0. El diseño actual las deja preparadas sin construirlas:
+
+| Pieza futura | Qué haría | Qué la deja preparada |
+| --- | --- | --- |
+| Fallos controlados | Parar, reiniciar o pausar un nodo e introducir latencia en una conexión con Toxiproxy. | Las direcciones de las dependencias ya llegan por variable de entorno, así que el compilador podrá apuntarlas a un proxy sin tocar las imágenes. |
+| Análisis de impacto | Calcular con un recorrido en anchura (BFS) qué nodos se ven afectados por un fallo. | El grafo ya es acíclico y sus dependencias están explícitas. |
+| Laboratorios guiados | Escenarios con objetivos, pistas y evaluación. | El snapshot y las evidencias ya identifican qué se ejecutó y qué se midió. |
+| Otros destinos de ejecución | Traducir el mismo plan a Kubernetes. | El `ExecutionPlan` usa conceptos comunes (servicios, salud, dependencias, etiquetas) y el `RuntimeEngine` está aislado. |
+
+## 16. Mapa al código
+
+El backend es un monolito modular. Cada módulo sigue las capas `api`, `application`, `domain` y `persistence`.
+
+```mermaid
+flowchart TB
+    subgraph catalog["catalog"]
+        CC["ContractCatalog<br/>contratos, perfiles, puertos"]
+        CT["ComponentTemplate<br/>fichas"]
+    end
+    subgraph project["project"]
+        SC["Scenario · Component<br/>Connection · Workload"]
+        SV["ScenarioValidator<br/>ValidationIssue"]
+    end
+    subgraph execution["execution"]
+        EXE["Execution · snapshot<br/>ExecutedComponent"]
+        PC["PlanCompiler"]
+        DR["ComponentDriver ×6"]
+        RE["RuntimeEngine"]
+        EC["ExecutionReconciler"]
+    end
+    subgraph observation["observation"]
+        TC["TelemetryCollector"]
+        MS["MetricSample · ExecutionEvent · SSE"]
+    end
+    SV --> CC
+    SC --> CT
+    EXE --> SC
+    PC --> DR
+    EC --> RE
+    TC --> DR
+    TC --> MS
+```
+
+| Pieza | Módulo | Estado |
+| --- | --- | --- |
+| `ComponentTemplate`, lectura del catálogo | `catalog` | Implementado. |
+| `ContractCatalog`, `ProfileContract`, `ParameterContract` | `catalog` | En desarrollo (#79). |
+| Guardado del grafo con revisión esperada | `project` | En desarrollo (#79). |
+| `Connection`, puertos y capacidades | `project` | Pendiente (#80). |
+| `ScenarioValidator`, `ValidationIssue` | `project` | Pendiente. |
+| `Workload` | `project` | Pendiente. |
+| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Pendiente (P06–P07). |
+| Observación e historial | `observation` | Pendiente (P08). |
+| Load Balancer | `catalog`, `execution` | Pendiente (P07). |
+
+Los nombres de clases son los previstos. Pueden ajustarse al implementar si se conserva la responsabilidad de cada pieza.
+
+## 17. Decisiones y referencias
+
+### Decisiones que fijan este diseño
+
+| ADR | Decisión |
+| --- | --- |
+| [0003](adr/0003-catalogo-controlado-con-contratos-versionados.md) | Catálogo controlado con contratos. |
+| [0004](adr/0004-ejecuciones-ligadas-a-una-revision-inmutable.md) | Ejecuciones ligadas a una revisión inmutable. |
+| [0005](adr/0005-recuperacion-sin-reanudacion-automatica.md) | Recuperación sin reanudación automática. |
+| [0010](adr/0010-una-sola-version-ejecutable-del-contrato.md) | Una sola versión ejecutable del contrato. |
+| [0011](adr/0011-puertos-con-nombre-que-piden-capacidades.md) | Puertos con nombre que piden capacidades. |
+| [0012](adr/0012-la-carga-es-un-workload-del-escenario.md) | La carga es un `Workload` del escenario. |
+| [0013](adr/0013-motor-de-ejecucion-con-docker-compose.md) | Motor de ejecución con Docker Compose. |
+
+### Referencias para aprender
+
+- [Docker Compose: servicios, `depends_on` y `healthcheck`](https://docs.docker.com/reference/compose-file/services/)
+- [Docker Compose: `up --wait`](https://docs.docker.com/reference/cli/docker/compose/up/)
 - [Docker: redes de contenedores](https://docs.docker.com/engine/network/)
-- [Docker Compose: servicios y comprobaciones de salud](https://docs.docker.com/reference/compose-file/services/)
-- [Spring: construcción de un servicio REST](https://spring.io/guides/gs/rest-service/)
+- [Tecnativa docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy)
+- [OASIS TOSCA: requirements y capabilities](https://docs.oasis-open.org/tosca/TOSCA/v2.0/TOSCA-v2.0.html)
+- [Kubernetes: el patrón controlador](https://kubernetes.io/docs/concepts/architecture/controller/)
+- [Grafana k6: ejecutar pruebas de carga](https://grafana.com/docs/k6/latest/get-started/running-k6/)
+- [HAProxy: comprobaciones de salud](https://www.haproxy.com/documentation/haproxy-configuration-tutorials/reliability/health-checks/)
 - [Spring Boot Actuator: salud y métricas](https://docs.spring.io/spring-boot/reference/actuator/endpoints.html)
-- [Spring Data JPA: acceso a datos relacionales](https://spring.io/guides/gs/accessing-data-jpa/)
-- [PostgreSQL: tutorial oficial](https://www.postgresql.org/docs/current/tutorial.html)
 - [Redis: tipos de datos](https://redis.io/docs/latest/develop/data-types/)
-- [Spring: uso de caché](https://spring.io/guides/gs/caching/)
 - [RabbitMQ: Work Queues con Java](https://www.rabbitmq.com/tutorials/tutorial-two-java)
-- [Spring: mensajería con RabbitMQ](https://spring.io/guides/gs/messaging-rabbitmq/)
 - [Toxiproxy: simulación de condiciones de red](https://github.com/Shopify/toxiproxy)
-- [Grafana k6: fundamentos de generación de carga](https://grafana.com/docs/k6/latest/get-started/running-k6/)
 - [Google SRE: monitorización de sistemas distribuidos](https://sre.google/sre-book/monitoring-distributed-systems/)
-- [MIT 6.5840: Distributed Systems](https://pdos.csail.mit.edu/6.824/index.html)

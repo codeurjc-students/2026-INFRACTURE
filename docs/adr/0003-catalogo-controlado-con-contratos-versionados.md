@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, parcialmente sustituido por el ADR 0010
 date: 2026-10-15
 ---
 
@@ -23,4 +23,6 @@ Se acepta mantener contratos explícitos y versiones ejecutables reconocidas a c
 
 ## Aplicación
 
-Este ADR registra acuerdos de diseño previos; al registrarlo, los contratos versionados y su administración siguen pendientes de implementación. Las reglas detalladas y sus criterios permanecen en [Grafo, catálogo y contratos de la spec](../PHASE_3_SPEC.md#grafo-catálogo-y-contratos). El [glosario](../../GLOSSARY.md) define los términos y la [arquitectura de ejecución](../EXECUTION_ARCHITECTURE.md#5-perfiles-y-capacidades) explica su uso.
+El 30 de octubre de 2026, el [ADR 0010](0010-una-sola-version-ejecutable-del-contrato.md) sustituyó la parte de versiones ejecutables y su bloqueo: solo existe la versión actual de cada contrato y los datos guardados se migran. El catálogo controlado y la separación entre tipo, ficha y contrato se mantienen.
+
+Este ADR registra acuerdos de diseño previos; al registrarlo, los contratos versionados y su administración siguen pendientes de implementación. Las reglas detalladas y sus criterios permanecen en [Grafo, catálogo y contratos de la spec](../PHASE_3_SPEC.md#grafo-catálogo-y-contratos). El [glosario](../../GLOSSARY.md) define los términos y la [arquitectura de ejecución](../EXECUTION_ARCHITECTURE.md#4-el-catálogo-controlado) explica su uso.

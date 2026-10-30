@@ -10,7 +10,7 @@ Las funcionalidades se agrupan en tres niveles de prioridad. En cada tabla se in
 | Registro, acceso y perfil | Registrado y administrador | Crear una cuenta, iniciar sesión con correo y contraseña, cerrar sesión, editar el perfil y subir un avatar. |
 | Gestión de proyectos | Registrado y administrador | Crear, consultar, editar y eliminar proyectos propios. Serán privados por defecto y podrán publicarse voluntariamente. |
 | Escenarios y canvas | Registrado y administrador | Crear escenarios dentro de un proyecto y guardar su definición antes de ejecutar. |
-| Catálogo de componentes | Registrado y administrador | Utilizar fichas de seis tipos controlados: HTTP Service, Worker, Load Generator, PostgreSQL, Redis y RabbitMQ. El administrador puede crear variantes de estos tipos con nombre, icono y valores iniciales dentro de contratos reconocidos. |
+| Catálogo de componentes | Registrado y administrador | Utilizar fichas de los tipos controlados: HTTP Service, Worker, PostgreSQL, Redis, RabbitMQ y Load Balancer. La carga se configura como `Workload` del escenario, no como nodo. El administrador puede crear variantes de estos tipos con nombre, icono y configuración inicial dentro de contratos reconocidos. |
 | Conexiones y validación | Registrado y administrador | Conectar componentes compatibles y detectar configuraciones incompletas o inválidas. |
 | Ejecución local | Registrado y administrador | Ejecutar un escenario validado sobre Docker en una red aislada y detenerlo con limpieza de recursos. Solo habrá una ejecución activa en la instancia local. |
 | Observación e historial | Registrado y administrador | Consultar estados, logs resumidos, eventos, métricas y el historial de las ejecuciones propias. |
