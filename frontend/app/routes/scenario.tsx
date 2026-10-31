@@ -1,22 +1,18 @@
 import type { Route } from "./+types/scenario";
-import { BlocksIcon } from "lucide-react";
-import { Link } from "react-router";
-import { buttonVariants } from "~/components/ui/button";
+import { getComponentTemplates } from "~/features/component-catalogue/api/component-template-service";
 import { getProject } from "~/features/projects/api/project-service";
 import {
   getScenario,
   updateScenario,
 } from "~/features/projects/api/scenario-service";
-import DetailsPage, {
+import {
   DetailsError,
   loadOrNotFound,
 } from "~/features/projects/components/details-page";
-import EditableDetails from "~/features/projects/components/editable-details";
-import ProjectsBreadcrumb from "~/features/projects/components/projects-breadcrumb";
+import { getGraph } from "~/features/scenario-canvas/api/graph-service";
+import ScenarioCanvas from "~/features/scenario-canvas/components/scenario-canvas";
 import {
   detailsErrorMessage,
-  formatDate,
-  formatDateTime,
   readDetailsForm,
 } from "~/features/projects/details-form-data";
 
@@ -24,16 +20,21 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: `${loaderData?.scenario.name ?? "Scenario"} | Infracture` }];
 }
 
+// Loads everything the editor needs at once. A missing or foreign scenario becomes the 404 page.
 export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  const [project, scenario] = await loadOrNotFound(
+  const [project, scenario, graph, templates] = await loadOrNotFound(
     Promise.all([
       getProject(params.projectId),
       getScenario(params.projectId, params.scenarioId),
+      getGraph(params.projectId, params.scenarioId),
+      // The catalogue is small; one page of the maximum size holds every template.
+      getComponentTemplates(0, 100),
     ]),
   );
-  return { project, scenario };
+  return { project, scenario, graph, templates: templates.content };
 }
 
+// Saves the scenario name and description from the Details panel.
 export async function clientAction({
   request,
   params,
@@ -60,49 +61,16 @@ export function ErrorBoundary() {
 export default function ScenarioRoute({
   loaderData,
 }: Pick<Route.ComponentProps, "loaderData">) {
-  const { project, scenario } = loaderData;
+  const { project, scenario, graph, templates } = loaderData;
 
   return (
-    <DetailsPage
-      breadcrumb={
-        <ProjectsBreadcrumb project={project} current={scenario.name} />
-      }
-    >
-      <EditableDetails
-        name={scenario.name}
-        description={scenario.description}
-        namePlaceholder="Cold cache"
-        meta={
-          <>
-            <span>Revision {scenario.revision}</span>
-            <span>Created {formatDate(scenario.createdAt)}</span>
-            <span>Last edited {formatDateTime(scenario.updatedAt)}</span>
-          </>
-        }
-      />
-      <section
-        aria-labelledby="graph-heading"
-        className="flex flex-col items-start gap-3.5 rounded-xl border border-dashed bg-card p-5 sm:p-8"
-      >
-        <h2 id="graph-heading" className="type-page-title">
-          No components yet
-        </h2>
-        <p className="max-w-[52ch] type-body text-muted-foreground">
-          This scenario is empty. Design its graph next: choose components from
-          the catalogue and connect them.
-        </p>
-        <Link
-          to="/catalogue"
-          className={buttonVariants({
-            variant: "outline",
-            size: "lg",
-            className: "h-11 w-full px-4 sm:h-10 sm:w-auto",
-          })}
-        >
-          <BlocksIcon data-icon="inline-start" />
-          Browse components
-        </Link>
-      </section>
-    </DetailsPage>
+    // The key restarts the editor when another scenario opens.
+    <ScenarioCanvas
+      key={scenario.id}
+      project={project}
+      scenario={scenario}
+      graph={graph}
+      templates={templates}
+    />
   );
 }
