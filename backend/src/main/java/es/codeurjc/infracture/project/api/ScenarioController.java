@@ -74,7 +74,7 @@ public class ScenarioController {
 
     @GetMapping("/{id}/graph")
     public ScenarioGraphDTO getGraph(@PathVariable Long projectId, @PathVariable Long id, Principal principal) {
-        return mapper.toGraphDTO(service.getScenario(principal.getName(), projectId, id));
+        return mapper.toDTO(service.getGraph(principal.getName(), projectId, id));
     }
 
     @PutMapping("/{id}/graph")
@@ -83,8 +83,7 @@ public class ScenarioController {
             @PathVariable Long id,
             @Valid @RequestBody SaveScenarioGraphDTO graphDTO,
             Principal principal) {
-        Scenario scenario = service.saveGraph(principal.getName(), projectId, id, graphDTO.revision(),
-                graphDTO.components().stream().map(mapper::toDraft).toList());
-        return mapper.toGraphDTO(scenario);
+        return mapper.toDTO(service.saveGraph(principal.getName(), projectId, id, graphDTO.revision(),
+                graphDTO.components().stream().map(mapper::toDraft).toList()));
     }
 }

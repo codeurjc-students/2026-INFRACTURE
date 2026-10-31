@@ -900,7 +900,6 @@ paths:
           enum:
           - HTTP_SERVICE
           - WORKER
-          - LOAD_GENERATOR
           - POSTGRESQL
           - REDIS
           - RABBITMQ
@@ -1113,13 +1112,9 @@ components:
           enum:
           - HTTP_SERVICE
           - WORKER
-          - LOAD_GENERATOR
           - POSTGRESQL
           - REDIS
           - RABBITMQ
-        contractVersion:
-          type: integer
-          format: int32
         name:
           type: string
         position:
@@ -1141,6 +1136,38 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ComponentDTO"
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationIssueDTO"
+    TargetDTO:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - COMPONENT
+          - CONNECTION
+          - WORKLOAD
+          - SCENARIO
+        key:
+          type: string
+    ValidationIssueDTO:
+      type: object
+      properties:
+        severity:
+          type: string
+          enum:
+          - ERROR
+          - WARNING
+        code:
+          type: string
+        message:
+          type: string
+        target:
+          $ref: "#/components/schemas/TargetDTO"
+        field:
+          type: string
     SaveProjectDTO:
       type: object
       properties:
@@ -1253,6 +1280,16 @@ components:
             $ref: "#/components/schemas/ScenarioDTO"
         page:
           $ref: "#/components/schemas/PageMetadata"
+    ComponentConfigurationDTO:
+      type: object
+      properties:
+        profile:
+          type: string
+        parameters:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
     ComponentTemplateDTO:
       type: object
       properties:
@@ -1265,12 +1302,13 @@ components:
           enum:
           - HTTP_SERVICE
           - WORKER
-          - LOAD_GENERATOR
           - POSTGRESQL
           - REDIS
           - RABBITMQ
         contract:
           $ref: "#/components/schemas/TemplateContractDTO"
+        initialConfiguration:
+          $ref: "#/components/schemas/ComponentConfigurationDTO"
     PagedModelComponentTemplateDTO:
       type: object
       properties:
@@ -1289,9 +1327,6 @@ components:
           type: integer
           format: int32
         max:
-          type: integer
-          format: int32
-        defaultValue:
           type: integer
           format: int32
     ProfileDTO:

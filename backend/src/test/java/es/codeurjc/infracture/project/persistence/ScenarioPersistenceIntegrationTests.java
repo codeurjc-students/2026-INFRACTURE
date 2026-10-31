@@ -3,12 +3,12 @@ package es.codeurjc.infracture.project.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.project.domain.Component;
-import es.codeurjc.infracture.project.domain.ComponentConfiguration;
 import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
@@ -145,32 +145,30 @@ class ScenarioPersistenceIntegrationTests {
     @Test
     void reopensTheSavedGraphWithPositionsAndParameters() {
         UUID orders = UUID.randomUUID();
-        UUID load = UUID.randomUUID();
+        UUID cache = UUID.randomUUID();
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
         scenario.replaceGraph(1, List.of(
                 new ComponentDraft(orders, "http-service", "orders-api", 120.5, -40,
                         new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 250))),
-                new ComponentDraft(load, "load-generator", "load", 0, 300,
-                        new ComponentConfiguration("CONSTANT_HTTP",
-                                Map.of("requestsPerSecond", 20, "durationSeconds", 120)))),
+                new ComponentDraft(cache, "redis", "cache", 0, 300,
+                        new ComponentConfiguration("DEFAULT", Map.of()))),
                 catalogue());
         repository.saveAndFlush(scenario);
         entityManager.clear();
 
         Scenario reopened = repository.findById(scenario.getId()).orElseThrow();
         assertThat(reopened.getRevision()).isEqualTo(2);
-        assertThat(reopened.getComponents()).extracting(Component::getKey).containsExactly(orders, load);
+        assertThat(reopened.getComponents()).extracting(Component::getKey).containsExactly(orders, cache);
         Component api = reopened.getComponents().getFirst();
         assertThat(api.getId()).isNotNull();
         assertThat(api.getName()).isEqualTo("orders-api");
         assertThat(api.getType()).isEqualTo(ComponentType.HTTP_SERVICE);
-        assertThat(api.getContractVersion()).isEqualTo(1);
         assertThat(api.getPositionX()).isEqualTo(120.5);
         assertThat(api.getPositionY()).isEqualTo(-40);
         assertThat(api.getConfiguration())
                 .isEqualTo(new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 250)));
-        assertThat(reopened.getComponents().getLast().getConfiguration().parameters())
-                .isEqualTo(Map.of("requestsPerSecond", 20, "durationSeconds", 120));
+        assertThat(reopened.getComponents().getLast().getConfiguration())
+                .isEqualTo(new ComponentConfiguration("DEFAULT", Map.of()));
     }
 
     @Test
@@ -208,9 +206,9 @@ class ScenarioPersistenceIntegrationTests {
     void rejectsRepeatedNodeKeysAndUnknownTemplatesInTheDatabase() {
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
         String insert = """
-                INSERT INTO components (scenario_id, component_key, template_key, type, contract_version, name,
+                INSERT INTO components (scenario_id, component_key, template_key, type, name,
                                         position_x, position_y, parameters)
-                VALUES (:scenario, '3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10', :template, 'REDIS', 1, 'cache',
+                VALUES (:scenario, '3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10', :template, 'REDIS', 'cache',
                         0, 0, '{}')
                 """;
         entityManager.createNativeQuery(insert).setParameter("scenario", scenario.getId())
@@ -227,9 +225,9 @@ class ScenarioPersistenceIntegrationTests {
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
 
         assertThatThrownBy(() -> entityManager.createNativeQuery("""
-                INSERT INTO components (scenario_id, component_key, template_key, type, contract_version, name,
+                INSERT INTO components (scenario_id, component_key, template_key, type, name,
                                         position_x, position_y, parameters)
-                VALUES (:scenario, gen_random_uuid(), 'invented', 'REDIS', 1, 'cache', 0, 0, '{}')
+                VALUES (:scenario, gen_random_uuid(), 'invented', 'REDIS', 'cache', 0, 0, '{}')
                 """).setParameter("scenario", scenario.getId()).executeUpdate())
                 .isInstanceOf(PersistenceException.class)
                 .hasMessageContaining("fk_components_template");
@@ -249,14 +247,25 @@ class ScenarioPersistenceIntegrationTests {
     }
 
     private static ComponentDraft redis(UUID key, String name) {
-        return new ComponentDraft(key, "redis", name, 0, 0, new ComponentConfiguration(null, Map.of()));
+        return new ComponentDraft(key, "redis", name, 0, 0, new ComponentConfiguration("DEFAULT", Map.of()));
     }
 
     private static Map<String, ComponentTemplate> catalogue() {
         return Map.of(
-                "http-service", new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE, true),
-                "load-generator", new ComponentTemplate("load-generator", "Load Generator",
-                        ComponentType.LOAD_GENERATOR, true),
-                "redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true));
+                "http-service", new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
+                "redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of())));
+    }
+
+    @Test
+    void rejectsLoadGeneratorNodesInTheDatabase() {
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery("""
+                INSERT INTO components (scenario_id, component_key, template_key, type, name,
+                                        position_x, position_y, parameters)
+                VALUES (:scenario, gen_random_uuid(), 'load-generator', 'LOAD_GENERATOR', 'load', 0, 0, '{}')
+                """).setParameter("scenario", scenario.getId()).executeUpdate())
+                .isInstanceOf(PersistenceException.class)
+                .hasMessageContaining("ck_components_type");
     }
 }

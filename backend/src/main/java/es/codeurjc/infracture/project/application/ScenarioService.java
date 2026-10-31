@@ -27,13 +27,15 @@ public class ScenarioService {
     private final ScenarioRepository scenarioRepository;
     private final ProjectService projectService;
     private final ComponentTemplateService templateService;
+    private final ScenarioValidator scenarioValidator;
     private final Validator validator;
 
     public ScenarioService(ScenarioRepository scenarioRepository, ProjectService projectService,
-            ComponentTemplateService templateService, Validator validator) {
+            ComponentTemplateService templateService, ScenarioValidator scenarioValidator, Validator validator) {
         this.scenarioRepository = scenarioRepository;
         this.projectService = projectService;
         this.templateService = templateService;
+        this.scenarioValidator = scenarioValidator;
         this.validator = validator;
     }
 
@@ -63,8 +65,14 @@ public class ScenarioService {
         return scenarioRepository.saveAndFlush(scenario);
     }
 
+    @Transactional(readOnly = true)
+    public ScenarioGraph getGraph(String ownerEmail, Long projectId, Long id) {
+        Scenario scenario = getScenario(ownerEmail, projectId, id);
+        return new ScenarioGraph(scenario, scenarioValidator.validate(scenario));
+    }
+
     @Transactional
-    public Scenario saveGraph(String ownerEmail, Long projectId, Long id, int expectedRevision,
+    public ScenarioGraph saveGraph(String ownerEmail, Long projectId, Long id, int expectedRevision,
             List<ComponentDraft> components) {
         Scenario scenario = lockOwnScenario(ownerEmail, projectId, id);
         Set<String> templateKeys = components.stream().map(ComponentDraft::templateKey)
@@ -74,7 +82,8 @@ public class ScenarioService {
                         draft.positionX(), draft.positionY(), draft.configuration()))
                 .toList();
         scenario.replaceGraph(expectedRevision, normalized, templateService.getTemplatesByKey(templateKeys));
-        return scenarioRepository.saveAndFlush(scenario);
+        Scenario saved = scenarioRepository.saveAndFlush(scenario);
+        return new ScenarioGraph(saved, scenarioValidator.validate(saved));
     }
 
     private Scenario lockOwnScenario(String ownerEmail, Long projectId, Long id) {

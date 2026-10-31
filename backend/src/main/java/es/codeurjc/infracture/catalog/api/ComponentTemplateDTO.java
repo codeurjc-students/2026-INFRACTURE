@@ -6,5 +6,6 @@ public record ComponentTemplateDTO(
         String key,
         String name,
         ComponentType type,
-        TemplateContractDTO contract) {
+        TemplateContractDTO contract,
+        ComponentConfigurationDTO initialConfiguration) {
 }

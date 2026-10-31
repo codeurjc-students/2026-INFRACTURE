@@ -40,49 +40,47 @@ class ComponentTemplateApiSystemTests {
                 .log().ifValidationFails()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("content.size()", equalTo(6))
+                .body("content.size()", equalTo(5))
                 .body("page.number", equalTo(0))
                 .body("page.size", equalTo(10))
-                .body("page.totalElements", equalTo(6))
+                .body("page.totalElements", equalTo(5))
                 .body("page.totalPages", equalTo(1))
                 .body("content.key", contains(
                         "http-service",
-                        "load-generator",
                         "postgresql",
                         "rabbitmq",
                         "redis",
                         "worker"))
                 .body("content[0].name", equalTo("HTTP Service"))
                 .body("content[0].type", equalTo("HTTP_SERVICE"))
-                .body("content[5].name", equalTo("Worker"))
-                .body("content[5].type", equalTo("WORKER"));
+                .body("content[4].name", equalTo("Worker"))
+                .body("content[4].type", equalTo("WORKER"));
     }
 
     @Test
-    void describesTheContractThatBuildsEachTemplateForm() {
+    void describesTheContractAndInitialConfigurationOfEachTemplate() {
+        given()
+                .port(port)
+                .queryParam("type", "HTTP_SERVICE")
+        .when()
+                .get("/api/v1/component-templates")
+        .then()
+                .statusCode(200)
+                .body("content[0].contract.version", equalTo(1))
+                .body("content[0].contract.profiles[0].name", equalTo("STATELESS"))
+                .body("content[0].contract.profiles[0].parameters[0].name", equalTo("responseDelayMs"))
+                .body("content[0].contract.profiles[0].parameters[0].min", equalTo(0))
+                .body("content[0].contract.profiles[0].parameters[0].max", equalTo(5000))
+                .body("content[0].initialConfiguration.profile", equalTo("STATELESS"))
+                .body("content[0].initialConfiguration.parameters.responseDelayMs", equalTo(0));
+
         given()
                 .port(port)
                 .queryParam("type", "LOAD_GENERATOR")
         .when()
                 .get("/api/v1/component-templates")
         .then()
-                .statusCode(200)
-                .body("content[0].contract.version", equalTo(1))
-                .body("content[0].contract.profiles[0].name", equalTo("CONSTANT_HTTP"))
-                .body("content[0].contract.profiles[0].parameters[0].name", equalTo("requestsPerSecond"))
-                .body("content[0].contract.profiles[0].parameters[0].min", equalTo(1))
-                .body("content[0].contract.profiles[0].parameters[0].max", equalTo(200))
-                .body("content[0].contract.profiles[0].parameters[0].defaultValue", equalTo(10));
-
-        given()
-                .port(port)
-                .queryParam("type", "REDIS")
-        .when()
-                .get("/api/v1/component-templates")
-        .then()
-                .statusCode(200)
-                .body("content[0].contract.version", equalTo(1))
-                .body("content[0].contract.profiles.size()", equalTo(0));
+                .statusCode(400);
     }
 
     @Test

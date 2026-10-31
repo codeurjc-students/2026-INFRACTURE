@@ -1,8 +1,6 @@
 package es.codeurjc.infracture.project.domain;
 
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
-import es.codeurjc.infracture.catalog.domain.TemplateContract;
-import es.codeurjc.infracture.catalog.domain.TemplateContractRegistry;
 import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.InvalidDataException;
 import jakarta.persistence.CascadeType;
@@ -39,6 +37,7 @@ public class Scenario {
     private static final int INITIAL_REVISION = 1;
     private static final int MAX_COMPONENTS = 50;
     private static final int MAX_NAME_LENGTH = 30;
+    private static final int MAX_PROFILE_LENGTH = 50;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -144,27 +143,24 @@ public class Scenario {
         } else if (name.codePointCount(0, name.length()) > MAX_NAME_LENGTH) {
             problems.add(label + "name must contain at most " + MAX_NAME_LENGTH + " characters");
         }
+        String profile = draft.configuration().profile();
+        if (profile != null && profile.codePointCount(0, profile.length()) > MAX_PROFILE_LENGTH) {
+            problems.add(label + "profile must contain at most " + MAX_PROFILE_LENGTH + " characters");
+        }
         Component component = existing;
-        TemplateContract contract;
         if (existing != null) {
             if (!existing.getTemplateKey().equals(draft.templateKey())) {
                 problems.add(label + "template cannot change from %s to %s"
                         .formatted(existing.getTemplateKey(), draft.templateKey()));
-                return null;
             }
-            contract = TemplateContractRegistry.get(existing.getType(), existing.getContractVersion());
         } else {
             ComponentTemplate template = templates.get(draft.templateKey());
             if (template == null || !template.isEnabled()) {
                 problems.add(label + "unknown or disabled template " + draft.templateKey());
-                return null;
+            } else {
+                component = new Component(this, draft.key(), template.getKey(), template.getType());
             }
-            contract = template.getContract();
-            component = new Component(this, draft.key(), template.getKey(), template.getType(), contract.version());
         }
-        ComponentConfiguration configuration = draft.configuration();
-        contract.check(configuration.profile(), configuration.parameters())
-                .forEach(problem -> problems.add(label + problem));
         return problems.size() == before ? component : null;
     }
 
