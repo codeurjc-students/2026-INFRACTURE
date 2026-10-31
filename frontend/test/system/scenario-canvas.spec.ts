@@ -84,7 +84,7 @@ test("designs, saves and reopens a graph, and resolves a save from another tab",
     await expect(
       page.getByRole("button", { name: "Saved", exact: true }),
     ).toBeDisabled();
-    await expect(page.getByText("Revision 2")).toBeVisible();
+    await expect(page.getByText("Revision 2", { exact: true })).toBeVisible();
 
     await page.reload();
     await expect(page.locator(".react-flow__node")).toHaveCount(3);
@@ -109,7 +109,7 @@ test("designs, saves and reopens a graph, and resolves a save from another tab",
     await other.goto(scenarioUrl);
     await other.getByRole("button", { name: "Add Redis" }).click();
     await other.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(other.getByText("Revision 3")).toBeVisible();
+    await expect(other.getByText("Revision 3", { exact: true })).toBeVisible();
 
     await inspector(page).getByLabel("Name").fill("Payments API");
     await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -123,8 +123,12 @@ test("designs, saves and reopens a graph, and resolves a save from another tab",
     });
 
     await page.getByRole("button", { name: "Discard mine and reload" }).click();
-    await expect(page.getByText("Revision 3")).toBeVisible();
+    await expect(page.getByText("Revision 3", { exact: true })).toBeVisible();
     await expect(node(page, "Redis 2")).toBeVisible();
+    // The discarded version is not lost: it is offered back.
+    await expect(
+      page.getByText("You have unsaved changes from earlier"),
+    ).toBeVisible();
     await expect(node(page, "Payments API")).toHaveCount(0);
   });
 });
