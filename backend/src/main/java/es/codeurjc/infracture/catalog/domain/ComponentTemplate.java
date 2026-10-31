@@ -57,4 +57,8 @@ public class ComponentTemplate {
         return enabled;
     }
 
+    public TemplateContract getContract() {
+        return TemplateContractRegistry.current(type);
+    }
+
 }

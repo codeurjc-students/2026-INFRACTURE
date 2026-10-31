@@ -3,6 +3,8 @@ package es.codeurjc.infracture.project.application;
 import static es.codeurjc.infracture.project.application.DetailNormalizer.normalizeDescription;
 import static es.codeurjc.infracture.project.application.DetailNormalizer.normalizeText;
 
+import es.codeurjc.infracture.catalog.application.ComponentTemplateService;
+import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.persistence.ScenarioRepository;
@@ -10,7 +12,10 @@ import es.codeurjc.infracture.shared.NotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,11 +26,14 @@ public class ScenarioService {
 
     private final ScenarioRepository scenarioRepository;
     private final ProjectService projectService;
+    private final ComponentTemplateService templateService;
     private final Validator validator;
 
-    public ScenarioService(ScenarioRepository scenarioRepository, ProjectService projectService, Validator validator) {
+    public ScenarioService(ScenarioRepository scenarioRepository, ProjectService projectService,
+            ComponentTemplateService templateService, Validator validator) {
         this.scenarioRepository = scenarioRepository;
         this.projectService = projectService;
+        this.templateService = templateService;
         this.validator = validator;
     }
 
@@ -49,10 +57,30 @@ public class ScenarioService {
 
     @Transactional
     public Scenario updateScenario(String ownerEmail, Long projectId, Long id, String name, String description) {
-        Scenario scenario = getScenario(ownerEmail, projectId, id);
+        Scenario scenario = lockOwnScenario(ownerEmail, projectId, id);
         scenario.changeDetails(normalizeText(name), normalizeDescription(description));
         validate(scenario);
         return scenarioRepository.saveAndFlush(scenario);
+    }
+
+    @Transactional
+    public Scenario saveGraph(String ownerEmail, Long projectId, Long id, int expectedRevision,
+            List<ComponentDraft> components) {
+        Scenario scenario = lockOwnScenario(ownerEmail, projectId, id);
+        Set<String> templateKeys = components.stream().map(ComponentDraft::templateKey)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+        List<ComponentDraft> normalized = components.stream()
+                .map(draft -> new ComponentDraft(draft.key(), draft.templateKey(), normalizeText(draft.name()),
+                        draft.positionX(), draft.positionY(), draft.configuration()))
+                .toList();
+        scenario.replaceGraph(expectedRevision, normalized, templateService.getTemplatesByKey(templateKeys));
+        return scenarioRepository.saveAndFlush(scenario);
+    }
+
+    private Scenario lockOwnScenario(String ownerEmail, Long projectId, Long id) {
+        Project project = projectService.getOwnProject(ownerEmail, projectId);
+        return scenarioRepository.findForUpdateByIdAndProjectId(id, project.getId())
+                .orElseThrow(() -> new NotFoundException("Scenario not found"));
     }
 
     private void validate(Scenario scenario) {

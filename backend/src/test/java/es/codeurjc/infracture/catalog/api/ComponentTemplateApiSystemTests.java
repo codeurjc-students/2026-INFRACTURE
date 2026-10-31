@@ -59,6 +59,33 @@ class ComponentTemplateApiSystemTests {
     }
 
     @Test
+    void describesTheContractThatBuildsEachTemplateForm() {
+        given()
+                .port(port)
+                .queryParam("type", "LOAD_GENERATOR")
+        .when()
+                .get("/api/v1/component-templates")
+        .then()
+                .statusCode(200)
+                .body("content[0].contract.version", equalTo(1))
+                .body("content[0].contract.profiles[0].name", equalTo("CONSTANT_HTTP"))
+                .body("content[0].contract.profiles[0].parameters[0].name", equalTo("requestsPerSecond"))
+                .body("content[0].contract.profiles[0].parameters[0].min", equalTo(1))
+                .body("content[0].contract.profiles[0].parameters[0].max", equalTo(200))
+                .body("content[0].contract.profiles[0].parameters[0].defaultValue", equalTo(10));
+
+        given()
+                .port(port)
+                .queryParam("type", "REDIS")
+        .when()
+                .get("/api/v1/component-templates")
+        .then()
+                .statusCode(200)
+                .body("content[0].contract.version", equalTo(1))
+                .body("content[0].contract.profiles.size()", equalTo(0));
+    }
+
+    @Test
     void returnsEmptyPageWhenNameAndTypeDoNotMatchTogether() {
         given()
                 .port(port)

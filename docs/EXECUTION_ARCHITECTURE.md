@@ -8,6 +8,8 @@ Está escrito para dos lectores: quien vaya a programar el motor y quien quiera 
 
 > **Estado.** Este documento describe el diseño aprobado el 30 de octubre de 2026 para Infracture 0.1.0. En `main` existen el catálogo de fichas, los proyectos y los escenarios; el guardado del grafo está en desarrollo (#79). El motor de ejecución, la observación y el historial están pendientes. Cada sección indica las piezas que quedan fuera de la Fase 3.
 
+Los 18 diagramas utilizan el mismo estilo manuscrito. Se pueden editar en el [tablero de tldraw](https://www.tldraw.com/f/X_Wr0fqaWTqaOOYIWoRFA) o descargar juntos en el [archivo fuente `.tldr`](images/execution-architecture/execution-architecture.tldr).
+
 ## Índice
 
 - [1. La idea en una página](#1-la-idea-en-una-página)
@@ -34,15 +36,7 @@ Infracture no ejecuta imágenes ni comandos que elija el usuario. Ofrece un **ca
 
 El recorrido completo tiene cinco etapas:
 
-```mermaid
-flowchart LR
-    A["1 · Diseñar<br/>canvas"] --> B["2 · Guardar<br/>revisión N"]
-    B --> C["3 · Validar<br/>errores y avisos"]
-    C --> D["4 · Ejecutar<br/>snapshot → plan → Docker"]
-    D --> E["5 · Observar<br/>salud, métricas, eventos"]
-    E --> F["Stop<br/>limpieza total"]
-    F --> G["Historial<br/>snapshot + evidencias"]
-```
+![Del canvas al historial](images/execution-architecture/01-del-canvas-al-historial.png)
 
 1. **Diseñar.** El usuario coloca nodos en el canvas, elige su perfil y sus parámetros, los une con flechas y configura la carga.
 2. **Guardar.** El grafo completo se guarda con un número de revisión. Un borrador incompleto también se puede guardar.
@@ -83,39 +77,7 @@ Hay que distinguir dos mundos que conviven en la misma máquina:
 - **La plataforma** es Infracture: está siempre encendida y guarda los datos de los usuarios.
 - **El experimento** es temporal: nace con `Run` y desaparece con `Stop`.
 
-```mermaid
-flowchart TB
-    User(["Navegador"])
-
-    subgraph PLATFORM["Plataforma Infracture (permanente)"]
-        direction TB
-        App["infracture<br/>Spring Boot + React<br/>HTTPS :443"]
-        PlatformDb[("PostgreSQL<br/>de la plataforma")]
-        MinIO[("MinIO<br/>imágenes")]
-        Proxy["docker-socket-proxy<br/>API de Docker filtrada"]
-    end
-
-    Engine{{"Docker Engine<br/>de la máquina"}}
-
-    subgraph EXP["Experimento (temporal)"]
-        direction LR
-        Load["k6<br/>Workload"]
-        Api["orders-api<br/>HTTP Service"]
-        Cache[("Redis")]
-        Db[("PostgreSQL<br/>del escenario")]
-    end
-
-    User -->|HTTPS| App
-    App --> PlatformDb
-    App --> MinIO
-    App -->|"DOCKER_HOST=tcp://docker-proxy:2375"| Proxy
-    Proxy -->|"/var/run/docker.sock"| Engine
-    Engine -. crea y retira .-> EXP
-    App -. "se une a la red para medir" .-> Api
-    Load --> Api
-    Api --> Cache
-    Api --> Db
-```
+![Plataforma y experimento](images/execution-architecture/02-plataforma-y-experimento.png)
 
 - **Dos PostgreSQL distintos.** El de la plataforma guarda usuarios, proyectos, escenarios y ejecuciones. El PostgreSQL que el usuario arrastra al canvas es otro contenedor, creado solo para el experimento. Comparten tecnología, pero no comparten datos, credenciales, red ni ciclo de vida.
 - **Docker de la máquina con proxy.** El backend no monta el socket de Docker. Solo lo monta `docker-socket-proxy`, que deja pasar las operaciones que el motor necesita (contenedores, redes, volúmenes, imágenes) y rechaza las demás. Los contenedores del experimento nunca tienen acceso a Docker ([ADR 0013](adr/0013-motor-de-ejecucion-con-docker-compose.md)).
@@ -134,64 +96,7 @@ El backend organiza y observa el experimento, pero no ejecuta su lógica de nego
 
 ### 4.1 Tres niveles: tipo, contrato y ficha
 
-```mermaid
-classDiagram
-    direction LR
-    class ComponentType {
-        <<enum>>
-        HTTP_SERVICE
-        WORKER
-        POSTGRESQL
-        REDIS
-        RABBITMQ
-        LOAD_BALANCER
-    }
-    class TemplateContract {
-        type
-        version
-        profiles
-    }
-    class ProfileContract {
-        name
-        parameters
-        ports
-        offers
-        evidence
-    }
-    class ParameterContract {
-        name
-        min
-        max
-    }
-    class PortContract {
-        name
-        label
-        requires
-        min
-        max
-    }
-    class ComponentTemplate {
-        templateKey
-        name
-        icon
-        enabled
-        initialProfile
-        initialParameters
-    }
-    class Component {
-        componentKey
-        name
-        position
-        profile
-        parameters
-    }
-    ComponentType "1" -- "1" TemplateContract : define
-    TemplateContract "1" *-- "1..*" ProfileContract
-    ProfileContract "1" *-- "*" ParameterContract
-    ProfileContract "1" *-- "*" PortContract
-    ComponentType "1" -- "*" ComponentTemplate : fichas
-    ComponentTemplate "1" -- "*" Component : crea
-```
+![Tipo, contrato y ficha](images/execution-architecture/03-tipo-contrato-y-ficha.png)
 
 | Nivel | Quién lo cambia | Cómo cambia | Dónde vive |
 | --- | --- | --- | --- |
@@ -212,21 +117,7 @@ El backend solo conoce **la versión actual** de cada contrato ([ADR 0010](adr/0
 
 Por ejemplo, la versión 2 del HTTP Service renombra `responseDelayMs` a `latencyMs` y baja su máximo de 5000 a 2000:
 
-```mermaid
-flowchart LR
-    subgraph BEFORE["Guardado con la versión 1"]
-        A1["orders-api<br/>responseDelayMs = 500"]
-        B1["slow-api<br/>responseDelayMs = 3000"]
-    end
-    M{{"Migración Flyway<br/>de la versión 2"}}
-    subgraph AFTER["Tras la migración"]
-        A2["orders-api<br/>latencyMs = 500 ✔"]
-        B2["slow-api<br/>latencyMs = 3000 ✖<br/>ERROR: máximo 2000"]
-    end
-    S[("Snapshot de una ejecución pasada<br/>versión 1 · responseDelayMs = 3000<br/>no se migra")]
-    A1 --> M --> A2
-    B1 --> M --> B2
-```
+![Migración de contratos](images/execution-architecture/04-migracion-de-contratos.png)
 
 - **Lo convertible se convierte.** El valor 500 cabe en el nuevo rango y pasa a `latencyMs`.
 - **Lo que no se puede convertir se marca.** El valor 3000 se conserva, pero la validación devuelve un error que bloquea `Run` hasta que el usuario elija un valor válido. No se pierde nada sin aviso.
@@ -244,21 +135,7 @@ Cada perfil declara dos cosas:
 
 Una conexión es válida cuando el nodo de destino ofrece la capacidad que pide el puerto de origen ([ADR 0011](adr/0011-puertos-con-nombre-que-piden-capacidades.md)).
 
-```mermaid
-flowchart LR
-    subgraph API["orders-api · HTTP Service · CACHE_ASIDE"]
-        direction TB
-        P1(["puerto cache<br/>pide KEY_VALUE · 1..1"])
-        P2(["puerto database<br/>pide SQL_DATABASE · 1..1"])
-        O1["ofrece HTTP,<br/>RESOURCE_READ, RESOURCE_WRITE"]
-    end
-    R["cache · Redis<br/>ofrece KEY_VALUE"]
-    D["orders-db · PostgreSQL<br/>ofrece SQL_DATABASE"]
-    X["jobs · RabbitMQ<br/>ofrece MESSAGE_BROKER"]
-    P1 -->|"✔ encaja"| R
-    P2 -->|"✔ encaja"| D
-    P1 -.->|"✖ no ofrece KEY_VALUE"| X
-```
+![Puertos y capacidades](images/execution-architecture/05-puertos-y-capacidades.png)
 
 Es como un portátil: cada puerto tiene nombre y forma, y acepta cualquier aparato que hable ese protocolo, sea de la marca que sea. Gracias a eso, el Load Balancer encajará en cualquier puerto que pida `HTTP` sin tocar las reglas del HTTP Service.
 
@@ -306,18 +183,7 @@ Cada perfil declara también los nombres de sus **evidencias**, es decir, las m�
 
 Una flecha `A → B` significa siempre **«A depende de B»**: A necesita a B para hacer su trabajo. Esa dirección no siempre coincide con el recorrido de los datos. En mensajería, por ejemplo, ambas flechas apuntan a RabbitMQ:
 
-```mermaid
-flowchart LR
-    subgraph DEP["Grafo de dependencias (lo que se dibuja)"]
-        direction LR
-        H1["orders-api<br/>QUEUE_PRODUCER"] -->|"Publica en"| Q1[("jobs<br/>RabbitMQ")]
-        W1["mailer<br/>Worker"] -->|"Consume de"| Q1
-    end
-    subgraph MSG["Recorrido del mensaje (lo que ocurre)"]
-        direction LR
-        H2["orders-api"] --> Q2[("jobs")] --> W2["mailer"]
-    end
-```
+![Dependencias y mensajes](images/execution-architecture/06-dependencias-y-mensajes.png)
 
 Por eso cada puerto tiene una etiqueta visible, como «Publica en» o «Consume de», que evita la ambigüedad.
 
@@ -327,54 +193,13 @@ El grafo de dependencias completo debe ser **acíclico**. Si A depende de B y B 
 
 El orden topológico del grafo es además el **orden de arranque**: primero arrancan los nodos sin dependencias y después los que dependen de ellos.
 
-```mermaid
-flowchart LR
-    subgraph L0["Nivel 0"]
-        Db[("orders-db")]
-        Cache[("cache")]
-    end
-    subgraph L1["Nivel 1"]
-        Api["orders-api"]
-    end
-    subgraph L2["Nivel 2"]
-        Gw["gateway-api<br/>DOWNSTREAM_HTTP"]
-    end
-    subgraph L3["Al final"]
-        K6["Workload (k6)"]
-    end
-    Api --> Db
-    Api --> Cache
-    Gw --> Api
-    K6 -.-> Gw
-```
+![Orden de arranque](images/execution-architecture/07-orden-de-arranque.png)
 
 ## 6. El escenario y su guardado
 
 El `Scenario` es el grafo editable: sus nodos, sus conexiones y su `Workload`. Se guarda **entero** en cada guardado. El ADR 0009, que llega con #79, recoge esta decisión.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as Usuario
-    participant C as Canvas (React)
-    participant S as ScenarioService
-    participant DB as PostgreSQL
-
-    U->>C: Edita nodos, flechas y carga
-    C->>S: PUT /scenarios/{id}/graph<br/>{ revision: 7, components, connections, workload }
-    S->>DB: SELECT … FOR UPDATE
-    alt revisión distinta de 7
-        S-->>C: 409 Conflict (no cambia nada)
-        C-->>U: Recargar o guardar encima
-    else error estructural
-        S-->>C: 400 Bad Request
-    else correcto
-        S->>DB: Reemplaza el grafo, revisión = 8
-        S->>S: Valida contra los contratos
-        S-->>C: 200 { revision: 8, issues: [...] }
-        C-->>U: Guardado + incidencias en el canvas
-    end
-```
+![Guardado del grafo](images/execution-architecture/08-guardado-del-grafo.png)
 
 - **Revisión esperada.** El cliente envía la revisión de la que partió. Si otra pestaña guardó antes, el servidor responde `409` y no sobrescribe nada.
 - **Claves estables.** Cada nodo tiene un `componentKey` (UUID) que genera el navegador. Las conexiones y el `Workload` apuntan a esas claves, que se conservan entre guardados.
@@ -385,12 +210,7 @@ sequenceDiagram
 
 La carga no es un nodo del canvas: es un **ajuste del escenario** ([ADR 0012](adr/0012-la-carga-es-un-workload-del-escenario.md)). En el canvas se dibuja como una flecha de tráfico que entra en su objetivo.
 
-```mermaid
-flowchart LR
-    W(["Workload<br/>REPEATED_READ · 10 rps · semilla 48372"]) ==>|tráfico| Api["orders-api<br/>CACHE_ASIDE<br/>ofrece RESOURCE_READ"]
-    Api --> Cache[("cache")]
-    Api --> Db[("orders-db")]
-```
+![Carga reproducible](images/execution-architecture/09-carga-reproducible.png)
 
 ### 7.1 Qué contiene
 
@@ -478,17 +298,7 @@ Que un diseño sea válido significa que **se puede intentar** ejecutarlo. No ga
 
 El motor se divide en cuatro piezas con una responsabilidad cada una ([ADR 0013](adr/0013-motor-de-ejecucion-con-docker-compose.md)):
 
-```mermaid
-flowchart LR
-    Snap[("Execution<br/>snapshot")] --> PC["PlanCompiler<br/>snapshot → ExecutionPlan<br/>(sin Docker)"]
-    Drv["ComponentDriver<br/>uno por tipo"] -. "imagen, variables,<br/>salud, métricas" .-> PC
-    PC --> Plan[["ExecutionPlan<br/>forma Compose"]]
-    Plan --> RE["RuntimeEngine<br/>apply · observe · teardown"]
-    EC["ExecutionReconciler<br/>fase deseada ↔ fase real"] --> RE
-    RE --> CLI["ComposeCliEngine<br/>docker compose"]
-    RE -. alternativa .-> DJ["DockerJavaEngine<br/>docker-java"]
-    CLI --> Docker{{"Docker Engine<br/>(vía proxy)"}}
-```
+![Piezas del motor](images/execution-architecture/10-piezas-del-motor.png)
 
 | Pieza | Responsabilidad | Cómo se prueba |
 | --- | --- | --- |
@@ -503,33 +313,7 @@ Se llama *reconciler* y no *controller* porque en el repositorio el sufijo `Cont
 
 ### 9.2 Qué ocurre al pulsar Run
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as Usuario
-    participant API as API /executions
-    participant SV as ScenarioService
-    participant EX as Execution
-    participant PC as PlanCompiler
-    participant RE as RuntimeEngine
-    participant D as Docker
-
-    U->>API: Run (revisión 8)
-    API->>SV: Bloquea el escenario y comprueba la revisión
-    SV->>SV: Valida de nuevo (sin ERROR)
-    API->>EX: Reserva global + snapshot inmutable
-    API-->>U: 202 Accepted (ejecución 12)
-    EX->>PC: Compila el snapshot
-    PC-->>EX: ExecutionPlan (guardado sin secretos)
-    EX->>RE: apply(plan)
-    RE->>D: docker compose -p infracture-exec-12 up -d --wait
-    D-->>RE: Dependencias y servicios sanos
-    RE->>D: Arranca k6 (Workload)
-    loop cada intervalo
-        RE->>D: Lee estado, CPU, memoria y métricas
-        RE-->>U: Eventos y muestras por SSE
-    end
-```
+![De Run a Docker](images/execution-architecture/11-de-run-a-docker.png)
 
 - **Una sola ejecución activa.** La instancia local admite una única `Execution` reservada, arrancando, activa o limpiándose. Un segundo `Run`, aunque sea de otro usuario, se rechaza.
 - **Run es idempotente.** Un doble clic o un reintento tras un corte de red no crean otra ejecución ni recursos duplicados.
@@ -582,19 +366,7 @@ services:
 
 El orden lo deciden las dependencias del grafo, y Compose espera la salud real antes de seguir:
 
-```mermaid
-gantt
-    title Arranque de la ejecución 12
-    dateFormat  ss
-    axisFormat  %Ss
-    section Dependencias
-    orders-db arranca y pasa pg_isready     :db, 00, 6s
-    cache arranca y pasa PING               :rc, 00, 2s
-    section Servicios
-    orders-api arranca y pasa /health       :api, after db, 4s
-    section Carga
-    k6 REPEATED_READ                        :k6, after api, 20s
-```
+![Cronología del arranque](images/execution-architecture/12-cronologia-del-arranque.png)
 
 - **`--wait`** hace que `docker compose up` no termine hasta que todos los servicios estén sanos, o falle si alguno no lo consigue a tiempo.
 - **La carga arranca después.** Solo cuando `up --wait` termina bien, el motor lanza k6.
@@ -649,22 +421,7 @@ services:
 
 ## 10. Ciclo de vida de una Execution
 
-```mermaid
-stateDiagram-v2
-    [*] --> RESERVED: Run aceptado snapshot creado
-    RESERVED --> STARTING: plan compilado
-    STARTING --> RUNNING: todo sano carga iniciada
-    STARTING --> STOPPING: fallo de arranque o Stop
-    RUNNING --> STOPPING: Stop, tiempo máximo, fallo o borrado
-    STOPPING --> COMPLETED: limpieza correcta tras Stop o tiempo
-    STOPPING --> FAILED: hubo un fallo
-    STOPPING --> STOPPING: limpieza incompleta reintento
-    RUNNING --> INTERRUPTED: caída del backend
-    STARTING --> INTERRUPTED: caída del backend
-    INTERRUPTED --> STOPPING: reconciliación al reiniciar
-    COMPLETED --> [*]
-    FAILED --> [*]
-```
+![Ciclo de vida](images/execution-architecture/13-ciclo-de-vida.png)
 
 - **Una interrupción nunca es un éxito.** Tras una caída, la ejecución queda registrada como interrumpida, conserva su snapshot y sus evidencias, y se limpia sin reanudarse.
 - **Cerrar el navegador no es Stop.** La ejecución sigue hasta que alguien la detiene o se agota el tiempo, y se puede volver a consultar.
@@ -744,53 +501,19 @@ Retención inicial, configurable:
 
 Redis no se conecta a PostgreSQL. Es el servicio quien coordina los dos:
 
-```mermaid
-sequenceDiagram
-    participant K as k6 (REPEATED_READ)
-    participant H as orders-api
-    participant R as cache (Redis)
-    participant P as orders-db (PostgreSQL)
-
-    K->>H: GET /items/42
-    H->>R: GET item:42
-    alt Acierto de caché
-        R-->>H: ítem
-    else Fallo de caché
-        R-->>H: (vacío)
-        H->>P: SELECT … WHERE id = 42
-        P-->>H: ítem
-        H->>R: SET item:42 con TTL
-    end
-    H-->>K: 200 OK
-```
+![Lectura con caché](images/execution-architecture/14-lectura-con-cache.png)
 
 Al modificar un ítem, el servicio actualiza PostgreSQL y borra la entrada de Redis. La siguiente lectura vuelve a llenar la caché. Las evidencias muestran cómo suben los aciertos a medida que la caché se calienta.
 
 ### 13.2 Tareas con RabbitMQ
 
-```mermaid
-sequenceDiagram
-    participant K as k6 (TASK_PRODUCER)
-    participant H as orders-api (QUEUE_PRODUCER)
-    participant Q as jobs (RabbitMQ)
-    participant W as mailer (Worker)
-
-    K->>H: POST /tasks
-    H->>Q: Publica el mensaje
-    Q-->>H: Aceptado
-    H-->>K: 202 Accepted
-    Q->>W: Entrega el mensaje
-    W->>W: Procesa
-    W->>Q: ACK
-```
+![Cola de tareas](images/execution-architecture/15-cola-de-tareas.png)
 
 Sin Worker, las tareas se acumulan en la cola. Mientras se procesa, un mensaje está sin confirmar. Tras el `ACK`, RabbitMQ lo elimina. Si el Worker desaparece antes de confirmar, el mensaje vuelve a la cola.
 
 ### 13.3 Cadena de servicios
 
-```text
-Workload → gateway-api (DOWNSTREAM_HTTP) → orders-api (DATABASE_CRUD) → orders-db
-```
+![Cadena de servicios y acumulación de latencia](images/execution-architecture/15b-cadena-de-servicios.png)
 
 La carga solo conoce `gateway-api`. Este conoce `orders-api` por la variable que le genera Infracture, y `orders-api` conoce `orders-db`. Sirve para estudiar cómo se suma la latencia a lo largo de una cadena.
 
@@ -798,16 +521,7 @@ La carga solo conoce `gateway-api`. Este conoce `orders-api` por la variable que
 
 El Load Balancer es el sexto `ComponentType` de 0.1.0. Se implementa con HAProxy y se construye en P07, cuando el motor ya ejecuta los otros cinco tipos.
 
-```mermaid
-flowchart LR
-    W(["Workload<br/>10 rps"]) ==> LB["edge · Load Balancer<br/>ROUND_ROBIN<br/>ofrece HTTP + lo común"]
-    LB -->|backends| A["orders-api-a<br/>CACHE_ASIDE"]
-    LB -->|backends| B["orders-api-b<br/>CACHE_ASIDE"]
-    A --> C[("cache")]
-    B --> C
-    A --> D[("orders-db")]
-    B --> D
-```
+![Load Balancer](images/execution-architecture/16-load-balancer.png)
 
 | Elemento | Diseño |
 | --- | --- |
@@ -835,35 +549,7 @@ Estas piezas no forman parte de 0.1.0. El diseño actual las deja preparadas sin
 
 El backend es un monolito modular. Cada módulo sigue las capas `api`, `application`, `domain` y `persistence`.
 
-```mermaid
-flowchart TB
-    subgraph catalog["catalog"]
-        CC["ContractCatalog<br/>contratos, perfiles, puertos"]
-        CT["ComponentTemplate<br/>fichas"]
-    end
-    subgraph project["project"]
-        SC["Scenario · Component<br/>Connection · Workload"]
-        SV["ScenarioValidator<br/>ValidationIssue"]
-    end
-    subgraph execution["execution"]
-        EXE["Execution · snapshot<br/>ExecutedComponent"]
-        PC["PlanCompiler"]
-        DR["ComponentDriver ×6"]
-        RE["RuntimeEngine"]
-        EC["ExecutionReconciler"]
-    end
-    subgraph observation["observation"]
-        TC["TelemetryCollector"]
-        MS["MetricSample · ExecutionEvent · SSE"]
-    end
-    SV --> CC
-    SC --> CT
-    EXE --> SC
-    PC --> DR
-    EC --> RE
-    TC --> DR
-    TC --> MS
-```
+![Mapa al código](images/execution-architecture/17-mapa-al-codigo.png)
 
 | Pieza | Módulo | Estado |
 | --- | --- | --- |
