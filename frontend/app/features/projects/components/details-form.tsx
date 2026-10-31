@@ -22,6 +22,8 @@ type DetailsFormProps = DetailsFormResult & {
   pending: boolean;
   cancel: ReactNode;
   onNameChange?: (name: string) => void;
+  // Smaller fields and no card, for narrow side panels.
+  compact?: boolean;
 };
 
 // Counts characters as the backend does (code points), so emoji count as one.
@@ -42,6 +44,7 @@ export default function DetailsForm({
   pending,
   cancel,
   onNameChange,
+  compact = false,
 }: DetailsFormProps) {
   const id = useId();
   const [nameLength, setNameLength] = useState(length(defaultName));
@@ -50,7 +53,13 @@ export default function DetailsForm({
   );
 
   return (
-    <div className="flex flex-col gap-5 rounded-xl border bg-card p-5 sm:p-6">
+    <div
+      className={
+        compact
+          ? "flex flex-col gap-4"
+          : "flex flex-col gap-5 rounded-xl border bg-card p-5 sm:p-6"
+      }
+    >
       {error && (
         <Alert variant="destructive" className="enter-soft">
           <CircleAlertIcon />
@@ -77,7 +86,9 @@ export default function DetailsForm({
             setNameLength(length(event.target.value));
             onNameChange?.(event.target.value);
           }}
-          className="h-14 px-4 text-xl font-[560] md:text-xl"
+          className={
+            compact ? undefined : "h-14 px-4 text-xl font-[560] md:text-xl"
+          }
         />
         <div className="flex justify-between gap-4 type-small">
           <p
@@ -106,7 +117,11 @@ export default function DetailsForm({
           rows={3}
           aria-describedby={`${id}-description-help`}
           onChange={(event) => setDescriptionLength(length(event.target.value))}
-          className="min-h-28 px-4 py-3 text-[15px] leading-[22px] md:text-[15px]"
+          className={
+            compact
+              ? "min-h-24"
+              : "min-h-28 px-4 py-3 text-[15px] leading-[22px] md:text-[15px]"
+          }
         />
         <div className="flex justify-between gap-4 type-small">
           <p id={`${id}-description-help`} className="text-muted-foreground">
@@ -121,7 +136,12 @@ export default function DetailsForm({
         </div>
       </Field>
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" size="lg" disabled={pending} className="px-4">
+        <Button
+          type="submit"
+          size={compact ? "default" : "lg"}
+          disabled={pending}
+          className="px-4"
+        >
           {pending && <Spinner data-icon="inline-start" />}
           {pending ? pendingLabel : submitLabel}
         </Button>

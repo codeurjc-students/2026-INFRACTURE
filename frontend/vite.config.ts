@@ -10,6 +10,11 @@ export default defineConfig(({ mode }) => {
     resolve: {
       tsconfigPaths: true,
     },
+    // Scan every module at startup: dependencies found later, when a route first loads, make Vite reload
+    // mid-navigation and briefly show the error page with two copies of React.
+    optimizeDeps: {
+      entries: ["./app/**/*.{ts,tsx}"],
+    },
     server: {
       watch: { ignored: ["**/coverage/**", "**/build/**"] },
       proxy: {
