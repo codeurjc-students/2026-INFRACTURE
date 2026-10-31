@@ -27,7 +27,10 @@ const NAME_MAX_LENGTH = 30;
 const WHOLE_NUMBER = /^-?\d+$/;
 
 // A contract issue lets the draft be saved, so it reads as a warning, not as an input error.
-function IssueNote({ id, message }: { id?: string; message: string }) {
+function IssueNote({
+  id,
+  message,
+}: Readonly<{ id?: string; message: string }>) {
   return (
     <p id={id} className="flex gap-1.5 type-small text-degraded-text">
       <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
@@ -43,23 +46,25 @@ function ParameterField({
   value,
   issue,
   onChange,
-}: {
+}: Readonly<{
   parameter: TemplateContractDTO["profiles"][number]["parameters"][number];
   value: number | undefined;
   issue: string | undefined;
   onChange: (value: number | undefined) => void;
-}) {
+}>) {
   const id = useId();
   const [text, setText] = useState(value === undefined ? "" : String(value));
   const clamp = (number: number) =>
     Math.min(Math.max(number, parameter.min), parameter.max);
   const whole = WHOLE_NUMBER.test(text);
-  const inputError =
-    text !== "" && !whole
-      ? "Use a whole number."
-      : whole && clamp(Number(text)) !== Number(text)
-        ? `Use a value from ${parameter.min} to ${parameter.max}.`
-        : undefined;
+  let inputError: string | undefined;
+  if (text !== "" && !whole) {
+    inputError = "Use a whole number.";
+  } else if (whole && clamp(Number(text)) !== Number(text)) {
+    inputError = `Use a value from ${parameter.min} to ${parameter.max}.`;
+  }
+  // The help or error text, plus the contract issue when there is one.
+  const describedBy = issue ? `${id}-help ${id}-issue` : `${id}-help`;
 
   return (
     <Field data-invalid={Boolean(inputError) || undefined}>
@@ -76,7 +81,7 @@ function ParameterField({
         value={text}
         className="font-mono tabular-nums"
         aria-invalid={Boolean(inputError) || undefined}
-        aria-describedby={`${id}-help${issue ? ` ${id}-issue` : ""}`}
+        aria-describedby={describedBy}
         onChange={(event) => {
           const next = event.target.value;
           setText(next);
@@ -87,12 +92,9 @@ function ParameterField({
         // On leaving the field it settles on a valid value: the minimum if empty, the range limit if
         // outside it, or the last valid value if it was not a whole number.
         onBlur={() => {
-          const settled =
-            text === ""
-              ? parameter.min
-              : whole
-                ? clamp(Number(text))
-                : (value ?? parameter.min);
+          let settled = value ?? parameter.min;
+          if (text === "") settled = parameter.min;
+          else if (whole) settled = clamp(Number(text));
           setText(String(settled));
           onChange(settled);
         }}
@@ -117,13 +119,13 @@ export default function NodeInspector({
   issues,
   dispatch,
   onClose,
-}: {
+}: Readonly<{
   node: ComponentNode;
   template: ComponentTemplateDTO | undefined;
   issues: ValidationIssueDTO[];
   dispatch: Dispatch<CanvasAction>;
   onClose: () => void;
-}) {
+}>) {
   const nameId = useId();
   const profileId = useId();
   const { data } = node;
@@ -242,7 +244,7 @@ export default function NodeInspector({
             }
           />
         ))}
-        {profile && profile.parameters.length === 0 && (
+        {profile?.parameters.length === 0 && (
           <p className="type-small text-muted-foreground">
             {`The ${profile.name} profile has no parameters to set.`}
           </p>

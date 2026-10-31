@@ -22,10 +22,10 @@ const ICONS: Record<string, LucideIcon> = {
 export default function ComponentIcon({
   type,
   className,
-}: {
+}: Readonly<{
   type: string;
   className?: string;
-}) {
+}>) {
   const Icon = ICONS[type] ?? BoxIcon;
   return (
     <span

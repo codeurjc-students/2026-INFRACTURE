@@ -1,17 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const suffix = Date.now().toString(36);
+const PASSWORD = "A secure browser password 2026!";
 
-async function register(page: Page) {
+function email(name: string) {
+  return `${name}.${suffix}@example.test`;
+}
+
+async function register(page: Page, name = "canvas") {
   await page.goto("/register");
   await page.getByLabel("Name", { exact: true }).fill("Canvas owner");
-  await page.getByLabel("Username", { exact: true }).fill(`canvas_${suffix}`);
-  await page
-    .getByLabel("Email", { exact: true })
-    .fill(`canvas.${suffix}@example.test`);
-  await page
-    .getByLabel("Password", { exact: true })
-    .fill("A secure browser password 2026!");
+  await page.getByLabel("Username", { exact: true }).fill(`${name}_${suffix}`);
+  await page.getByLabel("Email", { exact: true }).fill(email(name));
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL("/");
 }
@@ -125,5 +126,77 @@ test("designs, saves and reopens a graph, and resolves a save from another tab",
     await expect(page.getByText("Revision 3")).toBeVisible();
     await expect(node(page, "Redis 2")).toBeVisible();
     await expect(node(page, "Payments API")).toHaveCount(0);
+  });
+});
+
+test("keeps unsaved work through an expired session and offers it only to its owner", async ({
+  page,
+}) => {
+  let scenarioUrl = "";
+
+  await test.step("Edit a scenario and lose the session before saving", async () => {
+    await register(page, "draft");
+    const project = await post(page, "/api/v1/projects", "Draft lab");
+    const scenario = await post(
+      page,
+      `/api/v1/projects/${project.id}/scenarios`,
+      "Expiring session",
+    );
+    scenarioUrl = `/projects/${project.id}/scenarios/${scenario.id}`;
+    await page.goto(scenarioUrl);
+    await page.getByRole("button", { name: "Add Redis" }).click();
+    await inspector(page).getByLabel("Name").fill("Session cache");
+
+    await page.context().clearCookies();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Your session has expired")).toBeVisible();
+  });
+
+  await test.step("Sign in again and recover the draft", async () => {
+    await page.getByRole("link", { name: "Sign in again" }).click();
+    await page.getByLabel("Email", { exact: true }).fill(email("draft"));
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(scenarioUrl);
+
+    await expect(
+      page.getByText("You have unsaved changes from earlier"),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Restore my changes" }).click();
+    await expect(node(page, "Session cache")).toBeVisible();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Saved", exact: true }),
+    ).toBeDisabled();
+
+    await page.reload();
+    await expect(node(page, "Session cache")).toBeVisible();
+    await expect(
+      page.getByText("You have unsaved changes from earlier"),
+    ).toHaveCount(0);
+  });
+
+  await test.step("Another account on the same browser never sees the draft", async () => {
+    await page.getByRole("button", { name: "Add Worker", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Save", exact: true }),
+    ).toBeEnabled();
+    await page.context().clearCookies();
+
+    await register(page, "other");
+    await page.goto(scenarioUrl);
+    await expect(
+      page.getByRole("heading", { name: "Scenario not found" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("You have unsaved changes from earlier"),
+    ).toHaveCount(0);
+    expect(
+      await page.evaluate(() =>
+        Object.keys(localStorage).filter((key) =>
+          key.startsWith("infracture:scenario-draft:"),
+        ),
+      ),
+    ).toHaveLength(1);
   });
 });

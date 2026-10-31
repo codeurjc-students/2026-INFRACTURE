@@ -177,6 +177,27 @@ describe("graph reducer", () => {
     expect(state.nodes[0].data.name).toBe("Newer");
   });
 
+  it("restores a draft with the revision it started from, and keeps the work when the session expires", () => {
+    const expired = graphReducer(add(empty, "a"), { type: "expired" });
+    expect(expired).toMatchObject({ status: "expired", dirty: true });
+    expect(expired.nodes).toHaveLength(1);
+
+    const restored = graphReducer(toCanvasState(savedGraph), {
+      type: "restored",
+      draft: {
+        baseRevision: 1,
+        components: [{ ...savedGraph.components[0], name: "Mine" }],
+        savedAt: "2026-10-31T10:00:00Z",
+      },
+    });
+    expect(restored).toMatchObject({
+      revision: 1,
+      dirty: true,
+      status: "idle",
+    });
+    expect(restored.nodes[0].data.name).toBe("Mine");
+  });
+
   it("keeps the local changes when a save fails or conflicts, and drops them on reload", () => {
     const edited = graphReducer(add(empty, "a"), { type: "saveStarted" });
 

@@ -15,6 +15,7 @@ import {
 import {
   CheckIcon,
   CircleAlertIcon,
+  HistoryIcon,
   InfoIcon,
   MaximizeIcon,
   SaveIcon,
@@ -30,26 +31,30 @@ import {
   type CSSProperties,
   type DragEvent,
 } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import Logo from "~/components/logo";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { Spinner } from "~/components/ui/spinner";
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
+import { formatDateTime } from "~/features/projects/details-form-data";
 import type { ProjectDTO } from "~/features/projects/model/ProjectDTO";
 import type { ScenarioDTO } from "~/features/projects/model/ScenarioDTO";
 import { HttpError } from "~/shared/api/api-fetch";
 import { getGraph, saveGraph } from "../api/graph-service";
+import { draftKey, useGraphDraft, type GraphDraft } from "../draft-storage";
 import {
   BOARD,
   graphReducer,
   MAX_COMPONENTS,
   toCanvasState,
+  toComponents,
   toSaveGraph,
   type CanvasState,
   type ComponentNode as ComponentNodeModel,
 } from "../graph-reducer";
 import type { ScenarioGraphDTO } from "../model/ScenarioGraphDTO";
+import type { ValidationIssueDTO } from "../model/ValidationIssueDTO";
 import ComponentNode, { type DisplayedNode } from "./component-node";
 import ComponentPalette, { TEMPLATE_MIME } from "./component-palette";
 import NodeInspector from "./node-inspector";
@@ -107,6 +112,8 @@ interface ScenarioCanvasProps {
   scenario: ScenarioDTO;
   graph: ScenarioGraphDTO;
   templates: ComponentTemplateDTO[];
+  // The signed-in account; the local draft is kept per account. Without it there is no draft.
+  userId?: number;
 }
 
 // The backend explains its errors in the ProblemDetail "detail"; anything else gets a generic message.
@@ -114,23 +121,98 @@ function errorMessage(error: unknown) {
   return error instanceof HttpError ? error.message : GENERIC_ERROR;
 }
 
+// Explains where a recovered draft comes from and whether the scenario changed since.
+function draftDescription(draft: GraphDraft, revision: number) {
+  const when = `Last edited ${formatDateTime(draft.savedAt)}, from revision ${draft.baseRevision}.`;
+  if (draft.baseRevision === revision) return when;
+  return `${when} The scenario was saved after that (revision ${revision}); saving them will ask you which version to keep.`;
+}
+
+// The words for each save state.
+function saveLabel(state: CanvasState) {
+  if (state.status === "saving") return "Saving…";
+  return state.dirty ? "Unsaved changes" : "Graph saved";
+}
+
 // Announces the save state to screen readers. It is hidden on screen because the save button already shows it.
-function SaveStatus({ state }: { state: CanvasState }) {
-  const text =
-    state.status === "saving"
-      ? "Saving…"
-      : state.dirty
-        ? "Unsaved changes"
-        : "Graph saved";
+function SaveStatus({ state }: Readonly<{ state: CanvasState }>) {
   return (
-    <p role="status" className="sr-only">
-      <span>{text}</span> <span>{`Revision ${state.revision}`}</span>
-    </p>
+    <output className="sr-only">
+      <span>{saveLabel(state)}</span>{" "}
+      <span>{`Revision ${state.revision}`}</span>
+    </output>
   );
 }
 
+// Icon and text of the save button: Saving…, Save (there are changes) or Saved.
+function SaveButtonContent({
+  saving,
+  dirty,
+}: Readonly<{ saving: boolean; dirty: boolean }>) {
+  if (saving) {
+    return (
+      <>
+        <Spinner data-icon="inline-start" />
+        Saving…
+      </>
+    );
+  }
+  if (dirty) {
+    return (
+      <>
+        <SaveIcon data-icon="inline-start" />
+        Save
+      </>
+    );
+  }
+  return (
+    <>
+      <CheckIcon data-icon="inline-start" />
+      Saved
+    </>
+  );
+}
+
+// The nodes as they are drawn: each one gets its template name and its issues.
+// Only for drawing; the state keeps the data as the backend sends it.
+function toDisplayed(
+  nodes: ComponentNodeModel[],
+  issues: ValidationIssueDTO[],
+  templatesByKey: Map<string, ComponentTemplateDTO>,
+): DisplayedNode[] {
+  const byNode = new Map<string, string[]>();
+  for (const issue of issues) {
+    if (issue.target.kind === "COMPONENT" && issue.target.key) {
+      const fields = byNode.get(issue.target.key) ?? [];
+      fields.push(issue.field ?? "");
+      byNode.set(issue.target.key, fields);
+    }
+  }
+  return nodes.map((node) => {
+    const templateName =
+      templatesByKey.get(node.data.templateKey)?.name ?? node.data.type;
+    const issueFields = byNode.get(node.id) ?? [];
+    return {
+      ...node,
+      ariaLabel: `${node.data.name}, ${templateName}`,
+      data: {
+        ...node.data,
+        templateName,
+        issueCount: issueFields.length,
+        issueFields,
+      },
+    };
+  });
+}
+
 // The whole scenario editor: top bar, component list, canvas and side panel.
-function Editor({ project, scenario, graph, templates }: ScenarioCanvasProps) {
+function Editor({
+  project,
+  scenario,
+  graph,
+  templates,
+  userId,
+}: Readonly<ScenarioCanvasProps>) {
   // The graph state lives in the reducer; every change goes through dispatch.
   const [state, dispatch] = useReducer(graphReducer, graph, toCanvasState);
   // React Flow helpers: screen-to-board coordinates, framing and reading or moving the view.
@@ -177,34 +259,25 @@ function Editor({ project, scenario, graph, templates }: ScenarioCanvasProps) {
   const saving = state.status === "saving" || resolving;
   const projectId = String(project.id);
   const scenarioId = String(scenario.id);
+  const location = useLocation();
 
-  // The nodes as they are drawn: each one gets its template name and its issues.
-  // Only for drawing; the state keeps the data as the backend sends it.
-  const displayed = useMemo<DisplayedNode[]>(() => {
-    const byNode = new Map<string, string[]>();
-    for (const issue of state.issues) {
-      if (issue.target.kind === "COMPONENT" && issue.target.key) {
-        const fields = byNode.get(issue.target.key) ?? [];
-        fields.push(issue.field ?? "");
-        byNode.set(issue.target.key, fields);
-      }
-    }
-    return state.nodes.map((node) => {
-      const templateName =
-        templatesByKey.get(node.data.templateKey)?.name ?? node.data.type;
-      const issueFields = byNode.get(node.id) ?? [];
-      return {
-        ...node,
-        ariaLabel: `${node.data.name}, ${templateName}`,
-        data: {
-          ...node.data,
-          templateName,
-          issueCount: issueFields.length,
-          issueFields,
-        },
-      };
-    });
-  }, [state.nodes, state.issues, templatesByKey]);
+  // Unsaved work kept in this browser, per account and scenario.
+  const draft = useGraphDraft(
+    userId === undefined ? null : draftKey(userId, scenario.id),
+    state,
+  );
+  const pendingDraft = draft.pending;
+
+  function restoreDraft() {
+    if (!pendingDraft) return;
+    dispatch({ type: "restored", draft: pendingDraft });
+    draft.take();
+  }
+
+  const displayed = useMemo(
+    () => toDisplayed(state.nodes, state.issues, templatesByKey),
+    [state.nodes, state.issues, templatesByKey],
+  );
 
   // The side panel shows the selected node, or the scenario details.
   const selected = state.nodes.find((node) => node.selected);
@@ -234,7 +307,7 @@ function Editor({ project, scenario, graph, templates }: ScenarioCanvasProps) {
     )?.target.key;
     if (!key) return;
     select(key);
-    fitToBoard({ nodes: [{ id: key }], padding: "24px" });
+    void fitToBoard({ nodes: [{ id: key }], padding: "24px" });
   }
 
   // Adds a node from a template: in the middle of the canvas, or where it was dropped.
@@ -281,17 +354,24 @@ function Editor({ project, scenario, graph, templates }: ScenarioCanvasProps) {
     } catch (error) {
       if (error instanceof HttpError && error.status === 409) {
         dispatch({ type: "conflicted", message: error.message });
+      } else if (error instanceof HttpError && error.status === 401) {
+        // The session could not be renewed: the draft keeps the work until the user signs in again.
+        dispatch({ type: "expired" });
       } else {
         dispatch({ type: "saveFailed", message: errorMessage(error) });
       }
     }
   }
 
-  const canSave = state.dirty && !saving && state.status !== "conflict";
+  const canSave =
+    state.dirty &&
+    !saving &&
+    state.status !== "conflict" &&
+    state.status !== "expired";
   // ⌘S / Ctrl S saves. The ref always points to the current save, so the listener is added only once.
   const saveShortcut = useRef<() => void>(() => {});
   saveShortcut.current = () => {
-    if (canSave) save();
+    if (canSave) void save();
   };
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -312,6 +392,12 @@ function Editor({ project, scenario, graph, templates }: ScenarioCanvasProps) {
       if (keepMine) {
         await save(latest.revision);
       } else {
+        // The discarded version stays in the browser and is offered back, so nothing is lost for good.
+        draft.keep({
+          baseRevision: state.revision,
+          components: toComponents(state.nodes),
+          savedAt: new Date().toISOString(),
+        });
         dispatch({ type: "reloaded", graph: latest });
       }
     } catch (error) {
@@ -396,14 +482,7 @@ function Editor({ project, scenario, graph, templates }: ScenarioCanvasProps) {
           title={`Save the graph (${isMac ? "⌘S" : "Ctrl S"})`}
           className="min-w-20 px-3"
         >
-          {saving ? (
-            <Spinner data-icon="inline-start" />
-          ) : state.dirty ? (
-            <SaveIcon data-icon="inline-start" />
-          ) : (
-            <CheckIcon data-icon="inline-start" />
-          )}
-          {saving ? "Saving…" : state.dirty ? "Save" : "Saved"}
+          <SaveButtonContent saving={saving} dirty={state.dirty} />
         </Button>
       </header>
 
@@ -516,8 +595,56 @@ function Editor({ project, scenario, graph, templates }: ScenarioCanvasProps) {
             </div>
           )}
 
-          {(state.status === "failed" || state.status === "conflict") && (
-            <div className="absolute inset-x-3 top-3 z-10 mx-auto max-w-xl">
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-10 mx-auto flex max-w-xl flex-col gap-2 *:pointer-events-auto">
+            {pendingDraft && (
+              <Alert className="bg-card shadow-lg">
+                <HistoryIcon />
+                <AlertTitle>You have unsaved changes from earlier</AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  <span>{draftDescription(pendingDraft, state.revision)}</span>
+                  <span className="flex flex-wrap gap-2">
+                    <Button type="button" onClick={restoreDraft}>
+                      Restore my changes
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={draft.discard}
+                      className="text-foreground"
+                    >
+                      Discard them
+                    </Button>
+                  </span>
+                </AlertDescription>
+              </Alert>
+            )}
+            {state.status === "expired" && (
+              <Alert
+                variant="destructive"
+                role="alert"
+                className="bg-card shadow-lg"
+              >
+                <CircleAlertIcon />
+                <AlertTitle>Your session has expired</AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  <span>
+                    Your changes are kept in this browser. Sign in again to save
+                    them.
+                  </span>
+                  <span>
+                    <Link
+                      to={`/login?${new URLSearchParams({ redirectTo: location.pathname })}`}
+                      className={buttonVariants({
+                        className: "text-primary-foreground",
+                      })}
+                    >
+                      Sign in again
+                    </Link>
+                  </span>
+                </AlertDescription>
+              </Alert>
+            )}
+            {(state.status === "failed" || state.status === "conflict") && (
               <Alert
                 variant="destructive"
                 role="alert"
@@ -553,8 +680,8 @@ function Editor({ project, scenario, graph, templates }: ScenarioCanvasProps) {
                   )}
                 </AlertDescription>
               </Alert>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Right: the selected node's configuration, or the scenario details. */}
@@ -591,7 +718,7 @@ function Editor({ project, scenario, graph, templates }: ScenarioCanvasProps) {
 }
 
 // React Flow's helpers (useReactFlow, useStore) only work inside its provider.
-export default function ScenarioCanvas(props: ScenarioCanvasProps) {
+export default function ScenarioCanvas(props: Readonly<ScenarioCanvasProps>) {
   return (
     <ReactFlowProvider>
       <Editor {...props} />

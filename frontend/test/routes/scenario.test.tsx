@@ -1,7 +1,14 @@
 import "../react-flow-mocks";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import {
   createMemoryRouter,
+  Outlet,
   RouterProvider,
   useLoaderData,
 } from "react-router";
@@ -20,6 +27,11 @@ import {
   getGraph,
   saveGraph,
 } from "~/features/scenario-canvas/api/graph-service";
+import {
+  draftKey,
+  readDraft,
+  writeDraft,
+} from "~/features/scenario-canvas/draft-storage";
 import type { ScenarioGraphDTO } from "~/features/scenario-canvas/model/ScenarioGraphDTO";
 import ScenarioRoute, {
   clientAction,
@@ -86,17 +98,31 @@ function ScenarioTestRoute() {
   return <ScenarioRoute loaderData={loaderData} />;
 }
 
-function renderScenario(id = "3") {
+// With a user id, the scenario sits under the private layout that loads the signed-in account.
+function renderScenario(id = "3", userId?: number) {
+  const scenarioRoute = {
+    path: "/projects/:projectId/scenarios/:scenarioId",
+    loader: clientLoader as never,
+    action: clientAction as never,
+    Component: ScenarioTestRoute,
+    ErrorBoundary,
+  };
+  const routes =
+    userId === undefined
+      ? [scenarioRoute]
+      : [
+          {
+            id: "routes/private-layout",
+            loader: () => ({ user: { id: userId } }),
+            Component: Outlet,
+            children: [scenarioRoute],
+          },
+        ];
   const router = createMemoryRouter(
     [
-      {
-        path: "/projects/:projectId/scenarios/:scenarioId",
-        loader: clientLoader as never,
-        action: clientAction as never,
-        Component: ScenarioTestRoute,
-        ErrorBoundary,
-      },
+      ...routes,
       { path: "/catalogue", Component: () => <p>Catalogue page</p> },
+      { path: "/login", Component: () => <p>Login page</p> },
     ],
     { initialEntries: [`/projects/7/scenarios/${id}`] },
   );
@@ -115,6 +141,7 @@ beforeEach(() => {
 afterEach(() => {
   activeRouters.splice(0).forEach((router) => router.dispose());
   vi.resetAllMocks();
+  localStorage.clear();
 });
 
 describe("scenario route", () => {
@@ -260,6 +287,108 @@ describe("scenario route", () => {
     fireEvent.keyDown(window, { key: "s", ctrlKey: true });
     expect(await screen.findByText("Revision 2")).toBeInTheDocument();
     expect(saveGraph).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps unsaved work in the browser and offers it back on the next visit", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue(scenario);
+    renderScenario("3", 5);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Redis" }));
+    expect(readDraft(draftKey(5, 3))).toMatchObject({
+      baseRevision: 1,
+      components: [{ templateKey: "redis", type: "REDIS", name: "Redis" }],
+    });
+
+    activeRouters.splice(0).forEach((router) => router.dispose());
+    cleanup();
+    renderScenario("3", 5);
+    expect(
+      await screen.findByText("You have unsaved changes from earlier"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Redis", { selector: "p" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Restore my changes" }));
+
+    expect(
+      await screen.findByText("Redis", { selector: "p[title]" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    expect(
+      screen.queryByText("You have unsaved changes from earlier"),
+    ).toBeNull();
+  });
+
+  it("discards a stored draft when asked and never shows it to another account", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue(scenario);
+    writeDraft(draftKey(5, 3), {
+      baseRevision: 1,
+      components: [{ ...savedGraph.components[0], position: { x: 10, y: 10 } }],
+      savedAt: "2026-10-31T10:00:00Z",
+    });
+
+    renderScenario("3", 6);
+    expect(await screen.findByText("Graph saved")).toBeInTheDocument();
+    expect(
+      screen.queryByText("You have unsaved changes from earlier"),
+    ).toBeNull();
+
+    activeRouters.splice(0).forEach((router) => router.dispose());
+    cleanup();
+    renderScenario("3", 5);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Discard them" }),
+    );
+    expect(
+      screen.queryByText("You have unsaved changes from earlier"),
+    ).toBeNull();
+    expect(readDraft(draftKey(5, 3))).toBeNull();
+  });
+
+  it("keeps the work when the session expires and links back after signing in", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue(scenario);
+    vi.mocked(saveGraph).mockRejectedValue(
+      new HttpError(401, "Authentication is required."),
+    );
+    renderScenario("3", 5);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Redis" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Your session has expired"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in again" })).toHaveAttribute(
+      "href",
+      "/login?redirectTo=%2Fprojects%2F7%2Fscenarios%2F3",
+    );
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(readDraft(draftKey(5, 3))?.components).toHaveLength(1);
+  });
+
+  it("offers back the version discarded after a conflict", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue(scenario);
+    vi.mocked(saveGraph).mockRejectedValue(
+      new HttpError(409, "Saved after revision 1."),
+    );
+    renderScenario("3", 5);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Redis" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    vi.mocked(getGraph).mockResolvedValueOnce(savedGraph);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Discard mine and reload" }),
+    );
+
+    expect(
+      await screen.findByText("You have unsaved changes from earlier"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/The scenario was saved after that \(revision 2\)/),
+    ).toBeInTheDocument();
+    expect(readDraft(draftKey(5, 3))?.components[0].templateKey).toBe("redis");
   });
 
   it("keeps local changes when the save fails and explains why", async () => {

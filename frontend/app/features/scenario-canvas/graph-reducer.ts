@@ -5,6 +5,7 @@ import type { ComponentDTO } from "./model/ComponentDTO";
 import type { PositionDTO } from "./model/PositionDTO";
 import type { SaveScenarioGraphDTO } from "./model/SaveScenarioGraphDTO";
 import type { ScenarioGraphDTO } from "./model/ScenarioGraphDTO";
+import type { GraphDraft } from "./draft-storage";
 import type { ValidationIssueDTO } from "./model/ValidationIssueDTO";
 
 // Same limit as the backend.
@@ -38,8 +39,8 @@ export interface CanvasState {
   issues: ValidationIssueDTO[];
   // Local changes which have not been saved to the server yet.
   dirty: boolean;
-  // Drives the save button and the error and conflict alerts.
-  status: "idle" | "saving" | "failed" | "conflict";
+  // Drives the save button and the error, conflict and session alerts.
+  status: "idle" | "saving" | "failed" | "conflict" | "expired";
   // Message shown when a save fails or conflicts.
   error: string | null;
 }
@@ -70,7 +71,9 @@ export type CanvasAction =
   | { type: "saved"; graph: ScenarioGraphDTO }
   | { type: "saveFailed"; message: string }
   | { type: "conflicted"; message: string }
-  | { type: "reloaded"; graph: ScenarioGraphDTO };
+  | { type: "expired" }
+  | { type: "reloaded"; graph: ScenarioGraphDTO }
+  | { type: "restored"; draft: GraphDraft };
 
 // Turns a component from the backend into a React Flow node.
 function toNode(component: ComponentDTO, selected = false): ComponentNode {
@@ -96,6 +99,15 @@ export function toCanvasState(graph: ScenarioGraphDTO): CanvasState {
   };
 }
 
+// The inverse of toNode: the nodes back as components, the shape kept in the local draft.
+export function toComponents(nodes: ComponentNode[]): ComponentDTO[] {
+  return nodes.map(({ id, position, data }) => ({
+    ...data,
+    key: id,
+    position: { x: position.x, y: position.y },
+  }));
+}
+
 // Builds the body of the save request from the nodes: the backend accepts neither the type nor the selection.
 export function toSaveGraph(
   nodes: ComponentNode[],
@@ -103,14 +115,16 @@ export function toSaveGraph(
 ): SaveScenarioGraphDTO {
   return {
     revision,
-    components: nodes.map(({ id, position, data }) => ({
-      key: id,
-      templateKey: data.templateKey,
-      name: data.name,
-      position: { x: position.x, y: position.y },
-      profile: data.profile,
-      parameters: data.parameters,
-    })),
+    components: toComponents(nodes).map(
+      ({ key, templateKey, name, position, profile, parameters }) => ({
+        key,
+        templateKey,
+        name,
+        position,
+        profile,
+        parameters,
+      }),
+    ),
   };
 }
 
@@ -118,8 +132,10 @@ export function toSaveGraph(
 function nextName(nodes: ComponentNode[], base: string) {
   const names = new Set(nodes.map((node) => node.data.name));
   let name = base;
-  for (let index = 2; names.has(name); index++) {
+  let index = 2;
+  while (names.has(name)) {
     name = `${base} ${index}`;
+    index += 1;
   }
   return name;
 }
@@ -272,8 +288,22 @@ export function graphReducer(
         dirty: true,
         error: action.message,
       };
+    // The session ended: the work stays on screen and in the local draft until the user signs in again.
+    case "expired":
+      return { ...state, status: "expired", dirty: true, error: null };
     // "Discard mine and reload": the saved graph replaces the local one.
     case "reloaded":
       return toCanvasState(action.graph);
+    // Unsaved work recovered from the browser. It keeps the revision it started from, so if the
+    // scenario was saved since then, the next save gets the usual conflict instead of overwriting it.
+    case "restored":
+      return {
+        ...state,
+        revision: action.draft.baseRevision,
+        nodes: action.draft.components.map((component) => toNode(component)),
+        dirty: true,
+        status: "idle",
+        error: null,
+      };
   }
 }

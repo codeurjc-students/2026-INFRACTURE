@@ -1,4 +1,5 @@
 import type { Route } from "./+types/scenario";
+import { useRouteLoaderData } from "react-router";
 import { getComponentTemplates } from "~/features/component-catalogue/api/component-template-service";
 import { getProject } from "~/features/projects/api/project-service";
 import {
@@ -11,6 +12,7 @@ import {
 } from "~/features/projects/components/details-page";
 import { getGraph } from "~/features/scenario-canvas/api/graph-service";
 import ScenarioCanvas from "~/features/scenario-canvas/components/scenario-canvas";
+import type { clientLoader as privateLoader } from "~/routes/private-layout";
 import {
   detailsErrorMessage,
   readDetailsForm,
@@ -62,6 +64,10 @@ export default function ScenarioRoute({
   loaderData,
 }: Pick<Route.ComponentProps, "loaderData">) {
   const { project, scenario, graph, templates } = loaderData;
+  // The private layout already loaded the signed-in account; its id keeps local drafts per account.
+  const user = useRouteLoaderData<typeof privateLoader>(
+    "routes/private-layout",
+  )?.user;
 
   return (
     // The key restarts the editor when another scenario opens.
@@ -71,6 +77,7 @@ export default function ScenarioRoute({
       scenario={scenario}
       graph={graph}
       templates={templates}
+      userId={user?.id}
     />
   );
 }

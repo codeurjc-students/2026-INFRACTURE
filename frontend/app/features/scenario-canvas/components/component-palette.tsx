@@ -14,7 +14,7 @@ const GROUPS = [
 
 // Splits the templates into their families, leaving out empty ones.
 function grouped(templates: ComponentTemplateDTO[]) {
-  const known = GROUPS.flatMap((group) => group.types);
+  const known = new Set(GROUPS.flatMap((group) => group.types));
   return [
     ...GROUPS.map((group) => ({
       name: group.name,
@@ -24,7 +24,7 @@ function grouped(templates: ComponentTemplateDTO[]) {
     })),
     {
       name: "Other",
-      templates: templates.filter((template) => !known.includes(template.type)),
+      templates: templates.filter((template) => !known.has(template.type)),
     },
   ].filter((group) => group.templates.length > 0);
 }
@@ -35,11 +35,11 @@ export default function ComponentPalette({
   templates,
   count,
   onAdd,
-}: {
+}: Readonly<{
   templates: ComponentTemplateDTO[];
   count: number;
   onAdd: (template: ComponentTemplateDTO) => void;
-}) {
+}>) {
   const full = count >= MAX_COMPONENTS;
 
   return (

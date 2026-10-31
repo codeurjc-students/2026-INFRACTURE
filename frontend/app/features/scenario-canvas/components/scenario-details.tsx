@@ -13,11 +13,11 @@ export default function ScenarioDetails({
   scenario,
   revision,
   onClose,
-}: {
+}: Readonly<{
   scenario: ScenarioDTO;
   revision: number;
   onClose: () => void;
-}) {
+}>) {
   const fetcher = useFetcher<SaveResult>();
   const [result, setResult] = useState(fetcher.data);
   // "Changes saved" disappears as soon as the user edits again.
@@ -81,13 +81,13 @@ export default function ScenarioDetails({
           pending={fetcher.state !== "idle"}
           cancel={
             saved && (
-              <p role="status" className="flex items-center gap-1.5 type-small">
+              <output className="flex items-center gap-1.5 type-small">
                 <CircleCheckIcon
                   className="size-4 text-healthy-text"
                   aria-hidden
                 />
                 Changes saved
-              </p>
+              </output>
             )
           }
         />

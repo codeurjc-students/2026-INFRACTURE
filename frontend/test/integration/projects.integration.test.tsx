@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { login } from "~/features/auth/api/auth-service";
+
 import {
   getProject,
   getProjects,
@@ -277,6 +279,36 @@ describe("projects client against the real API", () => {
     await expect(getGraph(projectId, scenarioId)).resolves.toMatchObject({
       revision: 2,
     });
+  });
+
+  it("rejects a save once the session ends and accepts the kept draft after signing in again", async () => {
+    const latest = await getGraph(projectId, scenarioId);
+    const draft = {
+      revision: latest.revision,
+      components: latest.components.map((component) => ({
+        key: component.key,
+        templateKey: component.templateKey,
+        name: "Recovered",
+        position: component.position,
+        profile: component.profile,
+        parameters: component.parameters,
+      })),
+    };
+
+    await logoutAction();
+    await expect(saveGraph(projectId, scenarioId, draft)).rejects.toMatchObject(
+      {
+        status: 401,
+      },
+    );
+
+    const owner = account("owner");
+    await login(owner.email, owner.password);
+    const saved = await saveGraph(projectId, scenarioId, draft);
+    expect(saved.revision).toBe(latest.revision + 1);
+    expect(saved.components.map((component) => component.name)).toEqual(
+      latest.components.map(() => "Recovered"),
+    );
   });
 
   it("treats another account's project as not found", async () => {
