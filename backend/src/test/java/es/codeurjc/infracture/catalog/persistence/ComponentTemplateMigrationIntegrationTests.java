@@ -26,29 +26,39 @@ class ComponentTemplateMigrationIntegrationTests {
 
         Flyway.configure().dataSource(dataSource).target("2").load().migrate();
         jdbc.update("UPDATE component_template SET name = 'Existing worker', enabled = false WHERE template_key = 'worker'");
-        var existingTemplates = jdbc.queryForList("SELECT * FROM component_template ORDER BY id");
+        String original = "SELECT id, template_key, name, type, enabled FROM component_template ORDER BY id";
+        var existingTemplates = jdbc.queryForList(original);
         assertThat(existingTemplates).hasSize(6);
 
         Flyway.configure().dataSource(dataSource).load().migrate();
 
-        assertThat(jdbc.queryForList("SELECT * FROM component_template ORDER BY id"))
-                .isEqualTo(existingTemplates);
+        assertThat(jdbc.queryForList(original)).isEqualTo(existingTemplates.stream()
+                .filter(template -> !"LOAD_GENERATOR".equals(template.get("type"))).toList());
+        assertThat(jdbc.queryForObject(
+                "SELECT initial_configuration ->> 'profile' FROM component_template WHERE template_key = 'worker'",
+                String.class)).isEqualTo("CONSUMER");
         assertThat(jdbc.update("""
-                INSERT INTO component_template (template_key, name, type, enabled)
-                VALUES ('worker-variant', 'Worker variant', 'WORKER', true)
+                INSERT INTO component_template (template_key, name, type, enabled, initial_configuration)
+                VALUES ('worker-variant', 'Worker variant', 'WORKER', true, '{"profile": "CONSUMER", "parameters": {}}')
                 """)).isEqualTo(1);
         assertThatThrownBy(() -> jdbc.update("""
-                INSERT INTO component_template (template_key, name, type, enabled)
-                VALUES ('worker-variant', 'Duplicate key', 'REDIS', true)
+                INSERT INTO component_template (template_key, name, type, enabled, initial_configuration)
+                VALUES ('worker-variant', 'Duplicate key', 'REDIS', true, '{"profile": "DEFAULT", "parameters": {}}')
                 """))
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .hasMessageContaining("uk_component_template_key");
         assertThatThrownBy(() -> jdbc.update("""
                 INSERT INTO component_template (template_key, name, type, enabled)
-                VALUES ('unsupported-type', 'Unsupported type', 'CUSTOM', true)
+                VALUES ('no-initial', 'No initial configuration', 'REDIS', true)
+                """))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("initial_configuration");
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO component_template (template_key, name, type, enabled, initial_configuration)
+                VALUES ('load-again', 'Load Generator', 'LOAD_GENERATOR', true, '{"profile": "DEFAULT", "parameters": {}}')
                 """))
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .hasMessageContaining("ck_component_template_type");
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM component_template", Long.class)).isEqualTo(7L);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM component_template", Long.class)).isEqualTo(6L);
     }
 }

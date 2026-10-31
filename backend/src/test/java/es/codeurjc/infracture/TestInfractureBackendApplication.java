@@ -1,5 +1,6 @@
 package es.codeurjc.infracture;
 
+import java.util.Map;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -8,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.catalog.persistence.ComponentTemplateRepository;
@@ -38,7 +40,7 @@ public class TestInfractureBackendApplication {
                             "worker-variant-" + variant,
                             "Worker variant " + variant,
                             ComponentType.WORKER,
-                            true));
+                            true, new ComponentConfiguration("CONSUMER", Map.of())));
                 }
             };
         }

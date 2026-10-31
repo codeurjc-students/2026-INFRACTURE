@@ -8,6 +8,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.util.Objects;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "component_template")
@@ -27,14 +30,20 @@ public class ComponentTemplate {
 
     private boolean enabled;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "initial_configuration", nullable = false)
+    private ComponentConfiguration initialConfiguration;
+
     protected ComponentTemplate() {
     }
 
-    public ComponentTemplate(String key, String name, ComponentType type, boolean enabled) {
+    public ComponentTemplate(String key, String name, ComponentType type, boolean enabled,
+            ComponentConfiguration initialConfiguration) {
         this.key = key;
         this.name = name;
         this.type = type;
         this.enabled = enabled;
+        this.initialConfiguration = Objects.requireNonNull(initialConfiguration, "initialConfiguration");
     }
 
     public Long getId() {
@@ -55,6 +64,10 @@ public class ComponentTemplate {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public ComponentConfiguration getInitialConfiguration() {
+        return initialConfiguration;
     }
 
 }

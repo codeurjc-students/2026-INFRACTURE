@@ -33,7 +33,7 @@ it("renders catalogue data persisted by the real backend", async () => {
 
   expect(loaderData.componentTemplates.content).toHaveLength(10);
   expect(loaderData.componentTemplates.page)
-    .toEqual({ size: 10, number: 0, totalElements: 12, totalPages: 2 });
+    .toEqual({ size: 10, number: 0, totalElements: 11, totalPages: 2 });
 
   render(<ComponentCatalogueRoute loaderData={loaderData} />);
 
@@ -44,7 +44,7 @@ it("renders catalogue data persisted by the real backend", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: "More results" }));
   expect(await screen.findByRole("heading", { name: "Worker variant 6" })).toBeInTheDocument();
-  expect(screen.getAllByRole("listitem")).toHaveLength(12);
+  expect(screen.getAllByRole("listitem")).toHaveLength(11);
   expect(screen.queryByRole("button", { name: "More results" })).not.toBeInTheDocument();
 });
 

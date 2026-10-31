@@ -5,5 +5,7 @@ import es.codeurjc.infracture.catalog.domain.ComponentType;
 public record ComponentTemplateDTO(
         String key,
         String name,
-        ComponentType type) {
+        ComponentType type,
+        TemplateContractDTO contract,
+        ComponentConfigurationDTO initialConfiguration) {
 }

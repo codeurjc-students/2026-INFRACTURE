@@ -9,8 +9,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import es.codeurjc.infracture.catalog.application.ComponentTemplateService;
+import es.codeurjc.infracture.catalog.application.ContractCatalog;
+import es.codeurjc.infracture.catalog.application.ContractCatalogs;
+import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
+import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
+import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
+import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.persistence.ScenarioRepository;
@@ -19,7 +26,10 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +45,10 @@ class ScenarioServiceTests {
 
     private final ScenarioRepository repository = mock(ScenarioRepository.class);
     private final ProjectService projectService = mock(ProjectService.class);
-    private final ScenarioService service = new ScenarioService(repository, projectService, VALIDATORS.getValidator());
+    private final ComponentTemplateService templateService = mock(ComponentTemplateService.class);
+    private final ContractCatalog contracts = ContractCatalogs.standard();
+    private final ScenarioService service = new ScenarioService(repository, projectService, templateService,
+            new ScenarioValidator(contracts), VALIDATORS.getValidator());
     private final Project project = new Project(new User("alice", "hash", OWNER_EMAIL, "Alice", UserRole.USER),
             "Cache lab", null);
 
@@ -113,7 +126,7 @@ class ScenarioServiceTests {
     @Test
     void renamesScenarioKeepingProjectAndRevision() {
         Scenario existing = new Scenario(project, "Old name", "Old description");
-        when(repository.findByIdAndProjectId(3L, 5L)).thenReturn(Optional.of(existing));
+        when(repository.findForUpdateByIdAndProjectId(3L, 5L)).thenReturn(Optional.of(existing));
 
         Scenario updated = service.updateScenario(OWNER_EMAIL, 5L, 3L, " New name ", "");
 
@@ -126,10 +139,39 @@ class ScenarioServiceTests {
 
     @Test
     void rejectsInvalidRenameWithoutSaving() {
-        when(repository.findByIdAndProjectId(3L, 5L)).thenReturn(Optional.of(new Scenario(project, "Lab", null)));
+        when(repository.findForUpdateByIdAndProjectId(3L, 5L)).thenReturn(Optional.of(new Scenario(project, "Lab", null)));
 
         assertThatThrownBy(() -> service.updateScenario(OWNER_EMAIL, 5L, 3L, "", null))
                 .isInstanceOf(ConstraintViolationException.class);
+        verify(repository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void savesTheGraphOfOwnScenarioUnderLockWithNormalizedNames() {
+        Scenario existing = new Scenario(project, "Lab", null);
+        UUID key = UUID.randomUUID();
+        when(repository.findForUpdateByIdAndProjectId(3L, 5L)).thenReturn(Optional.of(existing));
+        when(templateService.getTemplatesByKey(Set.of("redis"))).thenReturn(
+                Map.of("redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of()))));
+
+        ScenarioGraph saved = service.saveGraph(OWNER_EMAIL, 5L, 3L, 1, List.of(new ComponentDraft(
+                key, "redis", "  cache  ", 10, 20, new ComponentConfiguration("CACHE_ASIDE", Map.of()))));
+
+        assertThat(saved.scenario().getRevision()).isEqualTo(2);
+        assertThat(saved.scenario().getComponents()).singleElement()
+                .satisfies(component -> assertThat(component.getName()).isEqualTo("cache"));
+        assertThat(saved.issues()).singleElement()
+                .satisfies(issue -> assertThat(issue.code()).isEqualTo("UNKNOWN_PROFILE"));
+        verify(repository).saveAndFlush(existing);
+        verify(repository, never()).findByIdAndProjectId(any(), any());
+    }
+
+    @Test
+    void rejectsTheGraphOfAScenarioOutsideTheProject() {
+        assertThatThrownBy(() -> service.saveGraph(OWNER_EMAIL, 5L, 99L, 1, List.of()))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Scenario not found");
+        verifyNoInteractions(templateService);
         verify(repository, never()).saveAndFlush(any());
     }
 }

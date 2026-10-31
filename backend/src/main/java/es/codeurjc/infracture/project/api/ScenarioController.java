@@ -4,6 +4,7 @@ import static org.springframework.web.servlet.support.ServletUriComponentsBuilde
 
 import es.codeurjc.infracture.project.application.ScenarioService;
 import es.codeurjc.infracture.project.domain.Scenario;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.net.URI;
@@ -69,5 +70,20 @@ public class ScenarioController {
         Scenario scenario = service.updateScenario(
                 principal.getName(), projectId, id, scenarioDTO.name(), scenarioDTO.description());
         return mapper.toDTO(scenario);
+    }
+
+    @GetMapping("/{id}/graph")
+    public ScenarioGraphDTO getGraph(@PathVariable Long projectId, @PathVariable Long id, Principal principal) {
+        return mapper.toDTO(service.getGraph(principal.getName(), projectId, id));
+    }
+
+    @PutMapping("/{id}/graph")
+    public ScenarioGraphDTO saveGraph(
+            @PathVariable Long projectId,
+            @PathVariable Long id,
+            @Valid @RequestBody SaveScenarioGraphDTO graphDTO,
+            Principal principal) {
+        return mapper.toDTO(service.saveGraph(principal.getName(), projectId, id, graphDTO.revision(),
+                graphDTO.components().stream().map(mapper::toDraft).toList()));
     }
 }

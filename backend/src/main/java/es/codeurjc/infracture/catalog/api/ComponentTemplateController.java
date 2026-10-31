@@ -1,6 +1,7 @@
 package es.codeurjc.infracture.catalog.api;
 
 import es.codeurjc.infracture.catalog.application.ComponentTemplateService;
+import es.codeurjc.infracture.catalog.application.ContractCatalog;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -17,13 +18,16 @@ public class ComponentTemplateController {
 
     private final ComponentTemplateService service;
     private final ComponentTemplateMapper mapper;
+    private final ContractCatalog contracts;
 
     public ComponentTemplateController(
         ComponentTemplateService service,
-        ComponentTemplateMapper mapper
+        ComponentTemplateMapper mapper,
+        ContractCatalog contracts
     ) {
         this.service = service;
         this.mapper = mapper;
+        this.contracts = contracts;
     }
 
     @GetMapping
@@ -36,6 +40,6 @@ public class ComponentTemplateController {
         PageRequest pageable = PageRequest.of(page, size);
         return service
             .getEnabledTemplates(pageable, q, type)
-            .map(mapper::toDTO);
+            .map(template -> mapper.toDTO(template, contracts));
     }
 }

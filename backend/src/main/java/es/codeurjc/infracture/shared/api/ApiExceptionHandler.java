@@ -1,5 +1,7 @@
 package es.codeurjc.infracture.shared.api;
 
+import es.codeurjc.infracture.shared.ConflictException;
+import es.codeurjc.infracture.shared.InvalidDataException;
 import es.codeurjc.infracture.shared.NotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -39,6 +41,18 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 : violations.stream().map(ConstraintViolation::getMessage).sorted()
                         .collect(Collectors.joining(", "));
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
+    }
+
+    @ExceptionHandler(InvalidDataException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ProblemDetail handleInvalidData(InvalidDataException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    ProblemDetail handleConflict(ConflictException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
     }
 
     @ExceptionHandler(NotFoundException.class)

@@ -3,13 +3,21 @@ package es.codeurjc.infracture.project.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
+import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
+import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
+import es.codeurjc.infracture.project.domain.Component;
+import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -132,5 +140,132 @@ class ScenarioPersistenceIntegrationTests {
                 """).setParameter("project", cacheLab.getId()).executeUpdate())
                 .isInstanceOf(PersistenceException.class)
                 .hasMessageContaining("ck_scenarios_revision_positive");
+    }
+
+    @Test
+    void reopensTheSavedGraphWithPositionsAndParameters() {
+        UUID orders = UUID.randomUUID();
+        UUID cache = UUID.randomUUID();
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        scenario.replaceGraph(1, List.of(
+                new ComponentDraft(orders, "http-service", "orders-api", 120.5, -40,
+                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 250))),
+                new ComponentDraft(cache, "redis", "cache", 0, 300,
+                        new ComponentConfiguration("DEFAULT", Map.of()))),
+                catalogue());
+        repository.saveAndFlush(scenario);
+        entityManager.clear();
+
+        Scenario reopened = repository.findById(scenario.getId()).orElseThrow();
+        assertThat(reopened.getRevision()).isEqualTo(2);
+        assertThat(reopened.getComponents()).extracting(Component::getKey).containsExactly(orders, cache);
+        Component api = reopened.getComponents().getFirst();
+        assertThat(api.getId()).isNotNull();
+        assertThat(api.getName()).isEqualTo("orders-api");
+        assertThat(api.getType()).isEqualTo(ComponentType.HTTP_SERVICE);
+        assertThat(api.getPositionX()).isEqualTo(120.5);
+        assertThat(api.getPositionY()).isEqualTo(-40);
+        assertThat(api.getConfiguration())
+                .isEqualTo(new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 250)));
+        assertThat(reopened.getComponents().getLast().getConfiguration())
+                .isEqualTo(new ComponentConfiguration("DEFAULT", Map.of()));
+    }
+
+    @Test
+    void keepsNodeIdentityAndRemovesDeletedNodesOnTheNextSave() {
+        UUID kept = UUID.randomUUID();
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        scenario.replaceGraph(1, List.of(redis(kept, "cache"), redis(UUID.randomUUID(), "removed")), catalogue());
+        repository.saveAndFlush(scenario);
+        Long keptId = scenario.getComponents().getFirst().getId();
+        entityManager.clear();
+
+        Scenario reopened = repository.findById(scenario.getId()).orElseThrow();
+        reopened.replaceGraph(2, List.of(redis(kept, "renamed")), catalogue());
+        repository.saveAndFlush(reopened);
+        entityManager.clear();
+
+        Scenario again = repository.findById(scenario.getId()).orElseThrow();
+        assertThat(again.getRevision()).isEqualTo(3);
+        assertThat(again.getComponents()).singleElement()
+                .satisfies(component -> assertThat(component.getId()).isEqualTo(keptId))
+                .extracting(Component::getName).isEqualTo("renamed");
+        assertThat(entityManager.createNativeQuery("SELECT COUNT(*) FROM components").getSingleResult())
+                .isEqualTo(1L);
+    }
+
+    @Test
+    void findsScenarioForUpdateOnlyWithinItsProject() {
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+
+        assertThat(repository.findForUpdateByIdAndProjectId(scenario.getId(), cacheLab.getId())).contains(scenario);
+        assertThat(repository.findForUpdateByIdAndProjectId(scenario.getId(), queueLab.getId())).isEmpty();
+    }
+
+    @Test
+    void rejectsRepeatedNodeKeysAndUnknownTemplatesInTheDatabase() {
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        String insert = """
+                INSERT INTO components (scenario_id, component_key, template_key, type, name,
+                                        position_x, position_y, parameters)
+                VALUES (:scenario, '3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10', :template, 'REDIS', 'cache',
+                        0, 0, '{}')
+                """;
+        entityManager.createNativeQuery(insert).setParameter("scenario", scenario.getId())
+                .setParameter("template", "redis").executeUpdate();
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery(insert).setParameter("scenario", scenario.getId())
+                .setParameter("template", "redis").executeUpdate())
+                .isInstanceOf(PersistenceException.class)
+                .hasMessageContaining("uk_components_scenario_key");
+    }
+
+    @Test
+    void rejectsNodesOfTemplatesThatDoNotExist() {
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery("""
+                INSERT INTO components (scenario_id, component_key, template_key, type, name,
+                                        position_x, position_y, parameters)
+                VALUES (:scenario, gen_random_uuid(), 'invented', 'REDIS', 'cache', 0, 0, '{}')
+                """).setParameter("scenario", scenario.getId()).executeUpdate())
+                .isInstanceOf(PersistenceException.class)
+                .hasMessageContaining("fk_components_template");
+    }
+
+    @Test
+    void deletesTheNodesTogetherWithTheirScenario() {
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        scenario.replaceGraph(1, List.of(redis(UUID.randomUUID(), "cache")), catalogue());
+        repository.saveAndFlush(scenario);
+
+        entityManager.createNativeQuery("DELETE FROM scenarios WHERE id = :id")
+                .setParameter("id", scenario.getId()).executeUpdate();
+
+        assertThat(entityManager.createNativeQuery("SELECT COUNT(*) FROM components").getSingleResult())
+                .isEqualTo(0L);
+    }
+
+    private static ComponentDraft redis(UUID key, String name) {
+        return new ComponentDraft(key, "redis", name, 0, 0, new ComponentConfiguration("DEFAULT", Map.of()));
+    }
+
+    private static Map<String, ComponentTemplate> catalogue() {
+        return Map.of(
+                "http-service", new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
+                "redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of())));
+    }
+
+    @Test
+    void rejectsLoadGeneratorNodesInTheDatabase() {
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery("""
+                INSERT INTO components (scenario_id, component_key, template_key, type, name,
+                                        position_x, position_y, parameters)
+                VALUES (:scenario, gen_random_uuid(), 'load-generator', 'LOAD_GENERATOR', 'load', 0, 0, '{}')
+                """).setParameter("scenario", scenario.getId()).executeUpdate())
+                .isInstanceOf(PersistenceException.class)
+                .hasMessageContaining("ck_components_type");
     }
 }

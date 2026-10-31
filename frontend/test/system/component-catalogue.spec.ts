@@ -14,7 +14,6 @@ test("renders the persisted catalogue through the real application", async ({
 
   const expectedNames = [
     "HTTP Service",
-    "Load Generator",
     "PostgreSQL",
     "RabbitMQ",
     "Redis",
@@ -23,8 +22,9 @@ test("renders the persisted catalogue through the real application", async ({
     "Worker variant 2",
     "Worker variant 3",
     "Worker variant 4",
+    "Worker variant 5",
   ];
-  const allNames = [...expectedNames, "Worker variant 5", "Worker variant 6"];
+  const allNames = [...expectedNames, "Worker variant 6"];
 
   const templates =
     await test.step("Read the public catalogue API", async () => {
@@ -37,14 +37,20 @@ test("renders the persisted catalogue through the real application", async ({
       expect(body.page).toEqual({
         size: 10,
         number: 0,
-        totalElements: 12,
+        totalElements: 11,
         totalPages: 2,
       });
       expect(body.content.map((item: { name: string }) => item.name)).toEqual(
         expectedNames,
       );
       for (const item of body.content) {
-        expect(Object.keys(item).sort()).toEqual(["key", "name", "type"]);
+        expect(Object.keys(item).sort()).toEqual([
+          "contract",
+          "initialConfiguration",
+          "key",
+          "name",
+          "type",
+        ]);
         expect(item.key).toEqual(expect.any(String));
         expect(item.type).toEqual(expect.any(String));
       }
@@ -122,13 +128,12 @@ test("renders the persisted catalogue through the real application", async ({
     expect(response.status()).toBe(200);
     const lastPage = await response.json();
     expect(lastPage.content.map((item: { key: string }) => item.key)).toEqual([
-      "worker-variant-5",
       "worker-variant-6",
     ]);
     await expect(
       page.getByRole("list").getByRole("heading", { level: 2 }),
     ).toHaveText(allNames);
-    await expect(page.getByRole("listitem")).toHaveCount(12);
+    await expect(page.getByRole("listitem")).toHaveCount(11);
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "More results" }),

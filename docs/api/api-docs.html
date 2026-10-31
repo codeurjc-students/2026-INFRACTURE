@@ -215,8 +215,10 @@ font-style: italic;
   <h4><a href="#ScenarioController">ScenarioController</a></h4>
   <ul>
   <li><a href="#createScenario"><code><span class="http-method">post</span> /api/v1/projects/{projectId}/scenarios</code></a></li>
+  <li><a href="#getGraph"><code><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios/{id}/graph</code></a></li>
   <li><a href="#getScenario"><code><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios/{id}</code></a></li>
   <li><a href="#getScenarios"><code><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios</code></a></li>
+  <li><a href="#saveGraph"><code><span class="http-method">put</span> /api/v1/projects/{projectId}/scenarios/{id}/graph</code></a></li>
   <li><a href="#updateScenario"><code><span class="http-method">put</span> /api/v1/projects/{projectId}/scenarios/{id}</code></a></li>
   </ul>
   <h4><a href="#UserController">UserController</a></h4>
@@ -269,11 +271,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -283,9 +288,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -360,11 +362,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -374,9 +379,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -426,11 +428,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -440,9 +445,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -505,11 +507,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -519,9 +524,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -590,10 +592,74 @@ font-style: italic;
     "totalElements" : 1
   },
   "content" : [ {
+    "initialConfiguration" : {
+      "profile" : "profile",
+      "parameters" : {
+        "key" : 5
+      }
+    },
+    "contract" : {
+      "profiles" : [ {
+        "name" : "name",
+        "parameters" : [ {
+          "min" : 6,
+          "max" : 1,
+          "name" : "name"
+        }, {
+          "min" : 6,
+          "max" : 1,
+          "name" : "name"
+        } ]
+      }, {
+        "name" : "name",
+        "parameters" : [ {
+          "min" : 6,
+          "max" : 1,
+          "name" : "name"
+        }, {
+          "min" : 6,
+          "max" : 1,
+          "name" : "name"
+        } ]
+      } ],
+      "version" : 0
+    },
     "name" : "name",
     "type" : "HTTP_SERVICE",
     "key" : "key"
   }, {
+    "initialConfiguration" : {
+      "profile" : "profile",
+      "parameters" : {
+        "key" : 5
+      }
+    },
+    "contract" : {
+      "profiles" : [ {
+        "name" : "name",
+        "parameters" : [ {
+          "min" : 6,
+          "max" : 1,
+          "name" : "name"
+        }, {
+          "min" : 6,
+          "max" : 1,
+          "name" : "name"
+        } ]
+      }, {
+        "name" : "name",
+        "parameters" : [ {
+          "min" : 6,
+          "max" : 1,
+          "name" : "name"
+        }, {
+          "min" : 6,
+          "max" : 1,
+          "name" : "name"
+        } ]
+      } ],
+      "version" : 0
+    },
     "name" : "name",
     "type" : "HTTP_SERVICE",
     "key" : "key"
@@ -609,11 +675,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -623,9 +692,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -703,11 +769,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -717,9 +786,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -790,11 +856,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -804,9 +873,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -893,11 +959,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -907,9 +976,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -992,11 +1058,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1006,9 +1075,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1093,11 +1159,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1108,12 +1177,140 @@ font-style: italic;
     <h4 class="field-label">500</h4>
     Internal Server Error
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
         <a href="#ScenarioDTO">ScenarioDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getGraph"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios/{id}/graph</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getGraph</span>)</div>
+    <div class="method-notes"></div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">projectId (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div><div class="param">id (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div>
+    </div>  <!-- field-items -->
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ScenarioGraphDTO">ScenarioGraphDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "components" : [ {
+    "profile" : "profile",
+    "name" : "name",
+    "position" : {
+      "x" : 6.027456183070403,
+      "y" : 1.4658129805029452
+    },
+    "type" : "HTTP_SERVICE",
+    "parameters" : {
+      "key" : 5
+    },
+    "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "templateKey" : "templateKey"
+  }, {
+    "profile" : "profile",
+    "name" : "name",
+    "position" : {
+      "x" : 6.027456183070403,
+      "y" : 1.4658129805029452
+    },
+    "type" : "HTTP_SERVICE",
+    "parameters" : {
+      "key" : 5
+    },
+    "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "templateKey" : "templateKey"
+  } ],
+  "issues" : [ {
+    "severity" : "ERROR",
+    "code" : "code",
+    "field" : "field",
+    "message" : "message",
+    "target" : {
+      "kind" : "COMPONENT",
+      "key" : "key"
+    }
+  }, {
+    "severity" : "ERROR",
+    "code" : "code",
+    "field" : "field",
+    "message" : "message",
+    "target" : {
+      "kind" : "COMPONENT",
+      "key" : "key"
+    }
+  } ],
+  "revision" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#ScenarioGraphDTO">ScenarioGraphDTO</a>
   </div> <!-- method -->
   <hr/>
   <div class="method"><a name="getScenario"/>
@@ -1183,11 +1380,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1197,9 +1397,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1294,11 +1491,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1309,12 +1509,152 @@ font-style: italic;
     <h4 class="field-label">500</h4>
     Internal Server Error
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
         <a href="#PagedModelScenarioDTO">PagedModelScenarioDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="saveGraph"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="put"><code class="huge"><span class="http-method">put</span> /api/v1/projects/{projectId}/scenarios/{id}/graph</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">saveGraph</span>)</div>
+    <div class="method-notes"></div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">projectId (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div><div class="param">id (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div>
+    </div>  <!-- field-items -->
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">SaveScenarioGraphDTO <a href="#SaveScenarioGraphDTO">SaveScenarioGraphDTO</a> (required)</div>
+
+      <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ScenarioGraphDTO">ScenarioGraphDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "components" : [ {
+    "profile" : "profile",
+    "name" : "name",
+    "position" : {
+      "x" : 6.027456183070403,
+      "y" : 1.4658129805029452
+    },
+    "type" : "HTTP_SERVICE",
+    "parameters" : {
+      "key" : 5
+    },
+    "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "templateKey" : "templateKey"
+  }, {
+    "profile" : "profile",
+    "name" : "name",
+    "position" : {
+      "x" : 6.027456183070403,
+      "y" : 1.4658129805029452
+    },
+    "type" : "HTTP_SERVICE",
+    "parameters" : {
+      "key" : 5
+    },
+    "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "templateKey" : "templateKey"
+  } ],
+  "issues" : [ {
+    "severity" : "ERROR",
+    "code" : "code",
+    "field" : "field",
+    "message" : "message",
+    "target" : {
+      "kind" : "COMPONENT",
+      "key" : "key"
+    }
+  }, {
+    "severity" : "ERROR",
+    "code" : "code",
+    "field" : "field",
+    "message" : "message",
+    "target" : {
+      "kind" : "COMPONENT",
+      "key" : "key"
+    }
+  } ],
+  "revision" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#ScenarioGraphDTO">ScenarioGraphDTO</a>
   </div> <!-- method -->
   <hr/>
   <div class="method"><a name="updateScenario"/>
@@ -1396,11 +1736,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1410,9 +1753,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1482,11 +1822,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1496,9 +1839,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1579,11 +1919,14 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1593,9 +1936,6 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
-        <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1609,19 +1949,30 @@ font-style: italic;
   <h3>Table of Contents</h3>
   <ol>
     <li><a href="#AuthResponse"><code>AuthResponse</code> - </a></li>
+    <li><a href="#ComponentConfigurationDTO"><code>ComponentConfigurationDTO</code> - </a></li>
+    <li><a href="#ComponentDTO"><code>ComponentDTO</code> - </a></li>
     <li><a href="#ComponentTemplateDTO"><code>ComponentTemplateDTO</code> - </a></li>
     <li><a href="#LoginRequest"><code>LoginRequest</code> - </a></li>
     <li><a href="#PageMetadata"><code>PageMetadata</code> - </a></li>
     <li><a href="#PagedModelComponentTemplateDTO"><code>PagedModelComponentTemplateDTO</code> - </a></li>
     <li><a href="#PagedModelProjectDTO"><code>PagedModelProjectDTO</code> - </a></li>
     <li><a href="#PagedModelScenarioDTO"><code>PagedModelScenarioDTO</code> - </a></li>
+    <li><a href="#ParameterDTO"><code>ParameterDTO</code> - </a></li>
+    <li><a href="#PositionDTO"><code>PositionDTO</code> - </a></li>
     <li><a href="#ProblemDetail"><code>ProblemDetail</code> - </a></li>
+    <li><a href="#ProfileDTO"><code>ProfileDTO</code> - </a></li>
     <li><a href="#ProjectDTO"><code>ProjectDTO</code> - </a></li>
     <li><a href="#RegisterUserDTO"><code>RegisterUserDTO</code> - </a></li>
+    <li><a href="#SaveComponentDTO"><code>SaveComponentDTO</code> - </a></li>
     <li><a href="#SaveProjectDTO"><code>SaveProjectDTO</code> - </a></li>
     <li><a href="#SaveScenarioDTO"><code>SaveScenarioDTO</code> - </a></li>
+    <li><a href="#SaveScenarioGraphDTO"><code>SaveScenarioGraphDTO</code> - </a></li>
     <li><a href="#ScenarioDTO"><code>ScenarioDTO</code> - </a></li>
+    <li><a href="#ScenarioGraphDTO"><code>ScenarioGraphDTO</code> - </a></li>
+    <li><a href="#TargetDTO"><code>TargetDTO</code> - </a></li>
+    <li><a href="#TemplateContractDTO"><code>TemplateContractDTO</code> - </a></li>
     <li><a href="#UserDTO"><code>UserDTO</code> - </a></li>
+    <li><a href="#ValidationIssueDTO"><code>ValidationIssueDTO</code> - </a></li>
   </ol>
 
   <div class="model">
@@ -1636,6 +1987,29 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="ComponentConfigurationDTO"><code>ComponentConfigurationDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">profile (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">parameters (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">map[String, Integer]</a></span>  format: int32</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ComponentDTO"><code>ComponentDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">key (optional)</div><div class="param-desc"><span class="param-type"><a href="#UUID">UUID</a></span>  format: uuid</div>
+<div class="param">templateKey (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">type (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">HTTP_SERVICE</div><div class="param-enum">WORKER</div><div class="param-enum">POSTGRESQL</div><div class="param-enum">REDIS</div><div class="param-enum">RABBITMQ</div>
+<div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">position (optional)</div><div class="param-desc"><span class="param-type"><a href="#PositionDTO">PositionDTO</a></span>  </div>
+<div class="param">profile (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">parameters (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">map[String, Integer]</a></span>  format: int32</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="ComponentTemplateDTO"><code>ComponentTemplateDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -1643,7 +2017,9 @@ font-style: italic;
 <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">type (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
         <div class="param-enum-header">Enum:</div>
-        <div class="param-enum">HTTP_SERVICE</div><div class="param-enum">WORKER</div><div class="param-enum">LOAD_GENERATOR</div><div class="param-enum">POSTGRESQL</div><div class="param-enum">REDIS</div><div class="param-enum">RABBITMQ</div>
+        <div class="param-enum">HTTP_SERVICE</div><div class="param-enum">WORKER</div><div class="param-enum">POSTGRESQL</div><div class="param-enum">REDIS</div><div class="param-enum">RABBITMQ</div>
+<div class="param">contract (optional)</div><div class="param-desc"><span class="param-type"><a href="#TemplateContractDTO">TemplateContractDTO</a></span>  </div>
+<div class="param">initialConfiguration (optional)</div><div class="param-desc"><span class="param-type"><a href="#ComponentConfigurationDTO">ComponentConfigurationDTO</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -1689,6 +2065,23 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="ParameterDTO"><code>ParameterDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">min (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+<div class="param">max (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="PositionDTO"><code>PositionDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">x (optional)</div><div class="param-desc"><span class="param-type"><a href="#double">Double</a></span>  format: double</div>
+<div class="param">y (optional)</div><div class="param-desc"><span class="param-type"><a href="#double">Double</a></span>  format: double</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="ProblemDetail"><code>ProblemDetail</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -1698,6 +2091,14 @@ font-style: italic;
 <div class="param">detail (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">instance (optional)</div><div class="param-desc"><span class="param-type"><a href="#URI">URI</a></span>  format: uri</div>
 <div class="param">properties (optional)</div><div class="param-desc"><span class="param-type"><a href="#AnyType">map[String, oas_any_type_not_mapped]</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ProfileDTO"><code>ProfileDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">parameters (optional)</div><div class="param-desc"><span class="param-type"><a href="#ParameterDTO">array[ParameterDTO]</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -1722,6 +2123,18 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="SaveComponentDTO"><code>SaveComponentDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">key </div><div class="param-desc"><span class="param-type"><a href="#UUID">UUID</a></span>  format: uuid</div>
+<div class="param">templateKey (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">position </div><div class="param-desc"><span class="param-type"><a href="#PositionDTO">PositionDTO</a></span>  </div>
+<div class="param">profile (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">parameters </div><div class="param-desc"><span class="param-type"><a href="#integer">map[String, Integer]</a></span>  format: int32</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="SaveProjectDTO"><code>SaveProjectDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -1738,6 +2151,14 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="SaveScenarioGraphDTO"><code>SaveScenarioGraphDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">revision </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+<div class="param">components </div><div class="param-desc"><span class="param-type"><a href="#SaveComponentDTO">array[SaveComponentDTO]</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="ScenarioDTO"><code>ScenarioDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -1747,6 +2168,33 @@ font-style: italic;
 <div class="param">revision (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
 <div class="param">createdAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
 <div class="param">updatedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ScenarioGraphDTO"><code>ScenarioGraphDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">revision (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+<div class="param">components (optional)</div><div class="param-desc"><span class="param-type"><a href="#ComponentDTO">array[ComponentDTO]</a></span>  </div>
+<div class="param">issues (optional)</div><div class="param-desc"><span class="param-type"><a href="#ValidationIssueDTO">array[ValidationIssueDTO]</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="TargetDTO"><code>TargetDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">kind (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">COMPONENT</div><div class="param-enum">CONNECTION</div><div class="param-enum">WORKLOAD</div><div class="param-enum">SCENARIO</div>
+<div class="param">key (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="TemplateContractDTO"><code>TemplateContractDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">version (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+<div class="param">profiles (optional)</div><div class="param-desc"><span class="param-type"><a href="#ProfileDTO">array[ProfileDTO]</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -1764,6 +2212,19 @@ font-style: italic;
 <div class="param">avatarKey (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">createdAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
 <div class="param">updatedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ValidationIssueDTO"><code>ValidationIssueDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">severity (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">ERROR</div><div class="param-enum">WARNING</div>
+<div class="param">code (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">message (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">target (optional)</div><div class="param-desc"><span class="param-type"><a href="#TargetDTO">TargetDTO</a></span>  </div>
+<div class="param">field (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   </body>
