@@ -1,6 +1,6 @@
 # Changelog conventions
 
-`CHANGELOG.md` follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the policy in [Seguimiento](../tracking.md#changelog-y-notas-de-versión). Entries are written in Spanish.
+`CHANGELOG.md` follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the policy in [Seguimiento](../tracking.md#changelog-y-notas-de-versión). Entries are written in English.
 
 ## Decide whether it belongs
 
