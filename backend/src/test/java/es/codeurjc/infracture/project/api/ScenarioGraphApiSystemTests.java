@@ -166,6 +166,58 @@ class ScenarioGraphApiSystemTests {
     }
 
     @Test
+    void savesConnectionsAndKeepsTheOnesAProfileChangeMakesIncompatible() {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = createScenario(alice);
+        String cacheAside = node(ORDERS, "http-service", "orders-api", "CACHE_ASIDE", "{\"responseDelayMs\":0}");
+        String stateless = http(ORDERS, "orders-api", 0, 0, 0);
+
+        alice.write().body(graph(1, List.of(cacheAside, redis(CACHE)), connection(ORDERS, "cache", CACHE)))
+            .put(scenario + "/graph").then().statusCode(200)
+            .body("connections", hasSize(1))
+            .body("issues", hasSize(0));
+        alice.read().get(scenario + "/graph").then()
+            .body("connections[0].sourceKey", equalTo(ORDERS))
+            .body("connections[0].port", equalTo("cache"))
+            .body("connections[0].targetKey", equalTo(CACHE));
+
+        alice.write().body(graph(2, List.of(stateless, redis(CACHE)), connection(ORDERS, "cache", CACHE)))
+            .put(scenario + "/graph").then().statusCode(200)
+            .body("connections", hasSize(1))
+            .body("issues", hasSize(1))
+            .body("issues[0].code", equalTo("UNKNOWN_PORT"))
+            .body("issues[0].message", equalTo("orders-api has no port cache in profile STATELESS"))
+            .body("issues[0].target.kind", equalTo("CONNECTION"))
+            .body("issues[0].target.key", equalTo(ORDERS + ":cache:" + CACHE))
+            .body("issues[0].field", equalTo("cache"));
+
+        alice.write().body(graph(3, List.of(stateless)))
+            .put(scenario + "/graph").then().statusCode(200)
+            .body("components", hasSize(1))
+            .body("connections", hasSize(0))
+            .body("issues", hasSize(0));
+    }
+
+    @Test
+    void rejectsConnectionsToNodesOutsideTheGraphWithoutSaving() {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = createScenario(alice);
+        String otherScenario = createScenario(alice);
+        alice.write().body(graph(1, redis(USERS))).put(otherScenario + "/graph").then().statusCode(200);
+
+        alice.write().body(graph(1, List.of(http(ORDERS, "orders-api", 0, 0, 0)),
+                connection(ORDERS, "downstream", USERS), connection(ORDERS, "downstream", USERS)))
+            .put(scenario + "/graph")
+            .then().spec(problem(400, String.join("; ",
+                "Connection orders-api.downstream → " + USERS + ": target is not a node of this scenario",
+                "Connection orders-api.downstream → " + USERS + ": target is not a node of this scenario",
+                "Connection orders-api.downstream → " + USERS + ": appears more than once")));
+
+        alice.read().get(scenario + "/graph").then()
+            .body("revision", equalTo(1)).body("components", hasSize(0)).body("connections", hasSize(0));
+    }
+
+    @Test
     void rejectsStructuralProblemsWithoutSaving() {
         ApiSession alice = ApiSession.signUp(port);
         String scenario = createScenario(alice);
@@ -194,9 +246,13 @@ class ScenarioGraphApiSystemTests {
                 """.formatted(ORDERS, field);
 
         alice.write().body(graph(1, tampered)).put(scenario + "/graph").then().statusCode(400);
-        alice.write().body("{\"revision\":1,\"components\":[],\"" + field + "\":1}").put(scenario + "/graph")
-            .then().statusCode(400);
-        alice.write().body("{\"components\":[]}").put(scenario + "/graph").then().statusCode(400);
+        alice.write().body("{\"revision\":1,\"components\":[],\"connections\":[],\"" + field + "\":1}")
+            .put(scenario + "/graph").then().statusCode(400);
+        alice.write().body(graph(1, List.of(redis(ORDERS)), """
+                {"sourceKey":"%s","port":"cache","targetKey":"%s","%s":1}
+                """.formatted(ORDERS, ORDERS, field))).put(scenario + "/graph").then().statusCode(400);
+        alice.write().body("{\"components\":[],\"connections\":[]}").put(scenario + "/graph").then().statusCode(400);
+        alice.write().body("{\"revision\":1,\"components\":[]}").put(scenario + "/graph").then().statusCode(400);
 
         alice.read().get(scenario + "/graph").then().body("revision", equalTo(1));
     }
@@ -219,7 +275,18 @@ class ScenarioGraphApiSystemTests {
     }
 
     private static String graph(int revision, String... components) {
-        return "{\"revision\":" + revision + ",\"components\":[" + String.join(",", components) + "]}";
+        return graph(revision, List.of(components));
+    }
+
+    private static String graph(int revision, List<String> components, String... connections) {
+        return "{\"revision\":" + revision + ",\"components\":[" + String.join(",", components)
+                + "],\"connections\":[" + String.join(",", connections) + "]}";
+    }
+
+    private static String connection(String source, String port, String target) {
+        return """
+                {"sourceKey":"%s","port":"%s","targetKey":"%s"}
+                """.formatted(source, port, target);
     }
 
     private static String http(String key, String name, double x, double y, int delay) {

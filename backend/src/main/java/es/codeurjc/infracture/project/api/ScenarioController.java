@@ -84,6 +84,7 @@ public class ScenarioController {
             @Valid @RequestBody SaveScenarioGraphDTO graphDTO,
             Principal principal) {
         return mapper.toDTO(service.saveGraph(principal.getName(), projectId, id, graphDTO.revision(),
-                graphDTO.components().stream().map(mapper::toDraft).toList()));
+                graphDTO.components().stream().map(mapper::toDraft).toList(),
+                graphDTO.connections().stream().map(mapper::toConnection).toList()));
     }
 }

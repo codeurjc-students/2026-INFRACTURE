@@ -556,7 +556,7 @@ El backend es un monolito modular. Cada módulo sigue las capas `api`, `applicat
 | `ComponentTemplate`, lectura del catálogo | `catalog` | Implementado. |
 | `ContractCatalog`, `ProfileContract`, `ParameterContract` | `catalog` | En desarrollo (#79). |
 | Guardado del grafo con revisión esperada | `project` | En desarrollo (#79). |
-| `Connection`, puertos y capacidades | `project` | Pendiente (#80). |
+| `Connection`, puertos y capacidades | `project`, `catalog` | En desarrollo (#80). |
 | `ScenarioValidator`, `ValidationIssue` | `project` | Pendiente. |
 | `Workload` | `project` | Pendiente. |
 | Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Pendiente (P06–P07). |

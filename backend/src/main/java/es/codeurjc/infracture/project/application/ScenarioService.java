@@ -5,6 +5,7 @@ import static es.codeurjc.infracture.project.application.DetailNormalizer.normal
 
 import es.codeurjc.infracture.catalog.application.ComponentTemplateService;
 import es.codeurjc.infracture.project.domain.ComponentDraft;
+import es.codeurjc.infracture.project.domain.Connection;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.persistence.ScenarioRepository;
@@ -73,7 +74,7 @@ public class ScenarioService {
 
     @Transactional
     public ScenarioGraph saveGraph(String ownerEmail, Long projectId, Long id, int expectedRevision,
-            List<ComponentDraft> components) {
+            List<ComponentDraft> components, List<Connection> connections) {
         Scenario scenario = lockOwnScenario(ownerEmail, projectId, id);
         Set<String> templateKeys = components.stream().map(ComponentDraft::templateKey)
                 .filter(Objects::nonNull).collect(Collectors.toSet());
@@ -81,7 +82,7 @@ public class ScenarioService {
                 .map(draft -> new ComponentDraft(draft.key(), draft.templateKey(), normalizeText(draft.name()),
                         draft.positionX(), draft.positionY(), draft.configuration()))
                 .toList();
-        scenario.replaceGraph(expectedRevision, normalized, templateService.getTemplatesByKey(templateKeys));
+        scenario.replaceGraph(expectedRevision, normalized, connections, templateService.getTemplatesByKey(templateKeys));
         Scenario saved = scenarioRepository.saveAndFlush(scenario);
         return new ScenarioGraph(saved, scenarioValidator.validate(saved));
     }

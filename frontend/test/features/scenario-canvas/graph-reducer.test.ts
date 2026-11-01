@@ -11,7 +11,12 @@ import {
 import type { ScenarioGraphDTO } from "~/features/scenario-canvas/model/ScenarioGraphDTO";
 import { httpService, redis } from "../../fixtures/component-templates";
 
-const empty = toCanvasState({ revision: 1, components: [], issues: [] });
+const empty = toCanvasState({
+  revision: 1,
+  components: [],
+  connections: [],
+  issues: [],
+});
 
 function add(state: CanvasState, key: string, template = httpService) {
   return graphReducer(state, {
@@ -34,7 +39,17 @@ const savedGraph: ScenarioGraphDTO = {
       profile: "STATELESS",
       parameters: { responseDelayMs: 9000 },
     },
+    {
+      key: "b",
+      templateKey: "redis",
+      type: "REDIS",
+      name: "Cache",
+      position: { x: 400, y: 100 },
+      profile: "DEFAULT",
+      parameters: {},
+    },
   ],
+  connections: [{ sourceKey: "a", port: "cache", targetKey: "b" }],
   issues: [
     {
       severity: "ERROR",
@@ -125,6 +140,8 @@ describe("graph reducer", () => {
           { name: "responseDelayMs", min: 0, max: 5000 },
           { name: "errorRate", min: 0, max: 100 },
         ],
+        ports: [],
+        capabilities: [],
       },
     });
     expect(state.nodes[0].data).toMatchObject({
@@ -139,7 +156,7 @@ describe("graph reducer", () => {
       key: "a",
       name: "Orders",
     });
-    expect(toSaveGraph(state.nodes, 1)).toEqual({
+    expect(toSaveGraph(state.nodes, state.edges, 1)).toEqual({
       revision: 1,
       components: [
         {
@@ -151,6 +168,7 @@ describe("graph reducer", () => {
           parameters: { responseDelayMs: 0 },
         },
       ],
+      connections: [],
     });
   });
 
@@ -232,6 +250,93 @@ describe("graph reducer", () => {
       dirty: false,
       revision: 2,
     });
-    expect(reloaded.nodes.map((node) => node.data.name)).toEqual(["Orders"]);
+    expect(reloaded.nodes.map((node) => node.data.name)).toEqual([
+      "Orders",
+      "Cache",
+    ]);
+  });
+
+  it("connects a port to another node once and sends the connection with the graph", () => {
+    let state = add(add(empty, "a"), "b", redis);
+    const connection = { sourceKey: "a", port: "cache", targetKey: "b" };
+    state = graphReducer(
+      { ...state, dirty: false },
+      { type: "connected", connection },
+    );
+    state = graphReducer(state, { type: "connected", connection });
+    state = graphReducer(state, {
+      type: "connected",
+      connection: { sourceKey: "a", port: "downstream", targetKey: "a" },
+    });
+
+    expect(state.dirty).toBe(true);
+    expect(state.edges.map((edge) => edge.id)).toEqual(["a:cache:b"]);
+    expect(toSaveGraph(state.nodes, state.edges, 1).connections).toEqual([
+      connection,
+    ]);
+  });
+
+  it("removes a connection without touching the rest, and selecting it is not a change", () => {
+    const state = toCanvasState(savedGraph);
+
+    const selected = graphReducer(state, {
+      type: "edgesChanged",
+      changes: [{ type: "select", id: "a:cache:b", selected: true }],
+    });
+    expect(selected.dirty).toBe(false);
+    expect(selected.edges[0].selected).toBe(true);
+
+    for (const removed of [
+      graphReducer(state, {
+        type: "edgesChanged",
+        changes: [{ type: "remove", id: "a:cache:b" }],
+      }),
+      graphReducer(state, { type: "disconnected", id: "a:cache:b" }),
+    ]) {
+      expect(removed.dirty).toBe(true);
+      expect(removed.edges).toEqual([]);
+      expect(removed.nodes).toHaveLength(2);
+    }
+  });
+
+  it("removes the connections of a deleted node", () => {
+    const state = toCanvasState(savedGraph);
+
+    expect(graphReducer(state, { type: "removed", key: "b" }).edges).toEqual(
+      [],
+    );
+    expect(
+      graphReducer(state, {
+        type: "nodesChanged",
+        changes: [{ type: "remove", id: "a" }],
+      }).edges,
+    ).toEqual([]);
+  });
+
+  it("keeps connections when the profile changes", () => {
+    const state = graphReducer(toCanvasState(savedGraph), {
+      type: "profileChanged",
+      key: "a",
+      profile: httpService.contract.profiles[0],
+    });
+
+    expect(state.nodes[0].data.profile).toBe("STATELESS");
+    expect(state.edges.map((edge) => edge.id)).toEqual(["a:cache:b"]);
+  });
+
+  it("restores the connections of a draft, and none from a draft saved before connections existed", () => {
+    const draft = {
+      baseRevision: 1,
+      components: savedGraph.components,
+      savedAt: "2026-10-31T10:00:00Z",
+    };
+
+    expect(
+      graphReducer(empty, {
+        type: "restored",
+        draft: { ...draft, connections: savedGraph.connections },
+      }).edges.map((edge) => edge.id),
+    ).toEqual(["a:cache:b"]);
+    expect(graphReducer(empty, { type: "restored", draft }).edges).toEqual([]);
   });
 });

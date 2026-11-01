@@ -71,6 +71,13 @@ class ComponentTemplateApiSystemTests {
                 .body("content[0].contract.profiles[0].parameters[0].name", equalTo("responseDelayMs"))
                 .body("content[0].contract.profiles[0].parameters[0].min", equalTo(0))
                 .body("content[0].contract.profiles[0].parameters[0].max", equalTo(5000))
+                .body("content[0].contract.profiles[0].capabilities", contains("HTTP"))
+                .body("content[0].contract.profiles[2].name", equalTo("CACHE_ASIDE"))
+                .body("content[0].contract.profiles[2].ports[0].name", equalTo("cache"))
+                .body("content[0].contract.profiles[2].ports[0].label", equalTo("Cache"))
+                .body("content[0].contract.profiles[2].ports[0].accepts", contains("KEY_VALUE"))
+                .body("content[0].contract.profiles[2].ports[0].min", equalTo(1))
+                .body("content[0].contract.profiles[2].ports[0].max", equalTo(1))
                 .body("content[0].initialConfiguration.profile", equalTo("STATELESS"))
                 .body("content[0].initialConfiguration.parameters.responseDelayMs", equalTo(0));
 

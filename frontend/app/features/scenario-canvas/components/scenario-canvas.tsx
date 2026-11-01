@@ -4,11 +4,14 @@ import {
   BackgroundVariant,
   ControlButton,
   Controls,
+  MarkerType,
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
   useStore,
+  type Connection,
+  type Edge,
   type FitViewOptions,
   type NodeChange,
 } from "@xyflow/react";
@@ -42,6 +45,12 @@ import type { ProjectDTO } from "~/features/projects/model/ProjectDTO";
 import type { ScenarioDTO } from "~/features/projects/model/ScenarioDTO";
 import { HttpError } from "~/shared/api/api-fetch";
 import { getGraph, saveGraph } from "../api/graph-service";
+import {
+  connectionId,
+  connectionIssue,
+  profileOf,
+  toConnection,
+} from "../connections";
 import { draftKey, useGraphDraft, type GraphDraft } from "../draft-storage";
 import {
   BOARD,
@@ -57,7 +66,7 @@ import type { ScenarioGraphDTO } from "../model/ScenarioGraphDTO";
 import type { ValidationIssueDTO } from "../model/ValidationIssueDTO";
 import ComponentNode, { type DisplayedNode } from "./component-node";
 import ComponentPalette, { TEMPLATE_MIME } from "./component-palette";
-import NodeInspector from "./node-inspector";
+import NodeInspector, { type NodeConnection } from "./node-inspector";
 import ScenarioDetails from "./scenario-details";
 
 // Only to show "⌘S" or "Ctrl S" in the save button tooltip.
@@ -104,6 +113,11 @@ const flowTheme = {
     "color-mix(in oklch, var(--background) 70%, transparent)",
   "--xy-minimap-mask-stroke-color": "var(--foreground)",
   "--xy-minimap-node-stroke-color": "var(--input)",
+  "--xy-edge-stroke": "var(--muted-foreground)",
+  "--xy-edge-stroke-selected": "var(--foreground)",
+  "--xy-edge-label-background-color": "var(--background)",
+  "--xy-edge-label-color": "var(--muted-foreground)",
+  "--xy-connectionline-stroke": "var(--foreground)",
 } as CSSProperties;
 
 // Everything the route loaded.
@@ -173,10 +187,82 @@ function SaveButtonContent({
   );
 }
 
-// The nodes as they are drawn: each one gets its template name and its issues.
+// The label a port shows: the contract's, or its name when the profile no longer has it.
+function portLabel(
+  node: ComponentNodeModel | undefined,
+  port: string,
+  templatesByKey: Map<string, ComponentTemplateDTO>,
+) {
+  if (!node) return port;
+  return (
+    profileOf(node, templatesByKey)?.ports.find(
+      (candidate) => candidate.name === port,
+    )?.label ?? port
+  );
+}
+
+// The arrows as they are drawn: labelled with the port, and dashed amber when the contract
+// no longer allows them. Checked here, so a profile change shows at once, before saving.
+function toDisplayedEdges(
+  edges: Edge[],
+  nodes: ComponentNodeModel[],
+  templatesByKey: Map<string, ComponentTemplateDTO>,
+): Edge[] {
+  const byKey = new Map(nodes.map((node) => [node.id, node]));
+  return edges.map((edge) => {
+    const source = byKey.get(edge.source);
+    const target = byKey.get(edge.target);
+    const port = edge.sourceHandle ?? "";
+    const label = portLabel(source, port, templatesByKey);
+    const issue =
+      source && target
+        ? connectionIssue(source, port, target, templatesByKey)
+        : null;
+    const color = issue ? "var(--degraded-text)" : undefined;
+    return {
+      ...edge,
+      label,
+      ariaLabel: `${source?.data.name} ${label} ${target?.data.name}${issue ? ", not allowed" : ""}`,
+      markerEnd: { type: MarkerType.ArrowClosed, color },
+      style: issue ? { stroke: color, strokeDasharray: "6 4" } : undefined,
+      labelStyle: issue ? { fill: color } : undefined,
+    };
+  });
+}
+
+// The arrows that leave from or reach one node, as the inspector lists them.
+function nodeConnections(
+  key: string,
+  nodes: ComponentNodeModel[],
+  edges: Edge[],
+  templatesByKey: Map<string, ComponentTemplateDTO>,
+): NodeConnection[] {
+  const byKey = new Map(nodes.map((node) => [node.id, node]));
+  return edges
+    .filter((edge) => edge.source === key || edge.target === key)
+    .map((edge) => {
+      const source = byKey.get(edge.source);
+      const target = byKey.get(edge.target);
+      const port = edge.sourceHandle ?? "";
+      const outgoing = edge.source === key;
+      return {
+        id: edge.id,
+        outgoing,
+        label: portLabel(source, port, templatesByKey),
+        other: (outgoing ? target : source)?.data.name ?? "",
+        issue:
+          source && target
+            ? connectionIssue(source, port, target, templatesByKey)
+            : null,
+      };
+    });
+}
+
+// The nodes as they are drawn: each one gets its template name, its issues and its ports.
 // Only for drawing; the state keeps the data as the backend sends it.
 function toDisplayed(
   nodes: ComponentNodeModel[],
+  edges: Edge[],
   issues: ValidationIssueDTO[],
   templatesByKey: Map<string, ComponentTemplateDTO>,
 ): DisplayedNode[] {
@@ -192,6 +278,19 @@ function toDisplayed(
     const templateName =
       templatesByKey.get(node.data.templateKey)?.name ?? node.data.type;
     const issueFields = byNode.get(node.id) ?? [];
+    const ports = (profileOf(node, templatesByKey)?.ports ?? []).map(
+      (port) => ({ name: port.name, label: port.label, stale: false }),
+    );
+    // A port the profile lost keeps its handle while an arrow still leaves from it.
+    for (const edge of edges) {
+      const port = edge.sourceHandle ?? "";
+      if (
+        edge.source === node.id &&
+        !ports.some((candidate) => candidate.name === port)
+      ) {
+        ports.push({ name: port, label: port, stale: true });
+      }
+    }
     return {
       ...node,
       ariaLabel: `${node.data.name}, ${templateName}`,
@@ -200,6 +299,7 @@ function toDisplayed(
         templateName,
         issueCount: issueFields.length,
         issueFields,
+        ports,
       },
     };
   });
@@ -275,9 +375,31 @@ function Editor({
   }
 
   const displayed = useMemo(
-    () => toDisplayed(state.nodes, state.issues, templatesByKey),
-    [state.nodes, state.issues, templatesByKey],
+    () => toDisplayed(state.nodes, state.edges, state.issues, templatesByKey),
+    [state.nodes, state.edges, state.issues, templatesByKey],
   );
+  const displayedEdges = useMemo(
+    () => toDisplayedEdges(state.edges, state.nodes, templatesByKey),
+    [state.edges, state.nodes, templatesByKey],
+  );
+
+  // Where an arrow may be dropped: on another node that offers what the port accepts,
+  // and only once per port and target.
+  function canConnect(connection: Connection | Edge) {
+    const source = state.nodes.find((node) => node.id === connection.source);
+    const target = state.nodes.find((node) => node.id === connection.target);
+    const port = connection.sourceHandle;
+    if (!source || !target || !port || source === target) return false;
+    const id = connectionId({
+      sourceKey: source.id,
+      port,
+      targetKey: target.id,
+    });
+    return (
+      !state.edges.some((edge) => edge.id === id) &&
+      connectionIssue(source, port, target, templatesByKey) === null
+    );
+  }
 
   // The side panel shows the selected node, or the scenario details.
   const selected = state.nodes.find((node) => node.selected);
@@ -301,10 +423,18 @@ function Editor({
   }
 
   // The issues button in the top bar: selects the first node with an issue and centres the view on it.
+  // A connection issue points to the node its arrow leaves from.
   function showFirstIssue() {
-    const key = state.issues.find(
-      (issue) => issue.target.kind === "COMPONENT" && issue.target.key,
-    )?.target.key;
+    const target = state.issues.find(
+      (issue) =>
+        (issue.target.kind === "COMPONENT" ||
+          issue.target.kind === "CONNECTION") &&
+        issue.target.key,
+    )?.target;
+    const key =
+      target?.kind === "CONNECTION"
+        ? state.edges.find((edge) => edge.id === target.key)?.source
+        : target?.key;
     if (!key) return;
     select(key);
     void fitToBoard({ nodes: [{ id: key }], padding: "24px" });
@@ -348,7 +478,7 @@ function Editor({
       const saved = await saveGraph(
         projectId,
         scenarioId,
-        toSaveGraph(state.nodes, revision),
+        toSaveGraph(state.nodes, state.edges, revision),
       );
       dispatch({ type: "saved", graph: saved });
     } catch (error) {
@@ -396,6 +526,7 @@ function Editor({
         draft.keep({
           baseRevision: state.revision,
           components: toComponents(state.nodes),
+          connections: state.edges.map(toConnection),
           savedAt: new Date().toISOString(),
         });
         dispatch({ type: "reloaded", graph: latest });
@@ -526,6 +657,7 @@ function Editor({
               and the reducer decides. The extents and zoom limits keep everything on the board. */}
           <ReactFlow
             nodes={displayed}
+            edges={displayedEdges}
             nodeTypes={nodeTypes}
             onNodesChange={(changes) =>
               dispatch({
@@ -533,6 +665,20 @@ function Editor({
                 changes: changes as NodeChange<ComponentNodeModel>[],
               })
             }
+            onEdgesChange={(changes) =>
+              dispatch({ type: "edgesChanged", changes })
+            }
+            onConnect={(connection) =>
+              dispatch({
+                type: "connected",
+                connection: {
+                  sourceKey: connection.source,
+                  port: connection.sourceHandle ?? "",
+                  targetKey: connection.target,
+                },
+              })
+            }
+            isValidConnection={canConnect}
             deleteKeyCode={["Backspace", "Delete"]}
             nodeExtent={BOARD_EXTENT}
             translateExtent={BOARD_EXTENT}
@@ -699,6 +845,12 @@ function Editor({
                   (issue) =>
                     issue.target.kind === "COMPONENT" &&
                     issue.target.key === selected.id,
+                )}
+                connections={nodeConnections(
+                  selected.id,
+                  state.nodes,
+                  state.edges,
+                  templatesByKey,
                 )}
                 dispatch={dispatch}
                 onClose={() => select(null)}

@@ -10,6 +10,7 @@ import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.project.domain.Component;
 import es.codeurjc.infracture.project.domain.ComponentDraft;
+import es.codeurjc.infracture.project.domain.Connection;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import jakarta.persistence.EntityManager;
@@ -151,7 +152,7 @@ class ScenarioPersistenceIntegrationTests {
                 new ComponentDraft(orders, "http-service", "orders-api", 120.5, -40,
                         new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 250))),
                 new ComponentDraft(cache, "redis", "cache", 0, 300,
-                        new ComponentConfiguration("DEFAULT", Map.of()))),
+                        new ComponentConfiguration("DEFAULT", Map.of()))), List.of(),
                 catalogue());
         repository.saveAndFlush(scenario);
         entityManager.clear();
@@ -175,13 +176,13 @@ class ScenarioPersistenceIntegrationTests {
     void keepsNodeIdentityAndRemovesDeletedNodesOnTheNextSave() {
         UUID kept = UUID.randomUUID();
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
-        scenario.replaceGraph(1, List.of(redis(kept, "cache"), redis(UUID.randomUUID(), "removed")), catalogue());
+        scenario.replaceGraph(1, List.of(redis(kept, "cache"), redis(UUID.randomUUID(), "removed")), List.of(), catalogue());
         repository.saveAndFlush(scenario);
         Long keptId = scenario.getComponents().getFirst().getId();
         entityManager.clear();
 
         Scenario reopened = repository.findById(scenario.getId()).orElseThrow();
-        reopened.replaceGraph(2, List.of(redis(kept, "renamed")), catalogue());
+        reopened.replaceGraph(2, List.of(redis(kept, "renamed")), List.of(), catalogue());
         repository.saveAndFlush(reopened);
         entityManager.clear();
 
@@ -192,6 +193,63 @@ class ScenarioPersistenceIntegrationTests {
                 .extracting(Component::getName).isEqualTo("renamed");
         assertThat(entityManager.createNativeQuery("SELECT COUNT(*) FROM components").getSingleResult())
                 .isEqualTo(1L);
+    }
+
+    @Test
+    void reopensConnectionsAndRemovesThoseOfADeletedNodeInTheSameSave() {
+        UUID orders = UUID.randomUUID();
+        UUID cache = UUID.randomUUID();
+        Connection connection = new Connection(orders, "cache", cache);
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        scenario.replaceGraph(1, List.of(http(orders), redis(cache, "cache")), List.of(connection), catalogue());
+        repository.saveAndFlush(scenario);
+        entityManager.clear();
+
+        Scenario reopened = repository.findById(scenario.getId()).orElseThrow();
+        assertThat(reopened.getConnections()).containsExactly(connection);
+        reopened.replaceGraph(2, List.of(http(orders)), List.of(), catalogue());
+        repository.saveAndFlush(reopened);
+        entityManager.clear();
+
+        Scenario again = repository.findById(scenario.getId()).orElseThrow();
+        assertThat(again.getComponents()).extracting(Component::getKey).containsExactly(orders);
+        assertThat(again.getConnections()).isEmpty();
+    }
+
+    @Test
+    void deletesTheConnectionsOfADeletedNodeInTheDatabase() {
+        UUID orders = UUID.randomUUID();
+        UUID cache = UUID.randomUUID();
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        scenario.replaceGraph(1, List.of(http(orders), redis(cache, "cache")),
+                List.of(new Connection(orders, "cache", cache)), catalogue());
+        repository.saveAndFlush(scenario);
+
+        entityManager.createNativeQuery("DELETE FROM components WHERE component_key = :key")
+                .setParameter("key", cache).executeUpdate();
+
+        assertThat(entityManager.createNativeQuery("SELECT COUNT(*) FROM connections").getSingleResult())
+                .isEqualTo(0L);
+    }
+
+    @Test
+    void rejectsConnectionsToNodesOfAnotherScenarioInTheDatabase() {
+        UUID orders = UUID.randomUUID();
+        UUID foreign = UUID.randomUUID();
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        scenario.replaceGraph(1, List.of(http(orders)), List.of(), catalogue());
+        Scenario other = repository.saveAndFlush(new Scenario(queueLab, "Backlog", null));
+        other.replaceGraph(1, List.of(redis(foreign, "cache")), List.of(), catalogue());
+        repository.saveAndFlush(scenario);
+        repository.saveAndFlush(other);
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery("""
+                INSERT INTO connections (scenario_id, source_key, port, target_key)
+                VALUES (:scenario, :source, 'cache', :target)
+                """).setParameter("scenario", scenario.getId()).setParameter("source", orders)
+                .setParameter("target", foreign).executeUpdate())
+                .isInstanceOf(PersistenceException.class)
+                .hasMessageContaining("fk_connections_target");
     }
 
     @Test
@@ -236,7 +294,7 @@ class ScenarioPersistenceIntegrationTests {
     @Test
     void deletesTheNodesTogetherWithTheirScenario() {
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
-        scenario.replaceGraph(1, List.of(redis(UUID.randomUUID(), "cache")), catalogue());
+        scenario.replaceGraph(1, List.of(redis(UUID.randomUUID(), "cache")), List.of(), catalogue());
         repository.saveAndFlush(scenario);
 
         entityManager.createNativeQuery("DELETE FROM scenarios WHERE id = :id")
@@ -244,6 +302,11 @@ class ScenarioPersistenceIntegrationTests {
 
         assertThat(entityManager.createNativeQuery("SELECT COUNT(*) FROM components").getSingleResult())
                 .isEqualTo(0L);
+    }
+
+    private static ComponentDraft http(UUID key) {
+        return new ComponentDraft(key, "http-service", "orders-api", 0, 0,
+                new ComponentConfiguration("CACHE_ASIDE", Map.of("responseDelayMs", 0)));
     }
 
     private static ComponentDraft redis(UUID key, String name) {

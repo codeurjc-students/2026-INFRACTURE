@@ -155,7 +155,7 @@ class ScenarioServiceTests {
                 Map.of("redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of()))));
 
         ScenarioGraph saved = service.saveGraph(OWNER_EMAIL, 5L, 3L, 1, List.of(new ComponentDraft(
-                key, "redis", "  cache  ", 10, 20, new ComponentConfiguration("CACHE_ASIDE", Map.of()))));
+                key, "redis", "  cache  ", 10, 20, new ComponentConfiguration("CACHE_ASIDE", Map.of()))), List.of());
 
         assertThat(saved.scenario().getRevision()).isEqualTo(2);
         assertThat(saved.scenario().getComponents()).singleElement()
@@ -168,7 +168,7 @@ class ScenarioServiceTests {
 
     @Test
     void rejectsTheGraphOfAScenarioOutsideTheProject() {
-        assertThatThrownBy(() -> service.saveGraph(OWNER_EMAIL, 5L, 99L, 1, List.of()))
+        assertThatThrownBy(() -> service.saveGraph(OWNER_EMAIL, 5L, 99L, 1, List.of(), List.of()))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("Scenario not found");
         verifyNoInteractions(templateService);
