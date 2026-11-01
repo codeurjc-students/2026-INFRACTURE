@@ -1,7 +1,16 @@
-import { applyNodeChanges, type Node, type NodeChange } from "@xyflow/react";
+import {
+  applyEdgeChanges,
+  applyNodeChanges,
+  type Edge,
+  type EdgeChange,
+  type Node,
+  type NodeChange,
+} from "@xyflow/react";
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
 import type { TemplateContractDTO } from "~/features/component-catalogue/model/TemplateContractDTO";
+import { connectionId, toConnection, toEdge } from "./connections";
 import type { ComponentDTO } from "./model/ComponentDTO";
+import type { ConnectionDTO } from "./model/ConnectionDTO";
 import type { PositionDTO } from "./model/PositionDTO";
 import type { SaveScenarioGraphDTO } from "./model/SaveScenarioGraphDTO";
 import type { ScenarioGraphDTO } from "./model/ScenarioGraphDTO";
@@ -35,6 +44,8 @@ export interface CanvasState {
   // Last saved revision; it goes back with the next save to detect a save from another tab.
   revision: number;
   nodes: ComponentNode[];
+  // The connections, as React Flow edges: the source handle is the port.
+  edges: Edge[];
   // Contract issues from the last read or save.
   issues: ValidationIssueDTO[];
   // Local changes which have not been saved to the server yet.
@@ -67,6 +78,9 @@ export type CanvasAction =
       value: number | undefined;
     }
   | { type: "removed"; key: string }
+  | { type: "edgesChanged"; changes: EdgeChange[] }
+  | { type: "connected"; connection: ConnectionDTO }
+  | { type: "disconnected"; id: string }
   | { type: "saveStarted" }
   | { type: "saved"; graph: ScenarioGraphDTO }
   | { type: "saveFailed"; message: string }
@@ -92,6 +106,7 @@ export function toCanvasState(graph: ScenarioGraphDTO): CanvasState {
   return {
     revision: graph.revision,
     nodes: graph.components.map((component) => toNode(component)),
+    edges: graph.connections.map((connection) => toEdge(connection)),
     issues: graph.issues,
     dirty: false,
     status: "idle",
@@ -108,9 +123,10 @@ export function toComponents(nodes: ComponentNode[]): ComponentDTO[] {
   }));
 }
 
-// Builds the body of the save request from the nodes: the backend accepts neither the type nor the selection.
+// Builds the body of the save request: the backend accepts neither the type nor the selection.
 export function toSaveGraph(
   nodes: ComponentNode[],
+  edges: Edge[],
   revision: number,
 ): SaveScenarioGraphDTO {
   return {
@@ -125,7 +141,14 @@ export function toSaveGraph(
         parameters,
       }),
     ),
+    connections: edges.map(toConnection),
   };
+}
+
+// Connections only between nodes that are still on the board.
+function withoutDangling(edges: Edge[], nodes: ComponentNode[]) {
+  const keys = new Set(nodes.map((node) => node.id));
+  return edges.filter((edge) => keys.has(edge.source) && keys.has(edge.target));
 }
 
 // Picks a free name: "HTTP Service", then "HTTP Service 2", "HTTP Service 3"...
@@ -183,10 +206,12 @@ export function graphReducer(
       const edited = action.changes.some(
         (change) => change.type === "position" || change.type === "remove",
       );
+      const nodes = applyNodeChanges(action.changes, state.nodes);
       return {
         ...state,
         dirty: state.dirty || edited,
-        nodes: applyNodeChanges(action.changes, state.nodes),
+        nodes,
+        edges: withoutDangling(state.edges, nodes),
       };
     }
     case "added": {
@@ -246,11 +271,44 @@ export function graphReducer(
         }
         return { ...data, parameters };
       });
-    case "removed":
+    case "removed": {
+      const nodes = state.nodes.filter((node) => node.id !== action.key);
       return {
         ...state,
         dirty: true,
-        nodes: state.nodes.filter((node) => node.id !== action.key),
+        nodes,
+        edges: withoutDangling(state.edges, nodes),
+      };
+    }
+    case "edgesChanged":
+      // React Flow reports selections and deletions of arrows. Selecting is not a change to save.
+      return {
+        ...state,
+        dirty:
+          state.dirty ||
+          action.changes.some((change) => change.type === "remove"),
+        edges: applyEdgeChanges(action.changes, state.edges),
+      };
+    case "connected": {
+      // The canvas only offers compatible targets; a repeat or a loop onto the same node is ignored.
+      const { connection } = action;
+      if (
+        connection.sourceKey === connection.targetKey ||
+        state.edges.some((edge) => edge.id === connectionId(connection))
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        dirty: true,
+        edges: [...state.edges, toEdge(connection)],
+      };
+    }
+    case "disconnected":
+      return {
+        ...state,
+        dirty: true,
+        edges: state.edges.filter((edge) => edge.id !== action.id),
       };
     case "saveStarted":
       // What was sent is no longer a local change.
@@ -268,12 +326,17 @@ export function graphReducer(
       }
       // Otherwise take the saved graph (the backend trims names), keeping the selection.
       const selected = new Set(
-        state.nodes.filter((node) => node.selected).map((node) => node.id),
+        [...state.nodes, ...state.edges]
+          .filter((element) => element.selected)
+          .map((element) => element.id),
       );
       return {
         ...toCanvasState(graph),
         nodes: graph.components.map((component) =>
           toNode(component, selected.has(component.key)),
+        ),
+        edges: graph.connections.map((connection) =>
+          toEdge(connection, selected.has(connectionId(connection))),
         ),
       };
     }
@@ -301,6 +364,10 @@ export function graphReducer(
         ...state,
         revision: action.draft.baseRevision,
         nodes: action.draft.components.map((component) => toNode(component)),
+        // Drafts saved before connections existed have none.
+        edges: (action.draft.connections ?? []).map((connection) =>
+          toEdge(connection),
+        ),
         dirty: true,
         status: "idle",
         error: null,

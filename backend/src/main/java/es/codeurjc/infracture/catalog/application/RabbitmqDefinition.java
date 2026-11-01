@@ -1,5 +1,6 @@
 package es.codeurjc.infracture.catalog.application;
 
+import es.codeurjc.infracture.catalog.domain.Capability;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.catalog.domain.ComponentTypeDefinition;
 import es.codeurjc.infracture.catalog.domain.ProfileContract;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class RabbitmqDefinition implements ComponentTypeDefinition {
 
     private static final TemplateContract CONTRACT = new TemplateContract(ComponentType.RABBITMQ, 1, List.of(
-            new ProfileContract("DEFAULT", List.of())));
+            new ProfileContract("DEFAULT", List.of(), List.of(), List.of(Capability.MESSAGE_BROKER))));
 
     @Override
     public ComponentType type() {

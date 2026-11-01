@@ -21,6 +21,11 @@ class DOMMatrixReadOnlyMock {
 
 globalThis.ResizeObserver = ResizeObserverMock as never;
 globalThis.DOMMatrixReadOnly = DOMMatrixReadOnlyMock as never;
+// Edge labels measure their text with getBBox, which jsdom does not implement.
+Object.defineProperty(SVGElement.prototype, "getBBox", {
+  configurable: true,
+  value: () => ({ x: 0, y: 0, width: 0, height: 0 }),
+});
 Object.defineProperties(HTMLElement.prototype, {
   offsetHeight: { configurable: true, get: () => 600 },
   offsetWidth: { configurable: true, get: () => 800 },

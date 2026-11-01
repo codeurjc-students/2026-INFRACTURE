@@ -15,6 +15,7 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - Scenarios inside each project, with an editable name and description. They cannot be deleted yet.
 - Public catalogue at `/catalogue` with the HTTP Service, Worker, PostgreSQL, Redis and RabbitMQ templates, with search by name and a filter by type.
 - Scenario canvas: add up to 50 catalogue components with a click or by dragging them, and configure each one with a form that only accepts values within its type's limits.
+- Connections on the canvas: drag from a component's port to a component that offers what the port needs, such as Redis for a cache. Each arrow means "depends on", shows the port's label and survives a profile change, marked until you remove it.
 - The scenario is saved as a whole. If another tab saved first, the editor warns without overwriting anything and lets you choose which version to keep.
 - Unsaved work is kept in the browser and can be recovered after a reload or after the session expires. Another account in the same browser cannot see it.
 - Light or dark theme following the system preference.

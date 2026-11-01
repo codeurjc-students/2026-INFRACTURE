@@ -14,6 +14,7 @@ import {
 import {
   graphReducer,
   toCanvasState,
+  toComponents,
   toSaveGraph,
 } from "~/features/scenario-canvas/graph-reducer";
 import { clientAction as logoutAction } from "~/routes/logout";
@@ -222,9 +223,17 @@ describe("projects client against the real API", () => {
     const loaded = await scenarioLoader({
       params: { projectId, scenarioId },
     } as never);
-    expect(loaded.graph).toEqual({ revision: 1, components: [], issues: [] });
+    expect(loaded.graph).toEqual({
+      revision: 1,
+      components: [],
+      connections: [],
+      issues: [],
+    });
     const http = loaded.templates.find(
       (template) => template.key === "http-service",
+    )!;
+    const redis = loaded.templates.find(
+      (template) => template.key === "redis",
     )!;
 
     let canvas = toCanvasState(loaded.graph);
@@ -236,9 +245,26 @@ describe("projects client against the real API", () => {
         position: { x: 40, y: 80 },
       });
     }
+    const cacheKey = crypto.randomUUID();
+    canvas = graphReducer(canvas, {
+      type: "added",
+      key: cacheKey,
+      template: redis,
+      position: { x: 400, y: 80 },
+    });
+    const api = canvas.nodes[0].id;
+    const profile = (name: string) =>
+      http.contract.profiles.find((candidate) => candidate.name === name)!;
+    canvas = graphReducer(canvas, {
+      type: "profileChanged",
+      key: api,
+      profile: profile("CACHE_ASIDE"),
+    });
+    const connection = { sourceKey: api, port: "cache", targetKey: cacheKey };
+    canvas = graphReducer(canvas, { type: "connected", connection });
     canvas = graphReducer(canvas, {
       type: "parameterChanged",
-      key: canvas.nodes[0].id,
+      key: api,
       name: "responseDelayMs",
       value: 9000,
     });
@@ -246,7 +272,7 @@ describe("projects client against the real API", () => {
     const saved = await saveGraph(
       projectId,
       scenarioId,
-      toSaveGraph(canvas.nodes, 1),
+      toSaveGraph(canvas.nodes, canvas.edges, 1),
     );
     expect(saved.revision).toBe(2);
     expect(saved.issues).toEqual([
@@ -260,24 +286,34 @@ describe("projects client against the real API", () => {
     const reopened = await scenarioLoader({
       params: { projectId, scenarioId },
     } as never);
-    expect(reopened.graph.components).toEqual(
-      canvas.nodes.map((node) => ({
-        key: node.id,
-        templateKey: "http-service",
-        type: "HTTP_SERVICE",
-        name: node.data.name,
-        position: node.position,
-        profile: "STATELESS",
-        parameters: node.data.parameters,
-      })),
-    );
+    expect(reopened.graph.components).toEqual(toComponents(canvas.nodes));
+    expect(reopened.graph.connections).toEqual([connection]);
     expect(reopened.scenario.revision).toBe(2);
 
+    // A profile without the port keeps the arrow, and the backend reports it.
+    canvas = graphReducer(toCanvasState(reopened.graph), {
+      type: "profileChanged",
+      key: api,
+      profile: profile("STATELESS"),
+    });
+    const changed = await saveGraph(
+      projectId,
+      scenarioId,
+      toSaveGraph(canvas.nodes, canvas.edges, 2),
+    );
+    expect(changed.connections).toEqual([connection]);
+    expect(changed.issues).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_PORT",
+        target: { kind: "CONNECTION", key: `${api}:cache:${cacheKey}` },
+      }),
+    );
+
     await expect(
-      saveGraph(projectId, scenarioId, toSaveGraph([], 1)),
+      saveGraph(projectId, scenarioId, toSaveGraph([], [], 1)),
     ).rejects.toMatchObject({ status: 409 });
     await expect(getGraph(projectId, scenarioId)).resolves.toMatchObject({
-      revision: 2,
+      revision: 3,
     });
   });
 
@@ -293,6 +329,7 @@ describe("projects client against the real API", () => {
         profile: component.profile,
         parameters: component.parameters,
       })),
+      connections: latest.connections,
     };
 
     await logoutAction();

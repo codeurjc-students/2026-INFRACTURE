@@ -1,4 +1,4 @@
-import { Trash2Icon, TriangleAlertIcon, XIcon } from "lucide-react";
+import { Trash2Icon, TriangleAlertIcon, UnplugIcon, XIcon } from "lucide-react";
 import { useId, useState, type Dispatch } from "react";
 import { Button } from "~/components/ui/button";
 import {
@@ -25,6 +25,16 @@ import ComponentIcon from "./component-icon";
 const NAME_MAX_LENGTH = 30;
 // Parameters are integers: an optional minus sign and digits, nothing else.
 const WHOLE_NUMBER = /^-?\d+$/;
+
+// One arrow of the selected node, ready to list: which way it goes, its port label and the other node.
+export interface NodeConnection {
+  id: string;
+  outgoing: boolean;
+  label: string;
+  other: string;
+  // Why the contract no longer allows it, or null.
+  issue: string | null;
+}
 
 // A contract issue lets the draft be saved, so it reads as a warning, not as an input error.
 function IssueNote({
@@ -117,12 +127,14 @@ export default function NodeInspector({
   node,
   template,
   issues,
+  connections,
   dispatch,
   onClose,
 }: Readonly<{
   node: ComponentNode;
   template: ComponentTemplateDTO | undefined;
   issues: ValidationIssueDTO[];
+  connections: NodeConnection[];
   dispatch: Dispatch<CanvasAction>;
   onClose: () => void;
 }>) {
@@ -250,6 +262,54 @@ export default function NodeInspector({
           </p>
         )}
       </div>
+
+      {/* Connections: the keyboard and touch way to see and remove arrows. */}
+      {(connections.length > 0 || (profile?.ports.length ?? 0) > 0) && (
+        <section
+          aria-labelledby="connections-heading"
+          className="flex flex-col gap-2"
+        >
+          <h3 id="connections-heading" className="text-sm font-medium">
+            Connections
+          </h3>
+          {connections.length === 0 ? (
+            <p className="type-small text-muted-foreground">
+              Drag from a port on the node to a component that it can use.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {connections.map((connection) => {
+                const text = connection.outgoing
+                  ? `${connection.label} → ${connection.other}`
+                  : `${connection.other} → ${connection.label}`;
+                return (
+                  <li key={connection.id} className="flex flex-col gap-1">
+                    <span className="flex min-w-0 items-center justify-between gap-2">
+                      <span className="truncate text-sm">{text}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Remove connection ${text}`}
+                        title="Remove connection"
+                        onClick={() =>
+                          dispatch({ type: "disconnected", id: connection.id })
+                        }
+                        className="shrink-0 text-muted-foreground"
+                      >
+                        <UnplugIcon />
+                      </Button>
+                    </span>
+                    {connection.issue && (
+                      <IssueNote message={connection.issue} />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
 
       {otherIssues.length > 0 && (
         <div className="flex flex-col gap-2">

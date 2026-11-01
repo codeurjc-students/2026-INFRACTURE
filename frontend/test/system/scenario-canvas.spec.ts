@@ -204,3 +204,107 @@ test("keeps unsaved work through an expired session and offers it only to its ow
     ).toHaveLength(1);
   });
 });
+
+test("connects ports to compatible nodes, keeps arrows through a profile change and deletes them with their node", async ({
+  page,
+}, testInfo) => {
+  const arrows = page.locator(".react-flow__edge");
+
+  // Drags from a node's port dot to the middle of another node, moving in steps as a mouse user does:
+  // the whole target node only becomes a drop zone once the drag has started.
+  async function connect(from: string, port: string, to: string) {
+    const handle = await node(page, from)
+      .locator(`.react-flow__handle[data-handleid="${port}"]`)
+      .boundingBox();
+    const target = await node(page, to).boundingBox();
+    await page.mouse.move(
+      handle!.x + handle!.width / 2,
+      handle!.y + handle!.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      target!.x + target!.width / 2,
+      target!.y + target!.height / 2,
+      { steps: 10 },
+    );
+    await page.mouse.up();
+  }
+
+  async function chooseProfile(profile: string) {
+    await inspector(page).getByLabel("Profile").click();
+    await page.getByRole("option", { name: profile }).click();
+  }
+
+  await test.step("Add an API with a cache-aside profile and its dependencies", async () => {
+    await register(page, "links");
+    const project = await post(page, "/api/v1/projects", "Links lab");
+    const scenario = await post(
+      page,
+      `/api/v1/projects/${project.id}/scenarios`,
+      "Cache aside",
+    );
+    await page.goto(`/projects/${project.id}/scenarios/${scenario.id}`);
+    await page.getByRole("button", { name: "Add HTTP Service" }).click();
+    await inspector(page).getByLabel("Name").fill("Orders API");
+    await chooseProfile("CACHE_ASIDE");
+    await page.getByRole("button", { name: "Add Redis" }).click();
+    await page.getByRole("button", { name: "Add PostgreSQL" }).click();
+  });
+
+  await test.step("Only compatible targets accept an arrow", async () => {
+    await connect("Orders API", "cache", "PostgreSQL");
+    await expect(arrows).toHaveCount(0);
+
+    await connect("Orders API", "cache", "Redis");
+    await connect("Orders API", "database", "PostgreSQL");
+    await expect(arrows).toHaveCount(2);
+    await expect(page.getByLabel("Orders API Cache Redis")).toBeVisible();
+    await expect(
+      page.getByLabel("Orders API Database PostgreSQL"),
+    ).toBeVisible();
+  });
+
+  await test.step("Save, reopen and change the profile without losing arrows", async () => {
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Saved", exact: true }),
+    ).toBeDisabled();
+    await page.reload();
+    await expect(arrows).toHaveCount(2);
+
+    await node(page, "Orders API").click();
+    await chooseProfile("STATELESS");
+    await expect(arrows).toHaveCount(2);
+    await expect(
+      page.getByLabel("Orders API cache Redis, not allowed"),
+    ).toBeVisible();
+    await expect(
+      inspector(page).getByText(
+        "Orders API has no port cache in profile STATELESS",
+      ),
+    ).toBeVisible();
+    await testInfo.attach("scenario-connections.png", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  });
+
+  await test.step("Delete a node with its arrow, save and reopen", async () => {
+    await node(page, "Redis").click();
+    await inspector(page)
+      .getByRole("button", { name: "Delete component" })
+      .click();
+    await expect(arrows).toHaveCount(1);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Saved", exact: true }),
+    ).toBeDisabled();
+
+    await page.reload();
+    await expect(page.locator(".react-flow__node")).toHaveCount(2);
+    await expect(arrows).toHaveCount(1);
+    await expect(
+      page.getByLabel("Orders API database PostgreSQL, not allowed"),
+    ).toBeVisible();
+  });
+});

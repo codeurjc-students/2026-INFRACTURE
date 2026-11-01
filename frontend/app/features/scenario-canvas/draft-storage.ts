@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
+import { toConnection } from "./connections";
 import { toComponents, type CanvasState } from "./graph-reducer";
 import type { ComponentDTO } from "./model/ComponentDTO";
+import type { ConnectionDTO } from "./model/ConnectionDTO";
 
 // Unsaved work kept in this browser so it survives a reload, a discarded conflict or an expired session.
-// It holds only what the user typed on the canvas (names, positions and parameters), nothing secret.
+// It holds only what the user built on the canvas (names, positions, parameters and connections), nothing secret.
 export interface GraphDraft {
   // The revision the work started from; restoring it keeps the conflict check.
   baseRevision: number;
   components: ComponentDTO[];
+  // Missing in drafts saved before connections existed.
+  connections?: ConnectionDTO[];
   savedAt: string;
 }
 
@@ -58,13 +62,22 @@ export function useGraphDraft(key: string | null, state: CanvasState) {
       writeDraft(key, {
         baseRevision: state.revision,
         components: toComponents(state.nodes),
+        connections: state.edges.map(toConnection),
         savedAt: new Date().toISOString(),
       });
     } else if (state.status === "idle") {
       // Only once the server confirmed the save: a save in flight can still fail.
       clearDraft(key);
     }
-  }, [key, pending, state.dirty, state.status, state.nodes, state.revision]);
+  }, [
+    key,
+    pending,
+    state.dirty,
+    state.status,
+    state.nodes,
+    state.edges,
+    state.revision,
+  ]);
 
   return {
     pending,

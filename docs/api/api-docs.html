@@ -271,14 +271,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -288,6 +285,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -362,14 +362,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -379,6 +376,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -428,14 +428,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -445,6 +442,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -507,14 +507,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -524,6 +521,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -595,12 +595,26 @@ font-style: italic;
     "initialConfiguration" : {
       "profile" : "profile",
       "parameters" : {
-        "key" : 5
+        "key" : 2
       }
     },
     "contract" : {
       "profiles" : [ {
+        "capabilities" : [ "HTTP", "HTTP" ],
         "name" : "name",
+        "ports" : [ {
+          "min" : 5,
+          "accepts" : [ "HTTP", "HTTP" ],
+          "max" : 5,
+          "name" : "name",
+          "label" : "label"
+        }, {
+          "min" : 5,
+          "accepts" : [ "HTTP", "HTTP" ],
+          "max" : 5,
+          "name" : "name",
+          "label" : "label"
+        } ],
         "parameters" : [ {
           "min" : 6,
           "max" : 1,
@@ -611,7 +625,21 @@ font-style: italic;
           "name" : "name"
         } ]
       }, {
+        "capabilities" : [ "HTTP", "HTTP" ],
         "name" : "name",
+        "ports" : [ {
+          "min" : 5,
+          "accepts" : [ "HTTP", "HTTP" ],
+          "max" : 5,
+          "name" : "name",
+          "label" : "label"
+        }, {
+          "min" : 5,
+          "accepts" : [ "HTTP", "HTTP" ],
+          "max" : 5,
+          "name" : "name",
+          "label" : "label"
+        } ],
         "parameters" : [ {
           "min" : 6,
           "max" : 1,
@@ -631,12 +659,26 @@ font-style: italic;
     "initialConfiguration" : {
       "profile" : "profile",
       "parameters" : {
-        "key" : 5
+        "key" : 2
       }
     },
     "contract" : {
       "profiles" : [ {
+        "capabilities" : [ "HTTP", "HTTP" ],
         "name" : "name",
+        "ports" : [ {
+          "min" : 5,
+          "accepts" : [ "HTTP", "HTTP" ],
+          "max" : 5,
+          "name" : "name",
+          "label" : "label"
+        }, {
+          "min" : 5,
+          "accepts" : [ "HTTP", "HTTP" ],
+          "max" : 5,
+          "name" : "name",
+          "label" : "label"
+        } ],
         "parameters" : [ {
           "min" : 6,
           "max" : 1,
@@ -647,7 +689,21 @@ font-style: italic;
           "name" : "name"
         } ]
       }, {
+        "capabilities" : [ "HTTP", "HTTP" ],
         "name" : "name",
+        "ports" : [ {
+          "min" : 5,
+          "accepts" : [ "HTTP", "HTTP" ],
+          "max" : 5,
+          "name" : "name",
+          "label" : "label"
+        }, {
+          "min" : 5,
+          "accepts" : [ "HTTP", "HTTP" ],
+          "max" : 5,
+          "name" : "name",
+          "label" : "label"
+        } ],
         "parameters" : [ {
           "min" : 6,
           "max" : 1,
@@ -675,14 +731,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -692,6 +745,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -769,14 +825,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -786,6 +839,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -856,14 +912,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -873,6 +926,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -959,14 +1015,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -976,6 +1029,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1058,14 +1114,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1075,6 +1128,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1159,14 +1215,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1176,6 +1229,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1278,6 +1334,15 @@ font-style: italic;
       "key" : "key"
     }
   } ],
+  "connections" : [ {
+    "sourceKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "port" : "port",
+    "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
+  }, {
+    "sourceKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "port" : "port",
+    "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
+  } ],
   "revision" : 0
 }</code></pre>
 
@@ -1290,14 +1355,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1307,6 +1369,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1380,14 +1445,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1397,6 +1459,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1491,14 +1556,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1508,6 +1570,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1622,6 +1687,15 @@ font-style: italic;
       "key" : "key"
     }
   } ],
+  "connections" : [ {
+    "sourceKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "port" : "port",
+    "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
+  }, {
+    "sourceKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "port" : "port",
+    "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
+  } ],
   "revision" : 0
 }</code></pre>
 
@@ -1634,14 +1708,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1651,6 +1722,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1736,14 +1810,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1753,6 +1824,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1822,14 +1896,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1839,6 +1910,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1919,14 +1993,11 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1936,6 +2007,9 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1952,12 +2026,14 @@ font-style: italic;
     <li><a href="#ComponentConfigurationDTO"><code>ComponentConfigurationDTO</code> - </a></li>
     <li><a href="#ComponentDTO"><code>ComponentDTO</code> - </a></li>
     <li><a href="#ComponentTemplateDTO"><code>ComponentTemplateDTO</code> - </a></li>
+    <li><a href="#ConnectionDTO"><code>ConnectionDTO</code> - </a></li>
     <li><a href="#LoginRequest"><code>LoginRequest</code> - </a></li>
     <li><a href="#PageMetadata"><code>PageMetadata</code> - </a></li>
     <li><a href="#PagedModelComponentTemplateDTO"><code>PagedModelComponentTemplateDTO</code> - </a></li>
     <li><a href="#PagedModelProjectDTO"><code>PagedModelProjectDTO</code> - </a></li>
     <li><a href="#PagedModelScenarioDTO"><code>PagedModelScenarioDTO</code> - </a></li>
     <li><a href="#ParameterDTO"><code>ParameterDTO</code> - </a></li>
+    <li><a href="#PortDTO"><code>PortDTO</code> - </a></li>
     <li><a href="#PositionDTO"><code>PositionDTO</code> - </a></li>
     <li><a href="#ProblemDetail"><code>ProblemDetail</code> - </a></li>
     <li><a href="#ProfileDTO"><code>ProfileDTO</code> - </a></li>
@@ -2023,6 +2099,15 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="ConnectionDTO"><code>ConnectionDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">sourceKey </div><div class="param-desc"><span class="param-type"><a href="#UUID">UUID</a></span>  format: uuid</div>
+<div class="param">port </div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">targetKey </div><div class="param-desc"><span class="param-type"><a href="#UUID">UUID</a></span>  format: uuid</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="LoginRequest"><code>LoginRequest</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -2074,6 +2159,19 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="PortDTO"><code>PortDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">label (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">accepts (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">array[String]</a></span>  </div>
+        <div class="param-enum-header">Enum:</div>
+
+<div class="param">min (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+<div class="param">max (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="PositionDTO"><code>PositionDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -2099,6 +2197,10 @@ font-style: italic;
     <div class="field-items">
       <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">parameters (optional)</div><div class="param-desc"><span class="param-type"><a href="#ParameterDTO">array[ParameterDTO]</a></span>  </div>
+<div class="param">ports (optional)</div><div class="param-desc"><span class="param-type"><a href="#PortDTO">array[PortDTO]</a></span>  </div>
+<div class="param">capabilities (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">array[String]</a></span>  </div>
+        <div class="param-enum-header">Enum:</div>
+
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -2156,6 +2258,7 @@ font-style: italic;
     <div class="field-items">
       <div class="param">revision </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
 <div class="param">components </div><div class="param-desc"><span class="param-type"><a href="#SaveComponentDTO">array[SaveComponentDTO]</a></span>  </div>
+<div class="param">connections </div><div class="param-desc"><span class="param-type"><a href="#ConnectionDTO">array[ConnectionDTO]</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -2176,6 +2279,7 @@ font-style: italic;
     <div class="field-items">
       <div class="param">revision (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
 <div class="param">components (optional)</div><div class="param-desc"><span class="param-type"><a href="#ComponentDTO">array[ComponentDTO]</a></span>  </div>
+<div class="param">connections (optional)</div><div class="param-desc"><span class="param-type"><a href="#ConnectionDTO">array[ConnectionDTO]</a></span>  </div>
 <div class="param">issues (optional)</div><div class="param-desc"><span class="param-type"><a href="#ValidationIssueDTO">array[ValidationIssueDTO]</a></span>  </div>
     </div>  <!-- field-items -->
   </div>

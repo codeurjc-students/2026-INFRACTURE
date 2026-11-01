@@ -59,6 +59,7 @@ const scenario: ScenarioDTO = {
 const emptyGraph: ScenarioGraphDTO = {
   revision: 1,
   components: [],
+  connections: [],
   issues: [],
 };
 const savedGraph: ScenarioGraphDTO = {
@@ -74,6 +75,7 @@ const savedGraph: ScenarioGraphDTO = {
       parameters: { responseDelayMs: 9000 },
     },
   ],
+  connections: [],
   issues: [
     {
       severity: "ERROR",
@@ -87,6 +89,41 @@ const savedGraph: ScenarioGraphDTO = {
     },
   ],
 };
+
+// Orders API uses the cache port of CACHE_ASIDE; with STATELESS that port no longer exists.
+function connectedGraph(profile: string): ScenarioGraphDTO {
+  return {
+    revision: 2,
+    components: [
+      {
+        key: "11111111-1111-4111-8111-111111111111",
+        templateKey: "http-service",
+        type: "HTTP_SERVICE",
+        name: "Orders API",
+        position: { x: 0, y: 0 },
+        profile,
+        parameters: { responseDelayMs: 0 },
+      },
+      {
+        key: "22222222-2222-4222-8222-222222222222",
+        templateKey: "redis",
+        type: "REDIS",
+        name: "orders-cache",
+        position: { x: 400, y: 0 },
+        profile: "DEFAULT",
+        parameters: {},
+      },
+    ],
+    connections: [
+      {
+        sourceKey: "11111111-1111-4111-8111-111111111111",
+        port: "cache",
+        targetKey: "22222222-2222-4222-8222-222222222222",
+      },
+    ],
+    issues: [],
+  };
+}
 
 const activeRouters: ReturnType<typeof createMemoryRouter>[] = [];
 
@@ -183,6 +220,7 @@ describe("scenario route", () => {
           ...component,
           type: "HTTP_SERVICE",
         })),
+        connections: graph.connections,
         issues: [],
       }),
     );
@@ -262,6 +300,75 @@ describe("scenario route", () => {
     expect(
       screen.queryByRole("heading", { name: "No components yet" }),
     ).toBeNull();
+  });
+
+  it("draws saved connections and lists them in the inspector", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue({ ...scenario, revision: 2 });
+    vi.mocked(getGraph).mockResolvedValue(connectedGraph("CACHE_ASIDE"));
+    renderScenario();
+
+    expect(
+      await screen.findByLabelText("Orders API Cache orders-cache"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Orders API"));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    expect(
+      within(inspector).getByRole("heading", { name: "Connections" }),
+    ).toBeInTheDocument();
+    expect(
+      within(inspector).getByText("Cache → orders-cache"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("orders-cache"));
+    expect(
+      within(
+        screen.getByRole("complementary", { name: "Inspector" }),
+      ).getByText("Orders API → Cache"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a connection the profile no longer allows, flags it and removes it", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue({ ...scenario, revision: 2 });
+    vi.mocked(getGraph).mockResolvedValue(connectedGraph("STATELESS"));
+    vi.mocked(saveGraph).mockImplementation(
+      async (_project, _scenario, graph) => ({
+        ...connectedGraph("STATELESS"),
+        revision: 3,
+        connections: graph.connections,
+      }),
+    );
+    renderScenario();
+
+    expect(
+      await screen.findByLabelText(
+        "Orders API cache orders-cache, not allowed",
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Orders API"));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    expect(
+      within(inspector).getByText(
+        "Orders API has no port cache in profile STATELESS",
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      within(inspector).getByRole("button", {
+        name: "Remove connection cache → orders-cache",
+      }),
+    );
+    expect(within(inspector).queryByText("cache → orders-cache")).toBeNull();
+    expect(screen.getAllByText("Orders API").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Graph saved")).toBeInTheDocument();
+    expect(vi.mocked(saveGraph).mock.calls[0][2]).toMatchObject({
+      revision: 2,
+      components: [{ name: "Orders API" }, { name: "orders-cache" }],
+      connections: [],
+    });
   });
 
   it("saves with the keyboard shortcut and shows where a dragged component lands", async () => {

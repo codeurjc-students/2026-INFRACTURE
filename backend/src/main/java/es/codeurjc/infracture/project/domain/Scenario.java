@@ -4,7 +4,9 @@ import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.InvalidDataException;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -21,6 +23,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,8 +39,10 @@ public class Scenario {
 
     private static final int INITIAL_REVISION = 1;
     private static final int MAX_COMPONENTS = 50;
+    private static final int MAX_CONNECTIONS = 200;
     private static final int MAX_NAME_LENGTH = 30;
     private static final int MAX_PROFILE_LENGTH = 50;
+    private static final int MAX_PORT_LENGTH = 50;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -67,6 +72,10 @@ public class Scenario {
     @OrderBy("id")
     private List<Component> components = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "connections", joinColumns = @JoinColumn(name = "scenario_id"))
+    private List<Connection> connections = new ArrayList<>();
+
     protected Scenario() {
     }
 
@@ -94,7 +103,7 @@ public class Scenario {
         this.description = description;
     }
 
-    public void replaceGraph(int expectedRevision, List<ComponentDraft> drafts,
+    public void replaceGraph(int expectedRevision, List<ComponentDraft> drafts, List<Connection> connections,
             Map<String, ComponentTemplate> templates) {
         if (expectedRevision != revision) {
             throw new ConflictException("The scenario was saved after revision %d. Reload it to continue from revision %d."
@@ -102,6 +111,9 @@ public class Scenario {
         }
         if (drafts.size() > MAX_COMPONENTS) {
             throw new InvalidDataException("A scenario can have at most " + MAX_COMPONENTS + " components");
+        }
+        if (connections.size() > MAX_CONNECTIONS) {
+            throw new InvalidDataException("A scenario can have at most " + MAX_CONNECTIONS + " connections");
         }
         Set<UUID> keys = new HashSet<>();
         for (ComponentDraft draft : drafts) {
@@ -119,6 +131,7 @@ public class Scenario {
                 next.add(component);
             }
         }
+        checkConnections(drafts, connections, problems);
         if (!problems.isEmpty()) {
             throw new InvalidDataException(String.join("; ", problems));
         }
@@ -127,6 +140,8 @@ public class Scenario {
         }
         components.retainAll(next);
         next.stream().filter(component -> !components.contains(component)).forEach(components::add);
+        this.connections.clear();
+        this.connections.addAll(connections);
         revision++;
     }
 
@@ -164,8 +179,40 @@ public class Scenario {
         return problems.size() == before ? component : null;
     }
 
+    // A connection may break its contract (it is reported later), but both ends must be nodes of this graph.
+    private static void checkConnections(List<ComponentDraft> drafts, List<Connection> connections,
+            List<String> problems) {
+        Map<UUID, String> names = new HashMap<>();
+        drafts.stream().filter(draft -> draft.key() != null).forEach(draft -> names.put(draft.key(), draft.name()));
+        Set<Connection> seen = new HashSet<>();
+        for (Connection connection : connections) {
+            String port = connection.port();
+            String label = "Connection %s.%s → %s: ".formatted(names.getOrDefault(connection.sourceKey(),
+                    String.valueOf(connection.sourceKey())), port, names.getOrDefault(connection.targetKey(),
+                    String.valueOf(connection.targetKey())));
+            if (!names.containsKey(connection.sourceKey())) {
+                problems.add(label + "source is not a node of this scenario");
+            }
+            if (!names.containsKey(connection.targetKey())) {
+                problems.add(label + "target is not a node of this scenario");
+            }
+            if (port == null || port.isBlank()) {
+                problems.add(label + "port is required");
+            } else if (port.codePointCount(0, port.length()) > MAX_PORT_LENGTH) {
+                problems.add(label + "port must contain at most " + MAX_PORT_LENGTH + " characters");
+            }
+            if (!seen.add(connection)) {
+                problems.add(label + "appears more than once");
+            }
+        }
+    }
+
     public List<Component> getComponents() {
         return Collections.unmodifiableList(components);
+    }
+
+    public List<Connection> getConnections() {
+        return Collections.unmodifiableList(connections);
     }
 
     public Long getId() {
