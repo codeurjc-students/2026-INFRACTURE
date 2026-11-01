@@ -2,15 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getComponentTemplates } from "~/features/component-catalogue/api/component-template-service";
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
+import { template } from "../../../fixtures/component-templates";
 import { HttpError } from "~/shared/api/api-fetch";
 import type { PageDTO } from "~/shared/model/PageDTO";
 
 const componentTemplates: ComponentTemplateDTO[] = [
-  {
-    key: "http-service",
-    name: "HTTP Service",
-    type: "HTTP_SERVICE",
-  },
+  template("http-service", "HTTP Service", "HTTP_SERVICE"),
 ];
 
 const catalogue: PageDTO<ComponentTemplateDTO> = {
@@ -31,6 +28,18 @@ describe("component template service", () => {
 
     expect(fetch).toHaveBeenCalledExactlyOnceWith(
       "/api/v1/component-templates?page=0",
+      expect.anything(),
+    );
+  });
+
+  it("asks for a page size when one is given", async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json(catalogue));
+    vi.stubGlobal("fetch", fetch);
+
+    await getComponentTemplates(0, 100);
+
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(
+      "/api/v1/component-templates?page=0&size=100",
       expect.anything(),
     );
   });

@@ -8,21 +8,17 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
+import { template } from "../fixtures/component-templates";
 import { HydrateFallback } from "~/root";
-import ComponentCatalogueRoute, { clientLoader, ErrorBoundary } from "~/routes/component-catalogue";
+import ComponentCatalogueRoute, {
+  clientLoader,
+  ErrorBoundary,
+} from "~/routes/component-catalogue";
 import type { PageDTO } from "~/shared/model/PageDTO";
 
 const componentTemplates: ComponentTemplateDTO[] = [
-  {
-    key: "http-service",
-    name: "HTTP Service",
-    type: "HTTP_SERVICE",
-  },
-  {
-    key: "postgresql",
-    name: "PostgreSQL",
-    type: "POSTGRESQL",
-  },
+  template("http-service", "HTTP Service", "HTTP_SERVICE"),
+  template("postgresql", "PostgreSQL", "POSTGRESQL"),
 ];
 
 const catalogue: PageDTO<ComponentTemplateDTO> = {
@@ -34,14 +30,16 @@ const firstPage: PageDTO<ComponentTemplateDTO> = {
   page: { size: 2, number: 0, totalElements: 3, totalPages: 2 },
 };
 const nextPage: PageDTO<ComponentTemplateDTO> = {
-  content: [{ key: "worker", name: "Worker", type: "WORKER" }],
+  content: [template("worker", "Worker", "WORKER")],
   page: { size: 2, number: 1, totalElements: 3, totalPages: 2 },
 };
 
 const activeRouters: ReturnType<typeof createMemoryRouter>[] = [];
 
 function CatalogueTestRoute() {
-  const loaderData = useLoaderData() as Awaited<ReturnType<typeof clientLoader>>;
+  const loaderData = useLoaderData() as Awaited<
+    ReturnType<typeof clientLoader>
+  >;
 
   return <ComponentCatalogueRoute loaderData={loaderData} />;
 }
@@ -102,25 +100,37 @@ describe("component catalogue route", () => {
       "/api/v1/component-templates?page=0",
       expect.anything(),
     );
-    expect(screen.queryByRole("button", { name: "More results" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "More results" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders the empty state when the HTTP response contains no templates", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
-      content: [],
-      page: { size: 10, number: 0, totalElements: 0, totalPages: 0 },
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          content: [],
+          page: { size: 10, number: 0, totalElements: 0, totalPages: 0 },
+        }),
+      ),
+    );
 
     renderCatalogueRoute();
 
     expect(
-      await screen.findByText("No component templates are currently available."),
+      await screen.findByText(
+        "No component templates are currently available.",
+      ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "More results" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "More results" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows an initial HTTP error and allows retrying", async () => {
-    const fetch = vi.fn()
+    const fetch = vi
+      .fn()
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(Response.json(catalogue));
     vi.stubGlobal("fetch", fetch);
@@ -137,36 +147,53 @@ describe("component catalogue route", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
-    expect(await screen.findByRole("heading", { name: "HTTP Service" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "HTTP Service" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("keeps cards while loading, deduplicates and stops at the final page", async () => {
     const request = deferred<Response>();
-    const fetch = vi.fn()
+    const fetch = vi
+      .fn()
       .mockResolvedValueOnce(Response.json(firstPage))
       .mockReturnValueOnce(request.promise);
     vi.stubGlobal("fetch", fetch);
 
     renderCatalogueRoute();
-    fireEvent.click(await screen.findByRole("button", { name: "More results" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "More results" }),
+    );
 
     const loadingButton = screen.getByRole("button", { name: "Loading…" });
     expect(loadingButton).toBeDisabled();
     fireEvent.click(loadingButton);
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole("heading", { name: "HTTP Service" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "HTTP Service" }),
+    ).toBeInTheDocument();
 
-    await act(async () => request.resolve(Response.json({
-      ...nextPage,
-      content: [componentTemplates[1], ...nextPage.content],
-    })));
+    await act(async () =>
+      request.resolve(
+        Response.json({
+          ...nextPage,
+          content: [componentTemplates[1], ...nextPage.content],
+        }),
+      ),
+    );
 
-    expect(await screen.findByRole("heading", { name: "Worker" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Worker" }),
+    ).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
-    expect(screen.getAllByRole("heading", { name: "PostgreSQL" })).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: "More results" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "PostgreSQL" })).toHaveLength(
+      1,
+    );
+    expect(
+      screen.queryByRole("button", { name: "More results" }),
+    ).not.toBeInTheDocument();
     expect(fetch).toHaveBeenLastCalledWith(
       "/api/v1/component-templates?page=1",
       expect.anything(),

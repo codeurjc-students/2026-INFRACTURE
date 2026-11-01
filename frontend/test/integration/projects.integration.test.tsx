@@ -1,10 +1,21 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { login } from "~/features/auth/api/auth-service";
+
 import {
   getProject,
   getProjects,
 } from "~/features/projects/api/project-service";
 import { getScenarios } from "~/features/projects/api/scenario-service";
+import {
+  getGraph,
+  saveGraph,
+} from "~/features/scenario-canvas/api/graph-service";
+import {
+  graphReducer,
+  toCanvasState,
+  toSaveGraph,
+} from "~/features/scenario-canvas/graph-reducer";
 import { clientAction as logoutAction } from "~/routes/logout";
 import { clientAction as createAction } from "~/routes/new-project";
 import {
@@ -205,6 +216,99 @@ describe("projects client against the real API", () => {
       "Warm cache",
       "Cold start",
     ]);
+  });
+
+  it("saves and reopens the scenario graph, and rejects a stale revision", async () => {
+    const loaded = await scenarioLoader({
+      params: { projectId, scenarioId },
+    } as never);
+    expect(loaded.graph).toEqual({ revision: 1, components: [], issues: [] });
+    const http = loaded.templates.find(
+      (template) => template.key === "http-service",
+    )!;
+
+    let canvas = toCanvasState(loaded.graph);
+    for (const key of [crypto.randomUUID(), crypto.randomUUID()]) {
+      canvas = graphReducer(canvas, {
+        type: "added",
+        key,
+        template: http,
+        position: { x: 40, y: 80 },
+      });
+    }
+    canvas = graphReducer(canvas, {
+      type: "parameterChanged",
+      key: canvas.nodes[0].id,
+      name: "responseDelayMs",
+      value: 9000,
+    });
+
+    const saved = await saveGraph(
+      projectId,
+      scenarioId,
+      toSaveGraph(canvas.nodes, 1),
+    );
+    expect(saved.revision).toBe(2);
+    expect(saved.issues).toEqual([
+      expect.objectContaining({
+        code: "PARAMETER_OUT_OF_RANGE",
+        target: { kind: "COMPONENT", key: canvas.nodes[0].id },
+        field: "responseDelayMs",
+      }),
+    ]);
+
+    const reopened = await scenarioLoader({
+      params: { projectId, scenarioId },
+    } as never);
+    expect(reopened.graph.components).toEqual(
+      canvas.nodes.map((node) => ({
+        key: node.id,
+        templateKey: "http-service",
+        type: "HTTP_SERVICE",
+        name: node.data.name,
+        position: node.position,
+        profile: "STATELESS",
+        parameters: node.data.parameters,
+      })),
+    );
+    expect(reopened.scenario.revision).toBe(2);
+
+    await expect(
+      saveGraph(projectId, scenarioId, toSaveGraph([], 1)),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(getGraph(projectId, scenarioId)).resolves.toMatchObject({
+      revision: 2,
+    });
+  });
+
+  it("rejects a save once the session ends and accepts the kept draft after signing in again", async () => {
+    const latest = await getGraph(projectId, scenarioId);
+    const draft = {
+      revision: latest.revision,
+      components: latest.components.map((component) => ({
+        key: component.key,
+        templateKey: component.templateKey,
+        name: "Recovered",
+        position: component.position,
+        profile: component.profile,
+        parameters: component.parameters,
+      })),
+    };
+
+    await logoutAction();
+    await expect(saveGraph(projectId, scenarioId, draft)).rejects.toMatchObject(
+      {
+        status: 401,
+      },
+    );
+
+    const owner = account("owner");
+    await login(owner.email, owner.password);
+    const saved = await saveGraph(projectId, scenarioId, draft);
+    expect(saved.revision).toBe(latest.revision + 1);
+    expect(saved.components.map((component) => component.name)).toEqual(
+      latest.components.map(() => "Recovered"),
+    );
   });
 
   it("treats another account's project as not found", async () => {

@@ -29,7 +29,7 @@ function ProjectsPage({
         <main>
           <section className="flex flex-wrap items-end justify-between gap-x-12 gap-y-6 pt-8 pb-7 sm:pt-14 sm:pb-10">
             <div className="@container flex min-w-0 flex-[1_1_520px] flex-col gap-4">
-              <h1 className="type-hero">Projects</h1>
+              <h1 className="type-headline">Projects</h1>
               <p className="max-w-[52ch] type-title text-muted-foreground">
                 Each project holds the scenarios you build, run and break. Only
                 you can see them.

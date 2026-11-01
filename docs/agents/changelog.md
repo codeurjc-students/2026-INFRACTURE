@@ -1,6 +1,6 @@
 # Changelog conventions
 
-`CHANGELOG.md` follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the policy in [Seguimiento](../tracking.md#changelog-y-notas-de-versión). Entries are written in Spanish.
+`CHANGELOG.md` follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the policy in [Seguimiento](../tracking.md#changelog-y-notas-de-versión). Entries are written in English.
 
 ## Decide whether it belongs
 
@@ -16,5 +16,7 @@ An entry exists only when you can answer: who notices the change (a user, an ins
 - Start with what the reader gets, then its effect, using the names they see: routes, endpoints, variables and commands.
 - Include what the reader must do or know: migration steps, installation requirements and known limits.
 - Skip internals (classes, libraries, migration numbers) unless the reader needs them to act.
-- Short sentences in the present tense. An issue or PR link may accompany an entry but never replaces the explanation.
-- Before requesting review, check every statement against the branch's code.
+- Describe API changes by their effect and point to the OpenAPI contract in `docs/api` for methods, status codes, headers and fields.
+- Each bullet is at most two short sentences, about 45 words, in the present tense. An issue or PR link may accompany an entry but never replaces the explanation.
+- Edit the whole `Unreleased` section, not only your bullet: merge, shorten or replace earlier entries so it still reads as one short list a reader scans in a minute.
+- Before requesting review, check every statement against the branch's code and every bullet against the length bound.

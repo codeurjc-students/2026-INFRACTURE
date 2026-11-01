@@ -181,7 +181,7 @@ test("creates, renames and reopens empty scenarios that another account cannot o
 
   await test.step("Rename one scenario and reopen both", async () => {
     await page.goto(scenarioUrl);
-    await page.getByRole("button", { name: "Edit details" }).click();
+    await page.getByRole("button", { name: "Details" }).click();
     await page.getByLabel("Name").fill("Cold start");
     await page.getByLabel("Description").fill("Redis starts empty.");
     await page.getByRole("button", { name: "Save changes" }).click();
@@ -191,7 +191,10 @@ test("creates, renames and reopens empty scenarios that another account cannot o
     await expect(
       page.getByRole("heading", { level: 1, name: "Cold start" }),
     ).toBeVisible();
-    await expect(page.getByText("Redis starts empty.")).toBeVisible();
+    await page.getByRole("button", { name: "Details" }).click();
+    await expect(page.getByLabel("Description")).toHaveValue(
+      "Redis starts empty.",
+    );
     await testInfo.attach("scenario.png", {
       body: await page.screenshot({ fullPage: true }),
       contentType: "image/png",
