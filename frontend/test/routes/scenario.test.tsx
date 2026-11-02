@@ -281,11 +281,16 @@ describe("scenario route", () => {
     renderScenario();
 
     expect(await screen.findByText("Orders API")).toBeInTheDocument();
-    expect(screen.getByText("1 issue to review")).toBeInTheDocument();
+    expect(screen.getByText("1 error")).toBeInTheDocument();
     expect(
       screen.queryByRole("complementary", { name: "Inspector" }),
     ).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "1 issue" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /responseDelayMs must be between 0 and 5000/,
+      }),
+    );
     const inspector = screen.getByRole("complementary", { name: "Inspector" });
     expect(within(inspector).getByLabelText("Name")).toHaveValue("Orders API");
     expect(
@@ -300,6 +305,83 @@ describe("scenario route", () => {
     expect(
       screen.queryByRole("heading", { name: "No components yet" }),
     ).toBeNull();
+  });
+
+  it("lists errors apart from warnings, locates them and flags them as old after an edit", async () => {
+    const orders = "11111111-1111-4111-8111-111111111111";
+    const cache = "22222222-2222-4222-8222-222222222222";
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue({ ...scenario, revision: 2 });
+    vi.mocked(getGraph).mockResolvedValue({
+      ...connectedGraph("CACHE_ASIDE"),
+      issues: [
+        {
+          severity: "ERROR",
+          code: "DEPENDENCY_CYCLE",
+          message: "Orders API → orders-cache closes a dependency cycle",
+          target: { kind: "CONNECTION", key: `${orders}:cache:${cache}` },
+          field: "cache",
+        },
+        {
+          severity: "WARNING",
+          code: "NO_CONSUMER",
+          message: "Tasks published to orders-cache accumulate",
+          target: { kind: "COMPONENT", key: cache },
+          field: null,
+        },
+        {
+          severity: "ERROR",
+          code: "EMPTY_SCENARIO",
+          message: "Add at least one component to run the scenario",
+          target: { kind: "SCENARIO", key: null },
+          field: null,
+        },
+      ],
+    });
+    renderScenario();
+
+    expect(
+      await screen.findByLabelText(
+        "Orders API Cache orders-cache, not allowed",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 warning")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "3 issues" }));
+    const panel = screen.getByRole("complementary", { name: "Inspector" });
+    expect(
+      within(panel).getByRole("heading", { name: "Issues" }),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByText(
+        "2 errors block running the scenario. Warnings do not.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByText("Add at least one component to run the scenario"),
+    ).toBeInTheDocument();
+    expect(within(panel).getAllByText("Error:")).toHaveLength(2);
+    expect(within(panel).getAllByText("Warning:")).toHaveLength(1);
+
+    fireEvent.click(within(panel).getByRole("button", { name: /accumulate/ }));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    expect(within(inspector).getByLabelText("Name")).toHaveValue(
+      "orders-cache",
+    );
+    expect(
+      within(inspector).getByText("Tasks published to orders-cache accumulate"),
+    ).toBeInTheDocument();
+
+    fireEvent.change(within(inspector).getByLabelText("Name"), {
+      target: { value: "hot-cache" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "3 issues, from the last save" }),
+    );
+    expect(
+      screen.getByText(
+        "These issues come from the last save. Save to check your changes.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("draws saved connections and lists them in the inspector", async () => {

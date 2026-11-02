@@ -37,6 +37,31 @@ function node(page: Page, name: string) {
   return page.locator(".react-flow__node").filter({ hasText: name });
 }
 
+// Drags from a node's port dot to the middle of another node, moving in steps as a mouse user does:
+// the whole target node only becomes a drop zone once the drag has started.
+async function connect(page: Page, from: string, port: string, to: string) {
+  const handle = await node(page, from)
+    .locator(`.react-flow__handle[data-handleid="${port}"]`)
+    .boundingBox();
+  const target = await node(page, to).boundingBox();
+  await page.mouse.move(
+    handle!.x + handle!.width / 2,
+    handle!.y + handle!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    target!.x + target!.width / 2,
+    target!.y + target!.height / 2,
+    { steps: 10 },
+  );
+  await page.mouse.up();
+}
+
+async function chooseProfile(page: Page, profile: string) {
+  await inspector(page).getByLabel("Profile").click();
+  await page.getByRole("option", { name: profile }).click();
+}
+
 test("designs, saves and reopens a graph, and resolves a save from another tab", async ({
   page,
 }, testInfo) => {
@@ -210,31 +235,6 @@ test("connects ports to compatible nodes, keeps arrows through a profile change 
 }, testInfo) => {
   const arrows = page.locator(".react-flow__edge");
 
-  // Drags from a node's port dot to the middle of another node, moving in steps as a mouse user does:
-  // the whole target node only becomes a drop zone once the drag has started.
-  async function connect(from: string, port: string, to: string) {
-    const handle = await node(page, from)
-      .locator(`.react-flow__handle[data-handleid="${port}"]`)
-      .boundingBox();
-    const target = await node(page, to).boundingBox();
-    await page.mouse.move(
-      handle!.x + handle!.width / 2,
-      handle!.y + handle!.height / 2,
-    );
-    await page.mouse.down();
-    await page.mouse.move(
-      target!.x + target!.width / 2,
-      target!.y + target!.height / 2,
-      { steps: 10 },
-    );
-    await page.mouse.up();
-  }
-
-  async function chooseProfile(profile: string) {
-    await inspector(page).getByLabel("Profile").click();
-    await page.getByRole("option", { name: profile }).click();
-  }
-
   await test.step("Add an API with a cache-aside profile and its dependencies", async () => {
     await register(page, "links");
     const project = await post(page, "/api/v1/projects", "Links lab");
@@ -246,17 +246,17 @@ test("connects ports to compatible nodes, keeps arrows through a profile change 
     await page.goto(`/projects/${project.id}/scenarios/${scenario.id}`);
     await page.getByRole("button", { name: "Add HTTP Service" }).click();
     await inspector(page).getByLabel("Name").fill("Orders API");
-    await chooseProfile("CACHE_ASIDE");
+    await chooseProfile(page, "CACHE_ASIDE");
     await page.getByRole("button", { name: "Add Redis" }).click();
     await page.getByRole("button", { name: "Add PostgreSQL" }).click();
   });
 
   await test.step("Only compatible targets accept an arrow", async () => {
-    await connect("Orders API", "cache", "PostgreSQL");
+    await connect(page, "Orders API", "cache", "PostgreSQL");
     await expect(arrows).toHaveCount(0);
 
-    await connect("Orders API", "cache", "Redis");
-    await connect("Orders API", "database", "PostgreSQL");
+    await connect(page, "Orders API", "cache", "Redis");
+    await connect(page, "Orders API", "database", "PostgreSQL");
     await expect(arrows).toHaveCount(2);
     await expect(page.getByLabel("Orders API Cache Redis")).toBeVisible();
     await expect(
@@ -273,7 +273,7 @@ test("connects ports to compatible nodes, keeps arrows through a profile change 
     await expect(arrows).toHaveCount(2);
 
     await node(page, "Orders API").click();
-    await chooseProfile("STATELESS");
+    await chooseProfile(page, "STATELESS");
     await expect(arrows).toHaveCount(2);
     await expect(
       page.getByLabel("Orders API cache Redis, not allowed"),
@@ -306,5 +306,102 @@ test("connects ports to compatible nodes, keeps arrows through a profile change 
     await expect(
       page.getByLabel("Orders API database PostgreSQL, not allowed"),
     ).toBeVisible();
+  });
+});
+
+test("finds errors in an invalid graph, corrects them and keeps only an allowed warning", async ({
+  page,
+}, testInfo) => {
+  const issues = (count: string) =>
+    page.getByRole("button", { name: count, exact: true });
+
+  await test.step("An empty scenario cannot run yet", async () => {
+    await register(page, "checks");
+    const project = await post(page, "/api/v1/projects", "Checks lab");
+    const scenario = await post(
+      page,
+      `/api/v1/projects/${project.id}/scenarios`,
+      "Task queue",
+    );
+    await page.goto(`/projects/${project.id}/scenarios/${scenario.id}`);
+    await issues("1 issue").click();
+    await expect(
+      inspector(page).getByText(
+        "Add at least one component to run the scenario",
+      ),
+    ).toBeVisible();
+  });
+
+  await test.step("Save a draft with a cycle and a missing dependency", async () => {
+    for (const [name, profile] of [
+      ["Gateway", "DOWNSTREAM_HTTP"],
+      ["Edge", "DOWNSTREAM_HTTP"],
+      ["Tasks API", "QUEUE_PRODUCER"],
+    ]) {
+      await page.getByRole("button", { name: "Add HTTP Service" }).click();
+      await inspector(page).getByLabel("Name").fill(name);
+      await chooseProfile(page, profile);
+    }
+    await page.getByRole("button", { name: "Add RabbitMQ" }).click();
+    await connect(page, "Gateway", "downstream", "Edge");
+    await connect(page, "Edge", "downstream", "Gateway");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+
+    await issues("2 issues").click();
+    await expect(
+      inspector(page).getByText(
+        "2 errors block running the scenario. Warnings do not.",
+      ),
+    ).toBeVisible();
+    await expect(
+      inspector(page).getByText(
+        "Tasks API needs at least 1 connection on port queue",
+      ),
+    ).toBeVisible();
+    await testInfo.attach("scenario-issues.png", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  });
+
+  await test.step("Locate the cycle and correct the graph", async () => {
+    await inspector(page)
+      .getByRole("button", { name: /Edge → Gateway closes a dependency cycle/ })
+      .click();
+    await expect(inspector(page).getByLabel("Name")).toHaveValue("Edge");
+    await inspector(page)
+      .getByRole("button", { name: "Remove connection Calls → Gateway" })
+      .click();
+    await connect(page, "Edge", "downstream", "Tasks API");
+    await connect(page, "Tasks API", "queue", "RabbitMQ");
+
+    await issues("2 issues, from the last save").click();
+    await expect(
+      inspector(page).getByText(
+        "These issues come from the last save. Save to check your changes.",
+      ),
+    ).toBeVisible();
+  });
+
+  await test.step("Save and keep only the warning that does not block running", async () => {
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Saved", exact: true }),
+    ).toBeDisabled();
+    // The issues panel stays open and now shows the issues of this save.
+    await expect(issues("1 issue")).toBeVisible();
+    await expect(
+      inspector(page).getByText("Warnings do not block running the scenario."),
+    ).toBeVisible();
+    await expect(
+      inspector(page).getByText(
+        "Tasks published to RabbitMQ accumulate because no Worker consumes them",
+      ),
+    ).toBeVisible();
+    await expect(node(page, "RabbitMQ")).toContainText("1 warning");
+    await testInfo.attach("scenario-warning.png", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
   });
 });

@@ -18,6 +18,7 @@ import {
 import {
   CheckIcon,
   CircleAlertIcon,
+  CircleXIcon,
   HistoryIcon,
   InfoIcon,
   MaximizeIcon,
@@ -66,6 +67,7 @@ import type { ScenarioGraphDTO } from "../model/ScenarioGraphDTO";
 import type { ValidationIssueDTO } from "../model/ValidationIssueDTO";
 import ComponentNode, { type DisplayedNode } from "./component-node";
 import ComponentPalette, { TEMPLATE_MIME } from "./component-palette";
+import IssueList, { type LocatedIssue } from "./issue-list";
 import NodeInspector, { type NodeConnection } from "./node-inspector";
 import ScenarioDetails from "./scenario-details";
 
@@ -201,11 +203,34 @@ function portLabel(
   );
 }
 
-// The arrows as they are drawn: labelled with the port, and dashed amber when the contract
-// no longer allows them. Checked here, so a profile change shows at once, before saving.
+// The error of one arrow: the contract check done here, so a profile change shows at once,
+// or else the backend's issue from the last save (for example, a cycle).
+function edgeIssue(
+  edge: Edge,
+  source: ComponentNodeModel | undefined,
+  target: ComponentNodeModel | undefined,
+  issues: ValidationIssueDTO[],
+  templatesByKey: Map<string, ComponentTemplateDTO>,
+) {
+  const local =
+    source && target
+      ? connectionIssue(source, edge.sourceHandle ?? "", target, templatesByKey)
+      : null;
+  return (
+    local ??
+    issues.find(
+      (issue) =>
+        issue.target.kind === "CONNECTION" && issue.target.key === edge.id,
+    )?.message ??
+    null
+  );
+}
+
+// The arrows as they are drawn: labelled with the port, and dashed red when they have an error.
 function toDisplayedEdges(
   edges: Edge[],
   nodes: ComponentNodeModel[],
+  issues: ValidationIssueDTO[],
   templatesByKey: Map<string, ComponentTemplateDTO>,
 ): Edge[] {
   const byKey = new Map(nodes.map((node) => [node.id, node]));
@@ -214,11 +239,8 @@ function toDisplayedEdges(
     const target = byKey.get(edge.target);
     const port = edge.sourceHandle ?? "";
     const label = portLabel(source, port, templatesByKey);
-    const issue =
-      source && target
-        ? connectionIssue(source, port, target, templatesByKey)
-        : null;
-    const color = issue ? "var(--degraded-text)" : undefined;
+    const issue = edgeIssue(edge, source, target, issues, templatesByKey);
+    const color = issue ? "var(--destructive)" : undefined;
     return {
       ...edge,
       label,
@@ -235,6 +257,7 @@ function nodeConnections(
   key: string,
   nodes: ComponentNodeModel[],
   edges: Edge[],
+  issues: ValidationIssueDTO[],
   templatesByKey: Map<string, ComponentTemplateDTO>,
 ): NodeConnection[] {
   const byKey = new Map(nodes.map((node) => [node.id, node]));
@@ -250,10 +273,7 @@ function nodeConnections(
         outgoing,
         label: portLabel(source, port, templatesByKey),
         other: (outgoing ? target : source)?.data.name ?? "",
-        issue:
-          source && target
-            ? connectionIssue(source, port, target, templatesByKey)
-            : null,
+        issue: edgeIssue(edge, source, target, issues, templatesByKey),
       };
     });
 }
@@ -266,18 +286,19 @@ function toDisplayed(
   issues: ValidationIssueDTO[],
   templatesByKey: Map<string, ComponentTemplateDTO>,
 ): DisplayedNode[] {
-  const byNode = new Map<string, string[]>();
+  const byNode = new Map<string, ValidationIssueDTO[]>();
   for (const issue of issues) {
     if (issue.target.kind === "COMPONENT" && issue.target.key) {
-      const fields = byNode.get(issue.target.key) ?? [];
-      fields.push(issue.field ?? "");
-      byNode.set(issue.target.key, fields);
+      byNode.set(issue.target.key, [
+        ...(byNode.get(issue.target.key) ?? []),
+        issue,
+      ]);
     }
   }
   return nodes.map((node) => {
     const templateName =
       templatesByKey.get(node.data.templateKey)?.name ?? node.data.type;
-    const issueFields = byNode.get(node.id) ?? [];
+    const nodeIssues = byNode.get(node.id) ?? [];
     const ports = (profileOf(node, templatesByKey)?.ports ?? []).map(
       (port) => ({ name: port.name, label: port.label, stale: false }),
     );
@@ -297,11 +318,44 @@ function toDisplayed(
       data: {
         ...node.data,
         templateName,
-        issueCount: issueFields.length,
-        issueFields,
+        errorCount: nodeIssues.filter((issue) => issue.severity === "ERROR")
+          .length,
+        warningCount: nodeIssues.filter((issue) => issue.severity === "WARNING")
+          .length,
+        issueFields: nodeIssues.flatMap((issue) =>
+          issue.severity === "ERROR" && issue.field ? [issue.field] : [],
+        ),
         ports,
       },
     };
+  });
+}
+
+// Where each issue is, in words, and the node to select for it: a connection points to the node
+// its arrow leaves from, and an issue of the scenario or of a removed node to none.
+function locateIssues(
+  issues: ValidationIssueDTO[],
+  nodes: ComponentNodeModel[],
+  edges: Edge[],
+): LocatedIssue[] {
+  const names = new Map(nodes.map((node) => [node.id, node.data.name]));
+  return issues.map((issue) => {
+    const { kind, key } = issue.target;
+    const edge =
+      kind === "CONNECTION"
+        ? edges.find((candidate) => candidate.id === key)
+        : undefined;
+    if (edge) {
+      return {
+        issue,
+        where: `${names.get(edge.source)} → ${names.get(edge.target)}`,
+        nodeKey: edge.source,
+      };
+    }
+    if (kind === "COMPONENT" && key && names.has(key)) {
+      return { issue, where: names.get(key) ?? "", nodeKey: key };
+    }
+    return { issue, where: "Scenario", nodeKey: null };
   });
 }
 
@@ -349,7 +403,8 @@ function Editor({
   const area = useRef<HTMLDivElement>(null);
   const [resolving, setResolving] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  // What the side panel shows when no node is selected.
+  const [panel, setPanel] = useState<"details" | "issues" | null>(null);
   // Templates by key, to find a node's template quickly.
   const templatesByKey = useMemo(
     () => new Map(templates.map((template) => [template.key, template])),
@@ -379,8 +434,9 @@ function Editor({
     [state.nodes, state.edges, state.issues, templatesByKey],
   );
   const displayedEdges = useMemo(
-    () => toDisplayedEdges(state.edges, state.nodes, templatesByKey),
-    [state.edges, state.nodes, templatesByKey],
+    () =>
+      toDisplayedEdges(state.edges, state.nodes, state.issues, templatesByKey),
+    [state.edges, state.nodes, state.issues, templatesByKey],
   );
 
   // Where an arrow may be dropped: on another node that offers what the port accepts,
@@ -401,14 +457,23 @@ function Editor({
     );
   }
 
-  // The side panel shows the selected node, or the scenario details.
+  // The side panel shows the selected node, the scenario details or the issues.
   const selected = state.nodes.find((node) => node.selected);
-  const panelOpen = Boolean(selected) || detailsOpen;
+  const panelOpen = Boolean(selected) || panel !== null;
+  const errorCount = state.issues.filter(
+    (issue) => issue.severity === "ERROR",
+  ).length;
 
-  // Selecting a component replaces the details in the side panel.
+  // Selecting a component replaces the details or the issues in the side panel.
   useEffect(() => {
-    if (selected) setDetailsOpen(false);
+    if (selected) setPanel(null);
   }, [selected]);
+
+  // Opens the details or the issues in the side panel, or closes them when already open.
+  function togglePanel(next: "details" | "issues") {
+    if (selected) select(null);
+    setPanel(panel === next && !selected ? null : next);
+  }
 
   // Selects one node, or none with null, the same way a click on the canvas does.
   function select(key: string | null) {
@@ -422,20 +487,8 @@ function Editor({
     });
   }
 
-  // The issues button in the top bar: selects the first node with an issue and centres the view on it.
-  // A connection issue points to the node its arrow leaves from.
-  function showFirstIssue() {
-    const target = state.issues.find(
-      (issue) =>
-        (issue.target.kind === "COMPONENT" ||
-          issue.target.kind === "CONNECTION") &&
-        issue.target.key,
-    )?.target;
-    const key =
-      target?.kind === "CONNECTION"
-        ? state.edges.find((edge) => edge.id === target.key)?.source
-        : target?.key;
-    if (!key) return;
+  // Picking an issue selects its node and centres the view on it.
+  function locate(key: string) {
     select(key);
     void fitToBoard({ nodes: [{ id: key }], padding: "24px" });
   }
@@ -576,27 +629,37 @@ function Editor({
           <Button
             type="button"
             variant="ghost"
-            onClick={showFirstIssue}
-            aria-label={
+            aria-pressed={panel === "issues" && !selected}
+            onClick={() => togglePanel("issues")}
+            aria-label={`${
               state.issues.length === 1
                 ? "1 issue"
                 : `${state.issues.length} issues`
+            }${state.dirty ? ", from the last save" : ""}`}
+            title={
+              state.dirty
+                ? "Issues from the last save; save to check your changes"
+                : "Show the issues"
             }
-            title="Show the first issue"
-            className="font-mono text-degraded-text tabular-nums pointer-fine:hover:text-degraded-text"
+            className={`font-mono tabular-nums aria-pressed:bg-accent dark:aria-pressed:bg-accent ${
+              errorCount > 0
+                ? "text-destructive pointer-fine:hover:text-destructive"
+                : "text-degraded-text pointer-fine:hover:text-degraded-text"
+            } ${state.dirty ? "opacity-60" : ""}`}
           >
-            <TriangleAlertIcon data-icon="inline-start" />
+            {errorCount > 0 ? (
+              <CircleXIcon data-icon="inline-start" />
+            ) : (
+              <TriangleAlertIcon data-icon="inline-start" />
+            )}
             {state.issues.length}
           </Button>
         )}
         <Button
           type="button"
           variant="ghost"
-          aria-pressed={detailsOpen && !selected}
-          onClick={() => {
-            if (selected) select(null);
-            setDetailsOpen(!(detailsOpen && !selected));
-          }}
+          aria-pressed={panel === "details" && !selected}
+          onClick={() => togglePanel("details")}
           aria-label="Details"
           title="Scenario details"
           size="icon"
@@ -710,11 +773,14 @@ function Editor({
               ariaLabel="Mini map"
               style={{ width: 120, height: 80 }}
               nodeBorderRadius={12}
-              nodeColor={(node) =>
-                (node as DisplayedNode).data.issueCount > 0
+              nodeColor={(node) => {
+                const { errorCount, warningCount } = (node as DisplayedNode)
+                  .data;
+                if (errorCount > 0) return "var(--failed-fill)";
+                return warningCount > 0
                   ? "var(--degraded-fill)"
-                  : "var(--accent)"
-              }
+                  : "var(--accent)";
+              }}
               className={`rounded-lg border max-sm:hidden ${
                 state.nodes.length === 0 ? "hidden" : ""
               }`}
@@ -830,13 +896,13 @@ function Editor({
           </div>
         </div>
 
-        {/* Right: the selected node's configuration, or the scenario details. */}
+        {/* Right: the selected node's configuration, the issues or the scenario details. */}
         {panelOpen && (
           <aside
             aria-label="Inspector"
             className="min-h-0 overflow-y-auto border-t p-4 lg:border-t-0 lg:border-l lg:p-5"
           >
-            {selected ? (
+            {selected && (
               <NodeInspector
                 key={selected.id}
                 node={selected}
@@ -850,16 +916,26 @@ function Editor({
                   selected.id,
                   state.nodes,
                   state.edges,
+                  state.issues,
                   templatesByKey,
                 )}
                 dispatch={dispatch}
                 onClose={() => select(null)}
               />
-            ) : (
+            )}
+            {!selected && panel === "issues" && (
+              <IssueList
+                issues={locateIssues(state.issues, state.nodes, state.edges)}
+                stale={state.dirty}
+                onLocate={locate}
+                onClose={() => setPanel(null)}
+              />
+            )}
+            {!selected && panel === "details" && (
               <ScenarioDetails
                 scenario={scenario}
                 revision={state.revision}
-                onClose={() => setDetailsOpen(false)}
+                onClose={() => setPanel(null)}
               />
             )}
           </aside>
