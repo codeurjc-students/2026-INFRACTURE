@@ -176,6 +176,19 @@ class ScenarioTests {
     }
 
     @Test
+    void listsOnlyTheConnectionsThatLeaveANode() {
+        Connection cache = new Connection(FIRST, "cache", THIRD);
+        Connection database = new Connection(FIRST, "database", SECOND);
+        Connection users = new Connection(SECOND, "cache", THIRD);
+
+        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), httpNode(SECOND, "users-api", 0),
+                redisNode(THIRD)), List.of(cache, users, database), templates);
+
+        assertThat(scenario.connectionsFrom(FIRST)).containsExactly(cache, database);
+        assertThat(scenario.connectionsFrom(THIRD)).isEmpty();
+    }
+
+    @Test
     void keepsConnectionsTheContractDoesNotAllowAsADraft() {
         Connection unknownPort = new Connection(FIRST, "database", SECOND);
 

@@ -29,13 +29,16 @@ class ScenarioValidatorTests {
     private static final UUID DATABASE = UUID.randomUUID();
     private static final UUID WORKER = UUID.randomUUID();
     private static final UUID BROKER = UUID.randomUUID();
+    private static final UUID GATEWAY = UUID.randomUUID();
+    private static final UUID PRODUCER = UUID.randomUUID();
 
     private final ScenarioValidator validator = new ScenarioValidator(ContractCatalogs.standard());
     private final Scenario scenario = new Scenario(new Project(
             new User("alice", "hash", "alice@example.com", "Alice", UserRole.USER), "Cache lab", null),
             "Cold cache", null);
     private final Map<String, ComponentTemplate> templates = Map.of(
-            "http-service", new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
+            "http-service", new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE, true,
+                    new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
             "redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of())),
             "postgresql", new ComponentTemplate("postgresql", "PostgreSQL", ComponentType.POSTGRESQL, true,
                     new ComponentConfiguration("DEFAULT", Map.of())),
@@ -110,7 +113,96 @@ class ScenarioValidatorTests {
                 new Connection(WORKER, "result", CACHE)), templates);
 
         assertThat(validator.validate(scenario)).extracting(ValidationIssue::code)
-                .containsExactly("UNKNOWN_PROFILE", "UNKNOWN_PROFILE");
+                .containsExactly("UNKNOWN_PROFILE", "UNKNOWN_PROFILE", "MISSING_CONNECTION");
+    }
+
+    @Test
+    void reportsPortsWithFewerConnectionsThanTheirMinimumOnTheNode() {
+        scenario.replaceGraph(1, List.of(
+                node(ORDERS, "http-service", "orders-api", "DATABASE_CRUD", Map.of("responseDelayMs", 0)),
+                node(WORKER, "worker", "worker", "CONSUMER", Map.of())), List.of(), templates);
+
+        assertThat(validator.validate(scenario)).containsExactly(
+                new ValidationIssue(Severity.ERROR, "MISSING_CONNECTION",
+                        "orders-api needs at least 1 connection on port database",
+                        new Target(Kind.COMPONENT, ORDERS.toString()), "database"),
+                new ValidationIssue(Severity.ERROR, "MISSING_CONNECTION",
+                        "worker needs at least 1 connection on port queue",
+                        new Target(Kind.COMPONENT, WORKER.toString()), "queue"));
+    }
+
+    @Test
+    void reportsPortsWithMoreConnectionsThanTheirMaximumOnTheNode() {
+        scenario.replaceGraph(1, List.of(
+                node(WORKER, "worker", "worker", "CONSUMER", Map.of()),
+                node(BROKER, "rabbitmq", "tasks", "DEFAULT", Map.of()),
+                node(DATABASE, "postgresql", "orders-db", "DEFAULT", Map.of()),
+                node(CACHE, "redis", "cache", "DEFAULT", Map.of())), List.of(
+                new Connection(WORKER, "queue", BROKER),
+                new Connection(WORKER, "result", DATABASE),
+                new Connection(WORKER, "result", CACHE)), templates);
+
+        assertThat(validator.validate(scenario)).containsExactly(
+                new ValidationIssue(Severity.ERROR, "TOO_MANY_CONNECTIONS",
+                        "worker accepts at most 1 connection on port result",
+                        new Target(Kind.COMPONENT, WORKER.toString()), "result"));
+    }
+
+    @Test
+    void reportsTheConnectionThatClosesEachCycleIncludingSelfCalls() {
+        scenario.replaceGraph(1, List.of(
+                node(GATEWAY, "http-service", "gateway", "DOWNSTREAM_HTTP", Map.of("responseDelayMs", 0)),
+                node(ORDERS, "http-service", "orders-api", "DOWNSTREAM_HTTP", Map.of("responseDelayMs", 0)),
+                node(CACHE, "http-service", "echo", "DOWNSTREAM_HTTP", Map.of("responseDelayMs", 0))), List.of(
+                new Connection(GATEWAY, "downstream", ORDERS),
+                new Connection(ORDERS, "downstream", GATEWAY),
+                new Connection(CACHE, "downstream", CACHE)), templates);
+
+        assertThat(validator.validate(scenario)).containsExactly(
+                new ValidationIssue(Severity.ERROR, "DEPENDENCY_CYCLE", "orders-api → gateway closes a dependency cycle",
+                        new Target(Kind.CONNECTION, ORDERS + ":downstream:" + GATEWAY), "downstream"),
+                new ValidationIssue(Severity.ERROR, "DEPENDENCY_CYCLE", "echo → echo closes a dependency cycle",
+                        new Target(Kind.CONNECTION, CACHE + ":downstream:" + CACHE), "downstream"));
+    }
+
+    @Test
+    void acceptsAcyclicChainsAndSharedDependencies() {
+        scenario.replaceGraph(1, List.of(
+                node(GATEWAY, "http-service", "gateway", "DOWNSTREAM_HTTP", Map.of("responseDelayMs", 0)),
+                node(ORDERS, "http-service", "orders-api", "CACHE_ASIDE", Map.of("responseDelayMs", 0)),
+                node(CACHE, "redis", "cache", "DEFAULT", Map.of()),
+                node(DATABASE, "postgresql", "orders-db", "DEFAULT", Map.of()),
+                node(PRODUCER, "http-service", "tasks-api", "QUEUE_PRODUCER", Map.of("responseDelayMs", 0)),
+                node(BROKER, "rabbitmq", "tasks", "DEFAULT", Map.of()),
+                node(WORKER, "worker", "worker", "CONSUMER", Map.of())), List.of(
+                new Connection(GATEWAY, "downstream", ORDERS),
+                new Connection(ORDERS, "cache", CACHE),
+                new Connection(ORDERS, "database", DATABASE),
+                new Connection(PRODUCER, "queue", BROKER),
+                new Connection(WORKER, "queue", BROKER),
+                new Connection(WORKER, "result", DATABASE)), templates);
+
+        assertThat(validator.validate(scenario)).isEmpty();
+    }
+
+    @Test
+    void reportsAnEmptyScenarioAsAnErrorOnTheScenario() {
+        assertThat(validator.validate(scenario)).containsExactly(
+                new ValidationIssue(Severity.ERROR, "EMPTY_SCENARIO", "Add at least one component to run the scenario",
+                        new Target(Kind.SCENARIO, null), null));
+    }
+
+    @Test
+    void warnsWhenTasksReachABrokerThatNoWorkerConsumes() {
+        scenario.replaceGraph(1, List.of(
+                node(PRODUCER, "http-service", "tasks-api", "QUEUE_PRODUCER", Map.of("responseDelayMs", 0)),
+                node(BROKER, "rabbitmq", "tasks", "DEFAULT", Map.of())), List.of(
+                new Connection(PRODUCER, "queue", BROKER)), templates);
+
+        assertThat(validator.validate(scenario)).containsExactly(
+                new ValidationIssue(Severity.WARNING, "NO_CONSUMER",
+                        "Tasks published to tasks accumulate because no Worker consumes them",
+                        new Target(Kind.COMPONENT, BROKER.toString()), null));
     }
 
     @Test

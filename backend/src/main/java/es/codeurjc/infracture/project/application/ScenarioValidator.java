@@ -2,8 +2,11 @@ package es.codeurjc.infracture.project.application;
 
 import es.codeurjc.infracture.catalog.application.ContractCatalog;
 import es.codeurjc.infracture.catalog.domain.Capability;
+import es.codeurjc.infracture.catalog.domain.ComponentType;
+import es.codeurjc.infracture.catalog.domain.ContractViolation;
 import es.codeurjc.infracture.catalog.domain.PortContract;
 import es.codeurjc.infracture.catalog.domain.ProfileContract;
+import es.codeurjc.infracture.catalog.domain.TemplateContract;
 import es.codeurjc.infracture.project.domain.Component;
 import es.codeurjc.infracture.project.domain.Connection;
 import es.codeurjc.infracture.project.domain.Scenario;
@@ -11,15 +14,16 @@ import es.codeurjc.infracture.project.domain.ValidationIssue;
 import es.codeurjc.infracture.project.domain.ValidationIssue.Kind;
 import es.codeurjc.infracture.project.domain.ValidationIssue.Severity;
 import es.codeurjc.infracture.project.domain.ValidationIssue.Target;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 
+// Checks a saved scenario against the contracts. It only reports issues; it never blocks saving.
 @Service
 public class ScenarioValidator {
 
@@ -30,53 +34,177 @@ public class ScenarioValidator {
     }
 
     public List<ValidationIssue> validate(Scenario scenario) {
-        Map<UUID, Component> components = scenario.getComponents().stream()
-                .collect(Collectors.toMap(Component::getKey, Function.identity()));
-        return Stream.concat(
-                scenario.getComponents().stream().flatMap(this::validate),
-                scenario.getConnections().stream().flatMap(connection -> validate(connection,
-                        components.get(connection.sourceKey()), components.get(connection.targetKey()))))
-                .toList();
+        List<ValidationIssue> issues = new ArrayList<>();
+        // Connections only hold node keys, so nodes are looked up by key.
+        Map<UUID, Component> nodes = new HashMap<>();
+        for (Component component : scenario.getComponents()) {
+            nodes.put(component.getKey(), component);
+        }
+        for (Component component : scenario.getComponents()) {
+            checkConfiguration(component, issues);
+            checkCardinalities(component, scenario, issues);
+        }
+        for (Connection connection : scenario.getConnections()) {
+            checkConnection(connection, nodes.get(connection.sourceKey()), nodes.get(connection.targetKey()), issues);
+        }
+        findCycles(scenario, nodes, issues);
+        findUnconsumedBrokers(scenario, nodes, issues);
+        if (nodes.isEmpty()) {
+            issues.add(new ValidationIssue(Severity.ERROR, "EMPTY_SCENARIO",
+                    "Add at least one component to run the scenario", new Target(Kind.SCENARIO, null), null));
+        }
+        return issues;
     }
 
-    private Stream<ValidationIssue> validate(Component component) {
-        Target target = new Target(Kind.COMPONENT, component.getKey().toString());
-        return contracts.find(component.getType())
-                .map(contract -> contract.check(component.getConfiguration()).stream()
-                        .map(violation -> new ValidationIssue(Severity.ERROR, violation.code(), violation.message(),
-                                target, violation.field())))
-                .orElseGet(() -> Stream.of(new ValidationIssue(Severity.ERROR, "UNKNOWN_TYPE",
-                        component.getType() + " has no contract", target, null)));
+    private void checkConfiguration(Component component, List<ValidationIssue> issues) {
+        Target target = componentTarget(component);
+        TemplateContract contract = contracts.find(component.getType()).orElse(null);
+        if (contract == null) {
+            issues.add(new ValidationIssue(Severity.ERROR, "UNKNOWN_TYPE", component.getType() + " has no contract",
+                    target, null));
+            return;
+        }
+        for (ContractViolation violation : contract.check(component.getConfiguration())) {
+            issues.add(new ValidationIssue(Severity.ERROR, violation.code(), violation.message(), target,
+                    violation.field()));
+        }
     }
 
-    // A node without a known profile already has its own issue, so its connections are not judged.
-    private Stream<ValidationIssue> validate(Connection connection, Component source, Component target) {
-        Optional<ProfileContract> sourceProfile = profile(source);
-        if (sourceProfile.isEmpty()) {
-            return Stream.empty();
+    // Each port of the profile needs between its minimum and maximum outgoing
+    // connections.
+    private void checkCardinalities(Component component, Scenario scenario, List<ValidationIssue> issues) {
+        ProfileContract profile = profile(component);
+        if (profile == null) {
+            return;
+        }
+        for (PortContract port : profile.ports()) {
+            int count = 0;
+            for (Connection connection : scenario.connectionsFrom(component.getKey())) {
+                if (connection.port().equals(port.name())) {
+                    count++;
+                }
+            }
+            if (count < port.min()) {
+                issues.add(new ValidationIssue(Severity.ERROR, "MISSING_CONNECTION",
+                        "%s needs at least %d connection on port %s".formatted(component.getName(), port.min(),
+                                port.name()),
+                        componentTarget(component), port.name()));
+            } else if (count > port.max()) {
+                issues.add(new ValidationIssue(Severity.ERROR, "TOO_MANY_CONNECTIONS",
+                        "%s accepts at most %d connection on port %s".formatted(component.getName(), port.max(),
+                                port.name()),
+                        componentTarget(component), port.name()));
+            }
+        }
+    }
+
+    // A node without a known profile already has its own issue, so its connections
+    // are not judged.
+    private void checkConnection(Connection connection, Component source, Component target,
+            List<ValidationIssue> issues) {
+        ProfileContract sourceProfile = profile(source);
+        if (sourceProfile == null) {
+            return;
         }
         String port = connection.port();
-        Target issueTarget = new Target(Kind.CONNECTION,
-                connection.sourceKey() + ":" + port + ":" + connection.targetKey());
-        Optional<PortContract> portContract = sourceProfile.get().ports().stream()
-                .filter(candidate -> candidate.name().equals(port)).findFirst();
-        if (portContract.isEmpty()) {
-            return Stream.of(new ValidationIssue(Severity.ERROR, "UNKNOWN_PORT", "%s has no port %s in profile %s"
-                    .formatted(source.getName(), port, sourceProfile.get().name()), issueTarget, port));
+        PortContract portContract = null;
+        for (PortContract candidate : sourceProfile.ports()) {
+            if (candidate.name().equals(port)) {
+                portContract = candidate;
+                break;
+            }
         }
-        Optional<ProfileContract> targetProfile = profile(target);
-        List<Capability> accepts = portContract.get().accepts();
-        if (targetProfile.isEmpty() || accepts.stream().anyMatch(targetProfile.get().capabilities()::contains)) {
-            return Stream.empty();
+        if (portContract == null) {
+            issues.add(new ValidationIssue(Severity.ERROR, "UNKNOWN_PORT", "%s has no port %s in profile %s"
+                    .formatted(source.getName(), port, sourceProfile.name()), connectionTarget(connection), port));
+            return;
         }
-        String needs = accepts.stream().map(Capability::name).collect(Collectors.joining(" or "));
-        return Stream.of(new ValidationIssue(Severity.ERROR, "CAPABILITY_MISMATCH",
+        ProfileContract targetProfile = profile(target);
+        if (targetProfile == null) {
+            return;
+        }
+        for (Capability capability : portContract.accepts()) {
+            if (targetProfile.capabilities().contains(capability)) {
+                return;
+            }
+        }
+        String needs = String.join(" or ", portContract.accepts().stream().map(Capability::name).toList());
+        issues.add(new ValidationIssue(Severity.ERROR, "CAPABILITY_MISMATCH",
                 "Port %s of %s needs %s, which %s does not offer".formatted(port, source.getName(), needs,
-                        target.getName()), issueTarget, port));
+                        target.getName()),
+                connectionTarget(connection), port));
     }
 
-    private Optional<ProfileContract> profile(Component component) {
-        return contracts.find(component.getType())
-                .flatMap(contract -> contract.profile(component.getConfiguration().profile()));
+    // Depth-first search from every node: a connection that reaches a node on the
+    // current path closes a cycle.
+    private static void findCycles(Scenario scenario, Map<UUID, Component> nodes, List<ValidationIssue> issues) {
+        Set<UUID> visited = new HashSet<>();
+        Set<UUID> onPath = new HashSet<>();
+        for (Component component : scenario.getComponents()) {
+            visit(component.getKey(), scenario, nodes, visited, onPath, issues);
+        }
+    }
+
+    private static void visit(UUID key, Scenario scenario, Map<UUID, Component> nodes, Set<UUID> visited,
+            Set<UUID> onPath, List<ValidationIssue> issues) {
+
+        if (visited.contains(key)) {
+            return;
+        }
+        visited.add(key);
+        onPath.add(key);
+        for (Connection connection : scenario.connectionsFrom(key)) {
+            if (onPath.contains(connection.targetKey())) {
+                issues.add(new ValidationIssue(Severity.ERROR, "DEPENDENCY_CYCLE", "%s → %s closes a dependency cycle"
+                        .formatted(nodes.get(key).getName(), nodes.get(connection.targetKey()).getName()),
+                        connectionTarget(connection), connection.port()));
+            } else {
+                visit(connection.targetKey(), scenario, nodes, visited, onPath, issues);
+            }
+        }
+        onPath.remove(key);
+    }
+
+    // A RabbitMQ that something publishes to but no Worker reads from accumulates tasks.
+    // shortcut: a Worker is the only consumer type today; if another type consumes, this check must know it.
+    private static void findUnconsumedBrokers(Scenario scenario, Map<UUID, Component> nodes,
+            List<ValidationIssue> issues) {
+        for (Component broker : scenario.getComponents()) {
+            if (broker.getType() != ComponentType.RABBITMQ) {
+                continue;
+            }
+            boolean published = false;
+            boolean consumed = false;
+            for (Connection connection : scenario.getConnections()) {
+                if (!connection.targetKey().equals(broker.getKey())) {
+                    continue;
+                }
+                if (nodes.get(connection.sourceKey()).getType() == ComponentType.WORKER) {
+                    consumed = true;
+                } else {
+                    published = true;
+                }
+            }
+            if (published && !consumed) {
+                issues.add(new ValidationIssue(Severity.WARNING, "NO_CONSUMER",
+                        "Tasks published to %s accumulate because no Worker consumes them".formatted(broker.getName()),
+                        componentTarget(broker), null));
+            }
+        }
+    }
+
+    // The profile the node uses, or null when its type or profile is unknown.
+    private ProfileContract profile(Component component) {
+        TemplateContract contract = contracts.find(component.getType()).orElse(null);
+        return contract == null ? null : contract.profile(component.getConfiguration().profile()).orElse(null);
+    }
+
+    private static Target componentTarget(Component component) {
+        return new Target(Kind.COMPONENT, component.getKey().toString());
+    }
+
+    private static Target connectionTarget(Connection connection) {
+        return new Target(Kind.CONNECTION,
+                connection.sourceKey() + ":" + connection.port() + ":" + connection.targetKey());
     }
 }
