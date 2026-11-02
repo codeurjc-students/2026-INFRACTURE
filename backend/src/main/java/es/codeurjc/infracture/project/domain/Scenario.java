@@ -215,6 +215,17 @@ public class Scenario {
         return Collections.unmodifiableList(connections);
     }
 
+    // The connections that leave one node, in saved order.
+    public List<Connection> connectionsFrom(UUID key) {
+        List<Connection> outgoing = new ArrayList<>();
+        for (Connection connection : connections) {
+            if (connection.sourceKey().equals(key)) {
+                outgoing.add(connection);
+            }
+        }
+        return outgoing;
+    }
+
     public Long getId() {
         return id;
     }

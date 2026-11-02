@@ -227,7 +227,13 @@ describe("projects client against the real API", () => {
       revision: 1,
       components: [],
       connections: [],
-      issues: [],
+      issues: [
+        expect.objectContaining({
+          severity: "ERROR",
+          code: "EMPTY_SCENARIO",
+          target: { kind: "SCENARIO", key: null },
+        }),
+      ],
     });
     const http = loaded.templates.find(
       (template) => template.key === "http-service",
@@ -280,6 +286,12 @@ describe("projects client against the real API", () => {
         code: "PARAMETER_OUT_OF_RANGE",
         target: { kind: "COMPONENT", key: canvas.nodes[0].id },
         field: "responseDelayMs",
+      }),
+      expect.objectContaining({
+        severity: "ERROR",
+        code: "MISSING_CONNECTION",
+        target: { kind: "COMPONENT", key: api },
+        field: "database",
       }),
     ]);
 

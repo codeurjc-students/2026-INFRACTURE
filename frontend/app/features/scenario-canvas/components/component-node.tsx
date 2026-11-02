@@ -5,7 +5,7 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { TriangleAlertIcon } from "lucide-react";
+import { CircleXIcon, TriangleAlertIcon } from "lucide-react";
 import { memo } from "react";
 import { cn } from "cn";
 import type { ComponentNodeData } from "../graph-reducer";
@@ -15,7 +15,9 @@ import ComponentIcon from "./component-icon";
 export type DisplayedNode = Node<
   ComponentNodeData & {
     templateName: string;
-    issueCount: number;
+    errorCount: number;
+    warningCount: number;
+    // Fields with a contract error.
     issueFields: string[];
     // The outgoing ports drawn on the node. "stale" ports are not in the profile any more but still
     // have an arrow, so the arrow stays visible until the user removes it.
@@ -23,6 +25,12 @@ export type DisplayedNode = Node<
   },
   "component"
 >;
+
+// "1 error", "2 warnings", or nothing for zero.
+function count(value: number, noun: string) {
+  if (value === 0) return "";
+  return value === 1 ? `1 ${noun}` : `${value} ${noun}s`;
+}
 
 // The node reads like an instrument: what it is, then its configuration in mono, as DESIGN.md asks for technical data.
 function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
@@ -62,7 +70,7 @@ function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
           </p>
         </div>
       </div>
-      {/* Configuration: profile and each parameter. A value with an issue turns amber. */}
+      {/* Configuration: profile and each parameter. A value with an error turns red. */}
       <dl className="flex flex-col gap-1 rounded-lg bg-background px-2.5 py-2 font-mono text-xs leading-4">
         {[["profile", data.profile ?? "—"] as const, ...parameters].map(
           ([name, value]) => (
@@ -71,7 +79,7 @@ function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
               <dd
                 className={cn(
                   "shrink-0 tabular-nums",
-                  data.issueFields.includes(name) && "text-degraded-text",
+                  data.issueFields.includes(name) && "text-destructive",
                 )}
               >
                 {value}
@@ -103,12 +111,24 @@ function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
           ))}
         </ul>
       )}
-      {data.issueCount > 0 && (
-        <p className="flex items-center gap-1.5 type-caption font-[520] text-degraded-text">
-          <TriangleAlertIcon className="size-3.5" aria-hidden />
-          {data.issueCount === 1
-            ? "1 issue to review"
-            : `${data.issueCount} issues to review`}
+      {data.errorCount + data.warningCount > 0 && (
+        <p
+          className={cn(
+            "flex items-center gap-1.5 type-caption font-[520]",
+            data.errorCount > 0 ? "text-destructive" : "text-degraded-text",
+          )}
+        >
+          {data.errorCount > 0 ? (
+            <CircleXIcon className="size-3.5" aria-hidden />
+          ) : (
+            <TriangleAlertIcon className="size-3.5" aria-hidden />
+          )}
+          {[
+            count(data.errorCount, "error"),
+            count(data.warningCount, "warning"),
+          ]
+            .filter(Boolean)
+            .join(", ")}
         </p>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { Trash2Icon, TriangleAlertIcon, UnplugIcon, XIcon } from "lucide-react";
+import { Trash2Icon, UnplugIcon, XIcon } from "lucide-react";
 import { useId, useState, type Dispatch } from "react";
 import { Button } from "~/components/ui/button";
 import {
@@ -20,6 +20,7 @@ import type { TemplateContractDTO } from "~/features/component-catalogue/model/T
 import type { CanvasAction, ComponentNode } from "../graph-reducer";
 import type { ValidationIssueDTO } from "../model/ValidationIssueDTO";
 import ComponentIcon from "./component-icon";
+import IssueNote from "./issue-note";
 
 // Same limit as the backend.
 const NAME_MAX_LENGTH = 30;
@@ -32,21 +33,8 @@ export interface NodeConnection {
   outgoing: boolean;
   label: string;
   other: string;
-  // Why the contract no longer allows it, or null.
+  // Why it is an error (the contract no longer allows it, or it closes a cycle), or null.
   issue: string | null;
-}
-
-// A contract issue lets the draft be saved, so it reads as a warning, not as an input error.
-function IssueNote({
-  id,
-  message,
-}: Readonly<{ id?: string; message: string }>) {
-  return (
-    <p id={id} className="flex gap-1.5 type-small text-degraded-text">
-      <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-      {message}
-    </p>
-  );
 }
 
 // One numeric parameter of the contract. It keeps what the user types apart from the graph value,
@@ -59,7 +47,7 @@ function ParameterField({
 }: Readonly<{
   parameter: TemplateContractDTO["profiles"][number]["parameters"][number];
   value: number | undefined;
-  issue: string | undefined;
+  issue: ValidationIssueDTO | undefined;
   onChange: (value: number | undefined) => void;
 }>) {
   const id = useId();
@@ -116,7 +104,13 @@ function ParameterField({
           {`Whole number from ${parameter.min} to ${parameter.max}.`}
         </FieldDescription>
       )}
-      {issue && !inputError && <IssueNote id={`${id}-issue`} message={issue} />}
+      {issue && !inputError && (
+        <IssueNote
+          id={`${id}-issue`}
+          severity={issue.severity}
+          message={issue.message}
+        />
+      )}
     </Field>
   );
 }
@@ -145,7 +139,7 @@ export default function NodeInspector({
   const profile = profiles.find((candidate) => candidate.name === data.profile);
   // The issue of one field, shown under that field.
   const fieldIssue = (field: string) =>
-    issues.find((issue) => issue.field === field)?.message;
+    issues.find((issue) => issue.field === field);
   // Issues that belong to no visible field, shown at the end.
   const otherIssues = issues.filter(
     (issue) =>
@@ -236,7 +230,12 @@ export default function NodeInspector({
                 ))}
               </SelectContent>
             </Select>
-            {profileIssue && <IssueNote message={profileIssue} />}
+            {profileIssue && (
+              <IssueNote
+                severity={profileIssue.severity}
+                message={profileIssue.message}
+              />
+            )}
           </Field>
         )}
 
@@ -301,7 +300,7 @@ export default function NodeInspector({
                       </Button>
                     </span>
                     {connection.issue && (
-                      <IssueNote message={connection.issue} />
+                      <IssueNote severity="ERROR" message={connection.issue} />
                     )}
                   </li>
                 );
@@ -316,6 +315,7 @@ export default function NodeInspector({
           {otherIssues.map((issue) => (
             <IssueNote
               key={`${issue.code}-${issue.field}`}
+              severity={issue.severity}
               message={issue.message}
             />
           ))}

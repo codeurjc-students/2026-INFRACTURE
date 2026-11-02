@@ -38,6 +38,7 @@ class ScenarioGraphApiSystemTests {
     private static final String ORDERS = "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10";
     private static final String USERS = "7a1d2c3b-4e5f-4a6b-8c9d-0e1f2a3b4c5d";
     private static final String CACHE = "0b9c8d7e-6f5a-4b3c-8d2e-1f0a9b8c7d6e";
+    private static final String BROKER = "5c4b3a29-1807-4f6e-9d5c-4b3a29180700";
 
     @Container
     @ServiceConnection
@@ -172,9 +173,11 @@ class ScenarioGraphApiSystemTests {
         String cacheAside = node(ORDERS, "http-service", "orders-api", "CACHE_ASIDE", "{\"responseDelayMs\":0}");
         String stateless = http(ORDERS, "orders-api", 0, 0, 0);
 
-        alice.write().body(graph(1, List.of(cacheAside, redis(CACHE)), connection(ORDERS, "cache", CACHE)))
+        String database = node(USERS, "postgresql", "orders-db", "DEFAULT", "{}");
+        alice.write().body(graph(1, List.of(cacheAside, redis(CACHE), database),
+                connection(ORDERS, "cache", CACHE), connection(ORDERS, "database", USERS)))
             .put(scenario + "/graph").then().statusCode(200)
-            .body("connections", hasSize(1))
+            .body("connections", hasSize(2))
             .body("issues", hasSize(0));
         alice.read().get(scenario + "/graph").then()
             .body("connections[0].sourceKey", equalTo(ORDERS))
@@ -196,6 +199,35 @@ class ScenarioGraphApiSystemTests {
             .body("components", hasSize(1))
             .body("connections", hasSize(0))
             .body("issues", hasSize(0));
+    }
+
+    @Test
+    void savesAGraphWithErrorsAndLeavesOnlyAnAllowedWarningOnceCorrected() {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = createScenario(alice);
+        String gateway = node(ORDERS, "http-service", "gateway", "DOWNSTREAM_HTTP", "{\"responseDelayMs\":0}");
+        String producer = node(USERS, "http-service", "tasks-api", "QUEUE_PRODUCER", "{\"responseDelayMs\":0}");
+        String broker = node(BROKER, "rabbitmq", "tasks", "DEFAULT", "{}");
+
+        alice.read().get(scenario + "/graph").then().statusCode(200)
+            .body("issues.code", equalTo(List.of("EMPTY_SCENARIO")))
+            .body("issues[0].target.kind", equalTo("SCENARIO"));
+
+        alice.write().body(graph(1, List.of(gateway, producer, broker), connection(ORDERS, "downstream", ORDERS)))
+            .put(scenario + "/graph").then().statusCode(200)
+            .body("revision", equalTo(2))
+            .body("issues.code", equalTo(List.of("MISSING_CONNECTION", "DEPENDENCY_CYCLE")))
+            .body("issues.severity", equalTo(List.of("ERROR", "ERROR")))
+            .body("issues[0].target.key", equalTo(USERS))
+            .body("issues[0].field", equalTo("queue"))
+            .body("issues[1].target.key", equalTo(ORDERS + ":downstream:" + ORDERS));
+
+        alice.write().body(graph(2, List.of(gateway, producer, broker),
+                connection(ORDERS, "downstream", USERS), connection(USERS, "queue", BROKER)))
+            .put(scenario + "/graph").then().statusCode(200)
+            .body("issues.code", equalTo(List.of("NO_CONSUMER")))
+            .body("issues[0].severity", equalTo("WARNING"))
+            .body("issues[0].target.key", equalTo(BROKER));
     }
 
     @Test
