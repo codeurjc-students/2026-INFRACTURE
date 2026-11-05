@@ -1,0 +1,348 @@
+<meta charset="utf-8">
+<title>Proxy de Docker de Infracture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: schematic sheet. Summary facts, the wide drawing on a dot grid, the request pipeline as a stage-by-stage grid, then the allowlist. */
+  :root {
+    --bg: #f3f5f8;
+    --sheet: #fbfcfd;
+    --surface: #ffffff;
+    --head: #eef1f5;
+    --ink: #131a24;
+    --muted: #5a6577;
+    --line: #a4adba;
+    --grid: #d9dee6;
+    --zone: #eaeef4;
+    --zone-edge: #c5ccd7;
+    --exp: #e6f1ea;
+    --exp-edge: #9fc7ad;
+    --accent: #c2650c;
+    --accent-tint: #fdf0e1;
+    --ok: #237a4b;
+    --ok-tint: #e3f2e9;
+    --deny: #be3a2e;
+    --deny-tint: #fbe7e4;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1218; --sheet: #111820; --surface: #17202a; --head: #1d2834; --ink: #e5e9f0; --muted: #9ea8b8;
+      --line: #66717f; --grid: #222c37; --zone: #151d26; --zone-edge: #2c3846; --exp: #13211a; --exp-edge: #2f5a40;
+      --accent: #f2a04e; --accent-tint: #33240f; --ok: #6ccb94; --ok-tint: #15291e; --deny: #f2837a; --deny-tint: #35191a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1218; --sheet: #111820; --surface: #17202a; --head: #1d2834; --ink: #e5e9f0; --muted: #9ea8b8;
+    --line: #66717f; --grid: #222c37; --zone: #151d26; --zone-edge: #2c3846; --exp: #13211a; --exp-edge: #2f5a40;
+    --accent: #f2a04e; --accent-tint: #33240f; --ok: #6ccb94; --ok-tint: #15291e; --deny: #f2837a; --deny-tint: #35191a;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--sans); }
+  main {
+    max-width: 1140px; margin: 0 auto; padding-block: 40px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 44px;
+  }
+  code { font-family: var(--mono); font-size: .88em; }
+  p { margin: 0; }
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+
+  .intro { display: grid; gap: 14px; }
+  .eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  h1 { font-size: clamp(26px, 4vw, 38px); line-height: 1.12; font-weight: 700; letter-spacing: -.015em; max-width: 22ch; }
+  .lead { color: var(--muted); max-width: 66ch; font-size: 16px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 8px; }
+  .fact { background: var(--surface); border: 1px solid var(--zone-edge); border-radius: 12px; padding: 14px 16px; display: grid; gap: 2px; }
+  .fact b { font: 600 24px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+  .fact span { color: var(--muted); font-size: 13.5px; }
+  .fact.f-accent b { color: var(--accent); }
+  .fact.f-ok b { color: var(--ok); }
+  .fact.f-deny b { color: var(--deny); }
+
+  section { display: grid; gap: 16px; min-width: 0; }
+  .sec-head { display: grid; gap: 4px; }
+  .sec-head .num { font: 600 12px/1 var(--mono); color: var(--muted); letter-spacing: .08em; }
+  h2 { font-size: 21px; font-weight: 650; }
+  .sec-head p { color: var(--muted); max-width: 70ch; }
+
+  .sheet { background: var(--sheet); border: 1px solid var(--zone-edge); border-radius: 16px; overflow: hidden; }
+  .sheet-scroll { overflow-x: auto; }
+  .sheet svg { display: block; width: 100%; min-width: 820px; height: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 12px 18px; border-top: 1px solid var(--zone-edge); font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .sw { width: 26px; height: 0; border-top: 2px solid; display: inline-block; }
+  .sw.api { border-color: var(--accent); }
+  .sw.net { border-color: var(--ok); border-top-style: dashed; }
+  .sw.line { border-color: var(--line); }
+  .dotk { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  /* SVG */
+  .dot { fill: var(--grid); }
+  .zone .z-body { fill: var(--zone); stroke: var(--zone-edge); stroke-width: 1.25; }
+  .zone .z-tab { fill: var(--surface); stroke: var(--zone-edge); stroke-width: 1.25; }
+  .zone .z-label { fill: var(--muted); font: 600 11.5px var(--mono); letter-spacing: .08em; }
+  .zone-exp .z-body { fill: var(--exp); stroke: var(--exp-edge); }
+  .zone-exp .z-tab { stroke: var(--exp-edge); }
+  .zone-exp .z-label { fill: var(--ok); }
+  .card .c-body { fill: var(--surface); stroke: var(--zone-edge); stroke-width: 1.25; }
+  .card .c-head { fill: var(--head); }
+  .card .c-rule { stroke: var(--zone-edge); stroke-width: 1; }
+  .card .c-icon { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  .card .c-name { fill: var(--ink); font: 600 14px var(--sans); }
+  .card-proxy .c-body { stroke: var(--accent); stroke-width: 2; }
+  .card-proxy .c-head { fill: var(--accent-tint); }
+  .card-proxy .c-rule { stroke: var(--accent); }
+  .card-proxy .c-icon { stroke: var(--accent); }
+  .l-t { fill: var(--ink); font: 13px var(--sans); }
+  .l-m { fill: var(--muted); font: 11.5px var(--mono); }
+  .l-a { fill: var(--accent); font: 500 11.5px var(--mono); }
+  .l-deny { fill: var(--deny); font: 600 12px var(--mono); }
+  .deny-chip rect { fill: var(--deny-tint); stroke: var(--deny); stroke-width: 1; }
+  .deny-chip text { fill: var(--deny); font: 500 11px var(--mono); }
+  .ghost rect { fill: none; stroke: var(--line); stroke-width: 1.25; stroke-dasharray: 5 5; }
+  .bus rect { fill: var(--ok-tint); stroke: var(--ok); stroke-width: 1.5; }
+  .bus text { fill: var(--ok); font: 500 12px var(--mono); }
+  .w-net { stroke: var(--ok); stroke-width: 1.5; }
+  .w { fill: none; stroke: var(--line); stroke-width: 1.5; }
+  .w-api { fill: none; stroke: var(--accent); stroke-width: 2.25; }
+  .w-join { fill: none; stroke: var(--ok); stroke-width: 1.5; stroke-dasharray: 6 5; }
+  .w-label { fill: var(--muted); font: 12px var(--sans); }
+  .w-code { fill: var(--ink); font: 500 11.5px var(--mono); }
+  .m-line { fill: var(--line); } .m-api { fill: var(--accent); } .m-net { fill: var(--ok); }
+  .pk-ok { fill: var(--ok); stroke: var(--surface); stroke-width: 2; }
+  .pk-deny { fill: var(--deny); stroke: var(--surface); stroke-width: 2; }
+  .pk-403 rect { fill: var(--deny); }
+  .pk-403 text { fill: var(--surface); font: 600 11px var(--mono); }
+  @media (prefers-reduced-motion: reduce) { .packets { display: none; } }
+
+  /* Pipeline */
+  .pipe-scroll { overflow-x: auto; }
+  .pipe { display: grid; grid-template-columns: 200px repeat(6, minmax(130px, 1fr)); min-width: 980px; background: var(--surface); border: 1px solid var(--zone-edge); border-radius: 14px; overflow: hidden; }
+  .pipe > div { padding: 12px 14px; border-bottom: 1px solid var(--zone-edge); border-left: 1px solid var(--zone-edge); font-size: 13.5px; min-width: 0; }
+  .pipe > div:nth-child(7n+1) { border-left: 0; }
+  .pipe .stage { background: var(--head); display: grid; gap: 4px; align-content: start; }
+  .pipe .stage b { font: 600 12px var(--mono); color: var(--muted); letter-spacing: .05em; }
+  .pipe .stage code { color: var(--ink); font-size: 12px; }
+  .pipe .rowh { display: grid; gap: 6px; align-content: start; }
+  .pipe .rowh code { font-size: 12px; word-break: break-all; }
+  .pill { justify-self: start; font: 600 11px/1 var(--mono); padding: 5px 9px; border-radius: 999px; }
+  .pill.ok { color: var(--ok); background: var(--ok-tint); }
+  .pill.deny { color: var(--deny); background: var(--deny-tint); }
+  .cell-ok { box-shadow: inset 0 3px 0 var(--ok); }
+  .cell-deny { box-shadow: inset 0 3px 0 var(--deny); background: var(--deny-tint); }
+  .cell-skip { color: var(--muted); }
+  .pipe .last > div, .pipe > div.lastrow { border-bottom: 0; }
+
+  /* Allowlist */
+  .tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--zone-edge); border-radius: 14px; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--zone-edge); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { font: 600 11.5px/1.3 var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); background: var(--head); }
+  .m { display: inline-block; font: 600 10.5px/1 var(--mono); padding: 4px 6px; border-radius: 5px; border: 1px solid var(--zone-edge); color: var(--muted); margin-right: 4px; }
+  td.deny { color: var(--deny); font-weight: 600; }
+
+  .where { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .where li { background: var(--surface); border: 1px solid var(--zone-edge); border-radius: 12px; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 6px 18px; }
+  .where li code { color: var(--accent); }
+  .where .what { color: var(--muted); }
+  @media (max-width: 640px) { .where li { grid-template-columns: 1fr; } }
+</style>
+
+<main>
+  <header class="intro">
+    <span class="eyebrow">Infracture · motor de ejecución · ADR 0013</span>
+    <h1>El backend solo llega a Docker a través del proxy</h1>
+    <p class="lead">El backend no monta el socket de Docker. Envía sus llamadas a <code>docker-proxy</code>, un HAProxy oficial con una lista cerrada de método y ruta. Lo que no está en la lista recibe <code>403</code> y nunca llega al motor. Los contenedores del experimento no ven ni el proxy ni el socket.</p>
+    <div class="facts">
+      <div class="fact f-accent"><b>1</b><span>contenedor monta el socket: docker-proxy, en solo lectura</span></div>
+      <div class="fact f-ok"><b>0</b><span>puertos publicados por el proxy y por el experimento</span></div>
+      <div class="fact f-deny"><b>403</b><span>para cualquier llamada que no esté en la lista</span></div>
+    </div>
+  </header>
+
+  <section aria-labelledby="fig-title">
+    <div class="sec-head">
+      <span class="num">ARQUITECTURA</span>
+      <h2 id="fig-title">Dónde está el proxy</h2>
+      <p>El punto verde es una llamada permitida que cruza el proxy hasta el motor y crea la red del experimento. El punto rojo es un <code>exec</code> que el proxy corta con <code>403</code>.</p>
+    </div>
+    <figure class="sheet" style="margin:0">
+      <div class="sheet-scroll">
+<svg viewBox="0 0 1100 690" role="img" aria-label="El backend llega al motor Docker solo a través de docker-proxy; el motor crea el experimento en su propia red"><defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" class="dot"/></pattern><marker id="a-line" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m-line"/></marker><marker id="a-api" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m-api"/></marker><marker id="a-net" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m-net"/></marker></defs><rect width="1100" height="690" fill="url(#dots)"/><g class="zone"><rect class="z-body" x="20" y="40" width="716" height="320" rx="14"/><rect class="z-tab" x="38" y="29" width="361" height="22" rx="11"/><text class="z-label" x="50" y="44">PLATAFORMA · compose.yaml · profile app</text></g>
+<g class="zone"><rect class="z-body" x="756" y="40" width="324" height="320" rx="14"/><rect class="z-tab" x="774" y="29" width="181" height="22" rx="11"/><text class="z-label" x="786" y="44">MÁQUINA ANFITRIONA</text></g>
+<g class="zone zone-exp"><rect class="z-body" x="240" y="410" width="840" height="262" rx="14"/><rect class="z-tab" x="258" y="399" width="447" height="22" rx="11"/><text class="z-label" x="270" y="414">EXPERIMENTO · proyecto Compose infracture-exec-12</text></g>
+<g class="card">
+<rect class="c-body" x="44" y="108" width="164" height="96" rx="10"/>
+<path class="c-head" d="M54 108H198Q208 108 208 118V140H44V118Q44 108 54 108Z"/>
+<line class="c-rule" x1="44" y1="140" x2="208" y2="140"/>
+<g class="c-icon" transform="translate(56 116)"><rect x="1" y="2" width="14" height="12" rx="2"/><path d="M1 6h14"/></g>
+<text class="c-name" x="80" y="129">Navegador</text>
+<text class="l-t" x="58" y="162">Canvas del escenario</text>
+<text class="l-m" x="58" y="180">Run · Stop · estado</text>
+</g>
+<g class="card">
+<rect class="c-body" x="256" y="92" width="216" height="132" rx="10"/>
+<path class="c-head" d="M266 92H462Q472 92 472 102V124H256V102Q256 92 266 92Z"/>
+<line class="c-rule" x1="256" y1="124" x2="472" y2="124"/>
+<g class="c-icon" transform="translate(268 100)"><rect x="2" y="1.5" width="12" height="5" rx="1.5"/><rect x="2" y="9.5" width="12" height="5" rx="1.5"/><path d="M5 4h.01M5 12h.01"/></g>
+<text class="c-name" x="292" y="113">backend</text>
+<text class="l-t" x="270" y="146">Spring Boot + CLI de Docker</text>
+<text class="l-m" x="270" y="172">DOCKER_HOST=</text>
+<text class="l-a" x="270" y="190">tcp://docker-proxy:2375</text>
+</g>
+<g class="card">
+<rect class="c-body" x="256" y="266" width="216" height="78" rx="10"/>
+<path class="c-head" d="M266 266H462Q472 266 472 276V298H256V276Q256 266 266 266Z"/>
+<line class="c-rule" x1="256" y1="298" x2="472" y2="298"/>
+<g class="c-icon" transform="translate(268 274)"><ellipse cx="8" cy="3.5" rx="6" ry="2.2"/><path d="M2 3.5v9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-9M2 8c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/></g>
+<text class="c-name" x="292" y="287">platform-postgres</text>
+<text class="l-t" x="270" y="320">escenarios y ejecuciones</text>
+</g>
+<g class="card card-proxy">
+<rect class="c-body" x="546" y="92" width="170" height="252" rx="10"/>
+<path class="c-head" d="M556 92H706Q716 92 716 102V124H546V102Q546 92 556 92Z"/>
+<line class="c-rule" x1="546" y1="124" x2="716" y2="124"/>
+<g class="c-icon" transform="translate(558 100)"><path d="M8 1.2 14 3.5v4.3c0 3.4-2.6 6-6 7-3.4-1-6-3.6-6-7V3.5Z"/><path d="m5.3 8 1.9 1.9 3.6-3.8"/></g>
+<text class="c-name" x="582" y="113">docker-proxy</text>
+<text class="l-m" x="560" y="146">haproxy:3.2.26-alpine</text>
+<text class="l-t" x="560" y="172">lista blanca de</text>
+<text class="l-t" x="560" y="190">método + ruta</text>
+</g>
+<g class="deny-chip"><rect x="560" y="232" width="40" height="20" rx="10"/><text x="580" y="246" text-anchor="middle">exec</text></g>
+<g class="deny-chip"><rect x="606.4" y="232" width="47" height="20" rx="10"/><text x="630" y="246" text-anchor="middle">build</text></g>
+<g class="deny-chip"><rect x="659.4" y="232" width="40" height="20" rx="10"/><text x="680" y="246" text-anchor="middle">info</text></g>
+<g class="deny-chip"><rect x="560" y="258" width="47" height="20" rx="10"/><text x="584" y="272" text-anchor="middle">swarm</text></g>
+<g class="deny-chip"><rect x="613.0" y="258" width="60" height="20" rx="10"/><text x="643" y="272" text-anchor="middle">archive</text></g>
+<text class="l-deny" x="560" y="300">todo lo demás → 403</text>
+<text class="l-m" x="560" y="330">:2375 · sin publicar</text>
+<g class="card">
+<rect class="c-body" x="780" y="92" width="276" height="132" rx="10"/>
+<path class="c-head" d="M790 92H1046Q1056 92 1056 102V124H780V102Q780 92 790 92Z"/>
+<line class="c-rule" x1="780" y1="124" x2="1056" y2="124"/>
+<g class="c-icon" transform="translate(792 100)"><path d="M8 1 14.1 4.5v7L8 15 1.9 11.5v-7Z"/><circle cx="8" cy="8" r="2.2"/></g>
+<text class="c-name" x="816" y="113">Motor Docker</text>
+<text class="l-a" x="794" y="146">/var/run/docker.sock</text>
+<text class="l-t" x="794" y="164">montado :ro solo en docker-proxy</text>
+<text class="l-m" x="794" y="190">Docker Desktop o Linux</text>
+</g>
+<g class="ghost"><rect x="780" y="254" width="214" height="90" rx="10"/><text class="l-t" x="794" y="280">Otros contenedores</text><text class="l-m" x="794" y="300">sin etiqueta io.infracture</text><text class="l-m" x="794" y="318">la limpieza no los toca</text></g>
+<g class="bus"><rect x="262" y="448" width="796" height="34" rx="17"/><text x="286" y="470">red exec · io.infracture.execution=12 · sin puertos publicados</text></g>
+<line class="w-net" x1="600" y1="482" x2="600" y2="522"/><line class="w-net" x1="900" y1="482" x2="900" y2="522"/>
+<g class="ghost"><rect x="470" y="522" width="260" height="116" rx="10"/><text class="l-t" x="486" y="556">Más nodos del escenario</text><text class="l-m" x="486" y="578">PostgreSQL · Redis · RabbitMQ</text><text class="l-m" x="486" y="598">llegan en P07</text></g>
+<g class="card">
+<rect class="c-body" x="780" y="522" width="276" height="116" rx="10"/>
+<path class="c-head" d="M790 522H1046Q1056 522 1056 532V554H780V532Q780 522 790 522Z"/>
+<line class="c-rule" x1="780" y1="554" x2="1056" y2="554"/>
+<g class="c-icon" transform="translate(792 530)"><path d="M8 1.2 14.5 4.6v6.8L8 14.8 1.5 11.4V4.6Z"/><path d="M1.5 4.6 8 8l6.5-3.4M8 8v6.8"/></g>
+<text class="c-name" x="816" y="543">orders-api</text>
+<text class="l-a" x="794" y="576">infracture/demo-app:0.1.0</text>
+<text class="l-m" x="794" y="594">APP_MODE=STATELESS</text>
+<text class="l-m" x="794" y="612">:8080 · GET / · /health</text>
+</g>
+<path class="w" d="M208 156H254" marker-end="url(#a-line)"/>
+<text class="w-label" x="231" y="146" text-anchor="middle">HTTPS</text>
+<path class="w" d="M364 224V264" marker-end="url(#a-line)"/>
+<text class="w-label" x="374" y="248">JDBC</text>
+<path id="p-api" class="w-api" d="M472 156H544" marker-end="url(#a-api)"/>
+<text class="w-label" x="508" y="146" text-anchor="middle">API :2375</text>
+<path class="w-api" d="M716 156H778" marker-end="url(#a-api)"/>
+<text class="w-label" x="747" y="174" text-anchor="middle">permitido</text>
+<path class="w" d="M1018 224V444" marker-end="url(#a-line)"/>
+<text class="w-code" x="1006" y="384" text-anchor="end">docker compose up -d --wait</text>
+<text class="w-label" x="1006" y="400" text-anchor="end">crea contenedores, red y volúmenes</text>
+<path class="w-join" d="M256 196H232V465H260" marker-end="url(#a-net)"/>
+<text class="w-label" x="222" y="384" text-anchor="end">se une a la red</text>
+<text class="w-label" x="222" y="400" text-anchor="end">GET / como evidencia</text>
+<g class="packets" aria-hidden="true">
+<circle class="pk-ok" r="5"><animateMotion dur="4s" repeatCount="indefinite" path="M472 156H1018V446" keyPoints="0;1;1" keyTimes="0;0.7;1" calcMode="linear"/><animate attributeName="opacity" dur="4s" repeatCount="indefinite" values="1;1;0;0" keyTimes="0;0.7;0.75;1"/></circle>
+<circle class="pk-deny" r="5"><animateMotion dur="4s" begin="2s" repeatCount="indefinite" path="M472 156H542" keyPoints="0;1;1" keyTimes="0;0.25;1" calcMode="linear"/><animate attributeName="opacity" dur="4s" begin="2s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.02;0.3;0.4;1"/></circle>
+<g class="pk-403" opacity="0"><rect x="494" y="166" width="40" height="20" rx="10"/><text x="514" y="180" text-anchor="middle">403</text>
+<animate attributeName="opacity" dur="4s" begin="2s" repeatCount="indefinite" values="0;0;1;1;0" keyTimes="0;0.24;0.3;0.55;0.65"/></g>
+</g></svg>
+      </div>
+      <figcaption class="legend">
+        <span><i class="sw api"></i>API de Docker, solo a través del proxy</span>
+        <span><i class="sw net"></i>red del experimento</span>
+        <span><i class="sw line"></i>otras conexiones</span>
+        <span><i class="dotk" style="background:var(--ok)"></i>llamada permitida</span>
+        <span><i class="dotk" style="background:var(--deny)"></i>llamada rechazada</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="walk-title">
+    <div class="sec-head">
+      <span class="num">HAPROXY.CFG</span>
+      <h2 id="walk-title">Recorrido de una petición, etapa a etapa</h2>
+      <p>Cada columna es una parte de <code>docker/docker-proxy/haproxy.cfg</code>, en el orden en que HAProxy la aplica.</p>
+    </div>
+    <div class="pipe-scroll">
+      <div class="pipe" role="table" aria-label="Recorrido de dos peticiones por el proxy">
+        <div class="stage" role="columnheader"><b>PETICIÓN</b></div>
+        <div class="stage" role="columnheader"><b>1 · ENTRA</b><code>bind :2375</code></div>
+        <div class="stage" role="columnheader"><b>2 · NORMALIZA</b><code>set-var(txn.api)</code></div>
+        <div class="stage" role="columnheader"><b>3 · CLASIFICA</b><code>acl …</code></div>
+        <div class="stage" role="columnheader"><b>4 · DECIDE</b><code>http-request allow</code></div>
+        <div class="stage" role="columnheader"><b>5 · RECHAZA</b><code>deny 403</code></div>
+        <div class="stage" role="columnheader"><b>6 · REENVÍA</b><code>server docker</code></div>
+
+        <div class="rowh" role="rowheader"><span class="pill ok">PASA</span><code>POST /v1.51/containers/create</code></div>
+        <div class="cell-ok" role="cell">Llega por el puerto 2375.</div>
+        <div class="cell-ok" role="cell">Queda <code>/containers/create</code>.</div>
+        <div class="cell-ok" role="cell">Coincide con <code>container_create</code>.</div>
+        <div class="cell-ok" role="cell"><code>POST</code> + <code>container_create</code>: se permite.</div>
+        <div class="cell-skip" role="cell">No llega aquí.</div>
+        <div class="cell-ok" role="cell">Va al socket y Docker crea el contenedor.</div>
+
+        <div class="rowh lastrow" role="rowheader"><span class="pill deny">403</span><code>POST /v1.51/containers/abc/exec</code></div>
+        <div class="cell-ok lastrow" role="cell">Llega por el puerto 2375.</div>
+        <div class="cell-ok lastrow" role="cell">Queda <code>/containers/abc/exec</code>.</div>
+        <div class="cell-ok lastrow" role="cell">No coincide con ninguna regla.</div>
+        <div class="cell-skip lastrow" role="cell">Ningún <code>allow</code> la acepta.</div>
+        <div class="cell-deny lastrow" role="cell"><strong>403 Forbidden</strong> y queda en el log.</div>
+        <div class="cell-skip lastrow" role="cell">Docker no la ve.</div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="list-title">
+    <div class="sec-head">
+      <span class="num">LISTA BLANCA</span>
+      <h2 id="list-title">Qué deja pasar</h2>
+      <p>Salen de registrar las llamadas reales de <code>docker compose up --wait</code>, <code>ps</code>, <code>down -v</code> y la limpieza por etiqueta. Una llamada nueva, como las estadísticas de CPU de #66, se añade a propósito.</p>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Recurso</th><th>Llamadas permitidas</th><th>Quién las usa</th></tr></thead>
+        <tbody>
+          <tr><td>Motor</td><td><span class="m">GET</span><span class="m">HEAD</span><code>/_ping</code> · <span class="m">GET</span><code>/version</code></td><td>El CLI al conectar</td></tr>
+          <tr><td>Contenedores</td><td><span class="m">GET</span>listar, inspeccionar · <span class="m">POST</span><code>create</code>, <code>start</code>, <code>stop</code>, <code>kill</code> · <span class="m">DELETE</span>borrar</td><td><code>compose up</code>, <code>ps</code>, <code>down</code>, limpieza</td></tr>
+          <tr><td>Redes</td><td><span class="m">GET</span>listar, inspeccionar · <span class="m">POST</span><code>create</code>, <code>connect</code>, <code>disconnect</code> · <span class="m">DELETE</span>borrar</td><td><code>compose</code> y el backend al unirse</td></tr>
+          <tr><td>Volúmenes</td><td><span class="m">GET</span>listar, inspeccionar · <span class="m">POST</span><code>create</code> · <span class="m">DELETE</span>borrar</td><td><code>compose down -v</code>, limpieza</td></tr>
+          <tr><td>Imágenes</td><td><span class="m">GET</span>inspeccionar · <span class="m">POST</span><code>/images/create</code> (descargar)</td><td><code>compose up</code></td></tr>
+          <tr><td>Todo lo demás</td><td class="deny">403 Forbidden</td><td>Nadie</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="doc-title">
+    <div class="sec-head">
+      <span class="num">DOCUMENTACIÓN</span>
+      <h2 id="doc-title">Dónde se documenta</h2>
+    </div>
+    <ul class="where">
+      <li><code>EXECUTION_ARCHITECTURE.md §9.6</code><span class="what">El diagrama antes del extracto de <code>compose.yaml</code> y la lista blanca después.</span></li>
+      <li><code>EXECUTION_ARCHITECTURE.md §3</code><span class="what">Ya nombra el proxy; enlaza a §9.6.</span></li>
+      <li><code>adr/0013</code><span class="what">La decisión y por qué no la imagen de Tecnativa, ya actualizadas.</span></li>
+      <li><code>Memoria · diseño</code><span class="what">El diagrama y el recorrido etapa a etapa explican la seguridad del motor.</span></li>
+    </ul>
+  </section>
+</main>
