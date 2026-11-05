@@ -21,6 +21,7 @@ import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.persistence.ScenarioRepository;
+import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.NotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
@@ -47,8 +48,9 @@ class ScenarioServiceTests {
     private final ProjectService projectService = mock(ProjectService.class);
     private final ComponentTemplateService templateService = mock(ComponentTemplateService.class);
     private final ContractCatalog contracts = ContractCatalogs.standard();
+    private final ScenarioReservations reservations = mock(ScenarioReservations.class);
     private final ScenarioService service = new ScenarioService(repository, projectService, templateService,
-            new ScenarioValidator(contracts), VALIDATORS.getValidator());
+            new ScenarioValidator(contracts), reservations, VALIDATORS.getValidator());
     private final Project project = new Project(new User("alice", "hash", OWNER_EMAIL, "Alice", UserRole.USER),
             "Cache lab", null);
 
@@ -172,6 +174,23 @@ class ScenarioServiceTests {
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("Scenario not found");
         verifyNoInteractions(templateService);
+        verify(repository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void keepsAReservedScenarioReadOnly() {
+        Scenario reserved = new Scenario(project, "Lab", null);
+        ReflectionTestUtils.setField(reserved, "id", 3L);
+        when(repository.findForUpdateByIdAndProjectId(3L, 5L)).thenReturn(Optional.of(reserved));
+        when(reservations.isReserved(3L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.saveGraph(OWNER_EMAIL, 5L, 3L, 1, List.of(), List.of()))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("The scenario is read-only while an experiment uses it. Stop it to edit the scenario.");
+        assertThatThrownBy(() -> service.updateScenario(OWNER_EMAIL, 5L, 3L, "Renamed", null))
+                .isInstanceOf(ConflictException.class);
+        assertThat(reserved.getRevision()).isEqualTo(1);
+        assertThat(reserved.getName()).isEqualTo("Lab");
         verify(repository, never()).saveAndFlush(any());
     }
 }
