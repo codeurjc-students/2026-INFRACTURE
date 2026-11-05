@@ -17,7 +17,7 @@ Un experimento es justo lo que Docker Compose sabe describir y arrancar: servici
 - **Aplicado con el CLI.** El plan se aplica con `docker compose -p <proyecto> up -d --wait` y se retira con `docker compose -p <proyecto> down -v`. Cada `Execution` es un proyecto Compose propio.
 - **Un bucle de reconciliación.** `ExecutionReconciler` compara la fase deseada de cada ejecución con la real y actúa hasta igualarlas.
 - **Una sola forma de terminar.** `Stop`, el límite de tiempo, un fallo y el borrado piden lo mismo: la fase `STOPPED`. El motor retira por etiqueta todo lo que pertenece a esa ejecución y lo repite hasta que no quede nada. No se guarda en qué paso iba el arranque, porque el [ADR 0005](0005-recuperacion-sin-reanudacion-automatica.md) ya excluye reanudarlo.
-- **Acceso a Docker mediante un proxy.** El backend usa el Docker de la máquina a través de `docker-socket-proxy`. Solo el proxy monta `/var/run/docker.sock` y limita las operaciones permitidas. El backend recibe `DOCKER_HOST=tcp://docker-proxy:2375`. Los contenedores del experimento nunca tienen acceso a Docker.
+- **Acceso a Docker mediante un proxy.** El backend usa el Docker de la máquina a través de `docker-proxy`, un HAProxy oficial con una configuración propia ([`haproxy.cfg`](../../docker/docker-proxy/haproxy.cfg)) que solo deja pasar las llamadas que necesitan `docker compose` y la limpieza; el resto recibe `403`. Solo el proxy monta `/var/run/docker.sock`. El backend recibe `DOCKER_HOST=tcp://docker-proxy:2375`. Los contenedores del experimento nunca tienen acceso a Docker.
 - **Secretos fuera del plan guardado.** El plan guardado solo contiene referencias a credenciales. Las contraseñas temporales se generan al aplicarlo y no se guardan ni se muestran.
 - **Comprobación previa.** P06 empieza con una prueba corta en macOS, Windows y Linux. Debe confirmar tres cosas: que el CLI funciona desde el backend contenedorizado, que el backend puede unirse a la red de cada ejecución y que la limpieza por etiqueta no toca otros contenedores. Si el CLI falla, el mismo plan se aplica con `docker-java`; solo cambia el adaptador.
 
@@ -31,6 +31,7 @@ Un experimento es justo lo que Docker Compose sabe describir y arrancar: servici
 | Testcontainers | Está pensado para pruebas y para la vida de la JVM que lo lanza, no para recursos que sobreviven a un reinicio del backend. |
 | Docker in Docker | Necesita `--privileged`, que también equivale a ser administrador de la máquina. Además duplica el motor y la caché de imágenes, y deja las redes del experimento fuera del alcance del backend. |
 | Montar el socket directamente en el backend | Daría al backend acceso total a Docker. El proxy reduce lo que puede pedir. |
+| Imagen `tecnativa/docker-socket-proxy` | Es el mismo HAProxy con una plantilla de un tercero que permite grupos enteros de la API. Una configuración propia sobre la imagen oficial evita esa dependencia y permite solo las rutas usadas. |
 
 Se acepta depender del binario `docker compose` dentro de la imagen del backend y que el socket, aun con proxy, equivalga a mucho poder sobre la máquina. Por eso la limpieza filtra siempre por las etiquetas de Infracture. A cambio, el motor es pequeño, el plan se puede leer y probar sin Docker, y en el futuro podría traducirse a otros destinos, como Kubernetes, sin cambiar el modelo.
 

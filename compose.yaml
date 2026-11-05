@@ -16,5 +16,23 @@ services:
       retries: 10
       start_period: 10s
 
+  # Only this container mounts the Docker socket; the backend reaches Docker through it
+  docker-proxy:
+    image: haproxy:3.2.26-alpine
+    profiles: [app]
+    user: root # the host socket belongs to root
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/docker-proxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    healthcheck:
+      # localhost resolves to IPv6 and the proxy listens on IPv4.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2375/_ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   platform-postgres-data:
