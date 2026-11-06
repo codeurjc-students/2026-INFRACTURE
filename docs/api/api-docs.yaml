@@ -25,14 +25,26 @@ paths:
           type: integer
           format: int64
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -51,12 +63,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -91,14 +97,26 @@ paths:
               $ref: "#/components/schemas/SaveScenarioDTO"
         required: true
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -117,12 +135,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -152,14 +164,26 @@ paths:
           type: integer
           format: int64
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -178,12 +202,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -218,14 +236,26 @@ paths:
               $ref: "#/components/schemas/SaveScenarioGraphDTO"
         required: true
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -244,12 +274,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -273,14 +297,26 @@ paths:
           type: integer
           format: int64
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -299,12 +335,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -333,14 +363,26 @@ paths:
               $ref: "#/components/schemas/SaveProjectDTO"
         required: true
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -359,12 +401,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -387,14 +423,26 @@ paths:
               $ref: "#/components/schemas/RegisterUserDTO"
         required: true
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -413,12 +461,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -453,14 +495,26 @@ paths:
           maximum: 100
           minimum: 1
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -479,12 +533,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -506,14 +554,26 @@ paths:
               $ref: "#/components/schemas/SaveProjectDTO"
         required: true
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -532,12 +592,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -578,14 +632,26 @@ paths:
           maximum: 100
           minimum: 1
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -604,12 +670,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -638,14 +698,26 @@ paths:
               $ref: "#/components/schemas/SaveScenarioDTO"
         required: true
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -668,8 +740,75 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ScenarioDTO"
+  /api/v1/projects/{projectId}/scenarios/{scenarioId}/executions:
+    post:
+      tags:
+      - execution-controller
+      operationId: run
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: scenarioId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunExecutionDTO"
+        required: true
+      responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "400":
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "500":
+          description: Internal Server Error
           content:
             application/problem+json:
               schema:
@@ -679,7 +818,80 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ScenarioDTO"
+                $ref: "#/components/schemas/ExecutionDTO"
+  /api/v1/projects/{projectId}/scenarios/{scenarioId}/executions/{executionId}/stop:
+    post:
+      tags:
+      - execution-controller
+      operationId: stop
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: scenarioId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: executionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "400":
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "500":
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExecutionDTO"
   /api/v1/auth/refresh:
     post:
       tags:
@@ -692,14 +904,26 @@ paths:
         schema:
           type: string
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -718,12 +942,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -740,14 +958,26 @@ paths:
       - auth-controller
       operationId: logout
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -766,12 +996,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -790,14 +1014,26 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
         required: true
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -816,12 +1052,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -838,14 +1068,26 @@ paths:
       - user-controller
       operationId: getUserLogged
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -868,8 +1110,69 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserDTO"
+  /api/v1/projects/{projectId}/scenarios/{scenarioId}/executions/current:
+    get:
+      tags:
+      - execution-controller
+      operationId: getCurrent
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: scenarioId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "400":
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "500":
+          description: Internal Server Error
           content:
             application/problem+json:
               schema:
@@ -879,7 +1182,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/UserDTO"
+                $ref: "#/components/schemas/ExecutionDTO"
   /api/v1/component-templates:
     get:
       tags:
@@ -921,14 +1224,26 @@ paths:
           maximum: 100
           minimum: 1
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -947,12 +1262,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -969,14 +1278,26 @@ paths:
       - auth-controller
       operationId: csrf
       responses:
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -995,12 +1316,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1253,6 +1568,86 @@ components:
         updatedAt:
           type: string
           format: date-time
+    RunExecutionDTO:
+      type: object
+      properties:
+        revision:
+          type: integer
+          format: int32
+      required:
+      - revision
+    ExecutedComponentDTO:
+      type: object
+      properties:
+        key:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - HTTP_SERVICE
+          - WORKER
+          - POSTGRESQL
+          - REDIS
+          - RABBITMQ
+        status:
+          type: string
+          enum:
+          - STARTING
+          - HEALTHY
+          - UNHEALTHY
+          - EXITED
+        response:
+          type: string
+    ExecutionDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        scenarioId:
+          type: integer
+          format: int64
+        scenarioRevision:
+          type: integer
+          format: int32
+        phase:
+          type: string
+          enum:
+          - RESERVED
+          - STARTING
+          - RUNNING
+          - STOPPING
+          - RELEASED
+        stopCause:
+          type: string
+          enum:
+          - STOP_REQUESTED
+          - FAILURE
+          - INTERRUPTION
+        outcome:
+          type: string
+          enum:
+          - COMPLETED
+          - FAILED
+          - INTERRUPTED
+        failureReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        releasedAt:
+          type: string
+          format: date-time
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExecutedComponentDTO"
+        plan:
+          type: object
+          additionalProperties: {}
     AuthResponse:
       type: object
       properties:
