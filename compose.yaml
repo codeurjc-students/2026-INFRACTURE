@@ -34,5 +34,44 @@ services:
       timeout: 5s
       retries: 10
 
+  # Infracture itself. It runs experiments with the docker CLI through docker-proxy and never mounts the socket.
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: infracture/backend:0.1.0
+    # Fixed name: the engine joins this container to each execution network.
+    container_name: infracture-backend
+    profiles: [app]
+    depends_on:
+      platform-postgres:
+        condition: service_healthy
+      docker-proxy:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://platform-postgres:5432/${POSTGRES_DB:-infracture}
+      POSTGRES_USER: ${POSTGRES_USER:-infracture}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-infracture_dev}
+      INFRACTURE_ADMIN_USERNAME: ${INFRACTURE_ADMIN_USERNAME:-}
+      INFRACTURE_ADMIN_EMAIL: ${INFRACTURE_ADMIN_EMAIL:-}
+      INFRACTURE_ADMIN_DISPLAY_NAME: ${INFRACTURE_ADMIN_DISPLAY_NAME:-}
+      INFRACTURE_ADMIN_PASSWORD: ${INFRACTURE_ADMIN_PASSWORD:-}
+      DOCKER_HOST: tcp://docker-proxy:2375
+      # The CLI writes its config here; the rest of the file system is read-only.
+      DOCKER_CONFIG: /tmp/docker
+      INFRACTURE_EXECUTION_BACKEND_CONTAINER: infracture-backend
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
 volumes:
   platform-postgres-data:

@@ -188,6 +188,23 @@ Como alternativa, tras `npm ci`, [`scripts/start-dev.sh`](../scripts/start-dev.s
 ./scripts/start-dev.sh
 ```
 
+### Experimentos con el backend en contenedor
+
+Para lanzar experimentos reales, el backend debe correr dentro de Docker: así se une a la red de cada ejecución y puede pedir la respuesta del servicio. Construye la imagen de demostración una vez y arranca la plataforma con el perfil `app`, que añade `docker-proxy` y `backend`. No arranques a la vez `./mvnw spring-boot:run`, porque los dos usan el puerto 8080.
+
+```bash
+docker build -t infracture/demo-app:0.1.0 demo-app
+docker compose --profile app up -d --wait --build
+```
+
+El cliente (`npm run dev`) funciona igual, porque el backend publica `127.0.0.1:8080`. Detén la plataforma sin borrar datos con:
+
+```bash
+docker compose --profile app down
+```
+
+Con `./mvnw spring-boot:run` desde la máquina, los experimentos también arrancan y se detienen, pero la respuesta real de cada servicio queda vacía.
+
 ### Uso de herramientas
 
 Abre la carpeta del repositorio en Visual Studio Code. Para editar Java con autocompletado y diagnósticos, instala desde la vista **Extensiones** el [Extension Pack for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack); incluye soporte para Java, Maven, pruebas y depuración. Opcionalmente, instala también el [Spring Boot Extension Pack](https://marketplace.visualstudio.com/items?itemName=vmware.vscode-boot-dev-pack) para editar la configuración de Spring y ver la aplicación en el panel de Spring Boot. VS Code ya incluye soporte para TypeScript.

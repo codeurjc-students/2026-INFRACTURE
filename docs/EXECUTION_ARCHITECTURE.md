@@ -389,8 +389,8 @@ Todas las formas de terminar piden lo mismo. Para alcanzar `STOPPED`, el motor s
 
 1. Detiene k6 para que no se genere más trabajo.
 2. Recoge las últimas métricas disponibles.
-3. Ejecuta `docker compose -p infracture-exec-12 down -v`, que retira contenedores, red y volúmenes temporales.
-4. Comprueba por etiqueta (`io.infracture.execution=12`) que no queda nada. Si queda algo, lo retira y vuelve a comprobar.
+3. Ejecuta `docker compose -p infracture-local-exec-12 down -v`, que retira contenedores, red y volúmenes temporales.
+4. Busca por etiqueta (`io.infracture.instance=local` y `io.infracture.execution=12`, las dos a la vez) lo que haya quedado, lo retira y vuelve a comprobar que no queda nada.
 5. Registra el resultado y libera la reserva.
 
 No se guarda en qué paso iba el arranque, porque nunca se reanuda ([ADR 0005](adr/0005-recuperacion-sin-reanudacion-automatica.md)). Tras una caída, el backend solo necesita saber qué ejecuciones estaban abiertas y retirar todo lo que lleve su etiqueta. Si la limpieza falla, se registra, `Run` sigue bloqueado y la limpieza se puede reintentar sin efectos duplicados. La limpieza filtra siempre por las etiquetas de Infracture, nunca por nombres parecidos, para no tocar contenedores ajenos.
@@ -407,9 +407,11 @@ En la distribución, el backend corre dentro de un contenedor. Para crear los co
 
 ```yaml
 services:
-  infracture:
+  backend:
+    container_name: infracture-backend
     environment:
       DOCKER_HOST: tcp://docker-proxy:2375
+      INFRACTURE_EXECUTION_BACKEND_CONTAINER: infracture-backend
   docker-proxy:
     image: haproxy:3.2.26-alpine
     volumes:
@@ -438,6 +440,8 @@ La lista sale de registrar las llamadas reales del motor. Una llamada nueva, com
 | Plataformas | Linux y Docker Desktop (macOS y Windows). | Problemas de almacenamiento en algunos sistemas. |
 
 **Prueba al empezar P06.** Antes de programar el motor, una prueba corta en macOS, Windows y Linux confirma tres cosas: que el CLI funciona desde el contenedor, que el backend puede unirse a la red de una ejecución y que la limpieza por etiqueta no toca otros contenedores. Si el CLI falla, se usa `docker-java` con el mismo plan. El 2 de noviembre de 2026 pasó en macOS (Docker 29.9.2, Compose 5.6.1) a través de este proxy; Linux se comprueba en la CI y Windows está pendiente.
+
+**Prueba de extremo a extremo (#86).** El 6 de noviembre de 2026, en macOS, el backend contenedorizado (`docker compose --profile app`) reservó un HTTP Service `STATELESS`, lo arrancó en unos 18 s, se unió a su red y obtuvo su respuesta real (`{"component":"orders-api",…}`). Tras Stop, la ejecución terminó `COMPLETED`, no quedó ningún contenedor, red ni volumen con su etiqueta y el proxy no rechazó ninguna llamada.
 
 ## 10. Ciclo de vida de una Execution
 
@@ -573,6 +577,14 @@ export TLA2TOOLS=~/.agents/skills/statechart/tools/tla2tools.jar
 
 Un contenedor puede estar activo y no estar sano, por ejemplo mientras PostgreSQL arranca. La interfaz muestra los dos estados por separado.
 
+Así lo hace hoy el motor (#86):
+
+- **Estado de cada nodo.** Mientras la ejecución está en `RUNNING`, cada vuelta del `ExecutionReconciler` lee `docker compose ps` y guarda para cada nodo `STARTING`, `HEALTHY`, `UNHEALTHY` o `EXITED`. La API lo devuelve en `components[]`.
+- **Arrancar no es funcionar.** Si un nodo pasa a `UNHEALTHY` o desaparece estando en marcha, se registra `FAILURE` con su nombre (`orders-api is unhealthy`) y se limpia como cualquier otro fallo.
+- **Respuesta real.** Al llegar a `RUNNING`, el backend se une a la red `exec` y pide `GET /` a cada HTTP Service. Guarda la respuesta como evidencia. Solo funciona con el backend en contenedor; arrancado desde la máquina, la respuesta queda vacía.
+- **Tiempo límite.** A los 30 minutos (`infracture.execution.max-duration`), la ejecución se detiene como si se pulsara Stop.
+- **En memoria.** Estado y respuesta solo importan mientras el experimento corre, y un reinicio del backend lo termina. Se guardarán como eventos y muestras en P08.
+
 ### 11.2 Qué mide cada tipo
 
 Cada `ComponentDriver` declara sus métricas y de dónde se leen. Un único `TelemetryCollector` las recoge todas con el mismo bucle.
@@ -697,7 +709,7 @@ El backend es un monolito modular. Cada módulo sigue las capas `api`, `applicat
 | `Connection`, puertos y capacidades | `project`, `catalog` | En desarrollo (#80). |
 | `ScenarioValidator`, `ValidationIssue` | `project` | Pendiente. |
 | `Workload` | `project` | Pendiente. |
-| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Pendiente (P06–P07). |
+| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | En desarrollo (#86): HTTP Service `STATELESS` con `docker compose`. El resto de tipos, en P07. |
 | Observación e historial | `observation` | Pendiente (P08). |
 | Load Balancer | `catalog`, `execution` | Pendiente (P07). |
 
