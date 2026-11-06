@@ -15,6 +15,7 @@ import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.Execution;
 import es.codeurjc.infracture.execution.domain.Phase;
+import es.codeurjc.infracture.execution.domain.StopCause;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
@@ -25,6 +26,7 @@ import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.domain.ValidationIssue;
 import es.codeurjc.infracture.shared.ConflictException;
+import es.codeurjc.infracture.shared.NotFoundException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -163,6 +165,31 @@ class ExecutionServiceTests {
         when(repository.saveAndFlush(any(Execution.class))).thenThrow(failure);
 
         assertThatThrownBy(() -> service.run(OWNER, 5L, 3L, 2)).isSameAs(failure);
+    }
+
+    @Test
+    void recordsStopWithoutTouchingDocker() {
+        Scenario scenario = scenario(3L, stateless());
+        Execution active = new Execution(scenario, Map.of(ComponentType.HTTP_SERVICE, 1));
+        when(scenarioService.getScenario(OWNER, 5L, 3L)).thenReturn(scenario);
+        when(repository.findForUpdateById(12L)).thenReturn(Optional.of(active));
+
+        Execution stopped = service.stop(OWNER, 5L, 3L, 12L);
+
+        assertThat(stopped.getStopCause()).isEqualTo(StopCause.STOP_REQUESTED);
+        assertThat(stopped.getPhase()).isEqualTo(Phase.RESERVED);
+    }
+
+    @Test
+    void hidesExecutionsOfOtherScenariosFromStop() {
+        when(scenarioService.getScenario(OWNER, 5L, 3L)).thenReturn(scenario(3L, stateless()));
+        when(repository.findForUpdateById(12L))
+                .thenReturn(Optional.of(new Execution(scenario(9L, stateless()), Map.of(ComponentType.HTTP_SERVICE, 1))));
+
+        assertThatThrownBy(() -> service.stop(OWNER, 5L, 3L, 12L))
+                .isInstanceOf(NotFoundException.class).hasMessage("Execution not found");
+        assertThatThrownBy(() -> service.stop(OWNER, 5L, 3L, 13L))
+                .isInstanceOf(NotFoundException.class).hasMessage("Execution not found");
     }
 
     @Test

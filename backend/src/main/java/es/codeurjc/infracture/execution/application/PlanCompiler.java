@@ -3,10 +3,12 @@ package es.codeurjc.infracture.execution.application;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.Execution;
+import java.net.URI;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -46,10 +48,16 @@ public class PlanCompiler {
         return "infracture-" + instance + "-exec-" + executionId;
     }
 
-    public Map<String, Object> compile(Execution execution) {
-        Map<String, Object> labels = new LinkedHashMap<>();
+    // Every resource of the execution carries these labels; cleanup filters by both.
+    public Map<String, String> labels(Long executionId) {
+        Map<String, String> labels = new LinkedHashMap<>();
         labels.put(INSTANCE_LABEL, instance);
-        labels.put(EXECUTION_LABEL, String.valueOf(execution.getId()));
+        labels.put(EXECUTION_LABEL, String.valueOf(executionId));
+        return labels;
+    }
+
+    public Map<String, Object> compile(Execution execution) {
+        Map<String, String> labels = labels(execution.getId());
 
         Map<String, Object> services = new LinkedHashMap<>();
         for (ExecutedComponent component : execution.getComponents()) {
@@ -63,12 +71,12 @@ public class PlanCompiler {
         return plan;
     }
 
-    private Map<String, Object> service(ExecutedComponent component, Map<String, Object> executionLabels) {
+    private Map<String, Object> service(ExecutedComponent component, Map<String, String> executionLabels) {
         ComponentDriver driver = drivers.get(component.getType());
         if (driver == null) {
             throw new IllegalStateException("No driver runs " + component.getType());
         }
-        Map<String, Object> labels = new LinkedHashMap<>(executionLabels);
+        Map<String, String> labels = new LinkedHashMap<>(executionLabels);
         labels.put(COMPONENT_LABEL, component.getKey().toString());
 
         Map<String, Object> service = new LinkedHashMap<>(driver.service(component));
@@ -83,7 +91,20 @@ public class PlanCompiler {
         return service;
     }
 
-    private static String serviceName(ExecutedComponent component) {
+    // The URL of each node whose driver can show a real response.
+    public Map<UUID, URI> evidence(Execution execution) {
+        Map<UUID, URI> uris = new LinkedHashMap<>();
+        for (ExecutedComponent component : execution.getComponents()) {
+            ComponentDriver driver = drivers.get(component.getType());
+            URI uri = driver == null ? null : driver.evidence(serviceName(component));
+            if (uri != null) {
+                uris.put(component.getKey(), uri);
+            }
+        }
+        return uris;
+    }
+
+    static String serviceName(ExecutedComponent component) {
         return "c-" + component.getKey();
     }
 }

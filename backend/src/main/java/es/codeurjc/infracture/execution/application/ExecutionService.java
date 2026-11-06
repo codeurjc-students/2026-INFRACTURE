@@ -13,6 +13,7 @@ import es.codeurjc.infracture.project.domain.ValidationIssue.Kind;
 import es.codeurjc.infracture.project.domain.ValidationIssue.Severity;
 import es.codeurjc.infracture.project.domain.ValidationIssue.Target;
 import es.codeurjc.infracture.shared.ConflictException;
+import es.codeurjc.infracture.shared.NotFoundException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -43,28 +44,41 @@ public class ExecutionService {
         this.planCompiler = planCompiler;
     }
 
-    // Reserves the exact revision the client saved. Docker is not touched here: the engine starts the
-    // reserved execution after this transaction commits, so no database transaction waits for Docker.
+    // Reserves the exact revision the client saved. Docker is not touched here: the
+    // engine starts the
+    // reserved execution after this transaction commits, so no database transaction
+    // waits for Docker.
     @Transactional
     public Execution run(String ownerEmail, Long projectId, Long scenarioId, int revision) {
         Scenario scenario = scenarioService.lockOwnScenario(ownerEmail, projectId, scenarioId);
         Optional<Execution> active = repository.findByReleasedAtIsNull();
+        // Checks if a scenario is already running and if it is the same revision that
+        // the user wants to run. If it is not the same revision, it throws a conflict
+        // exception.
         if (active.isPresent()) {
             return sameRun(active.get(), scenario, revision);
         }
+        // if not active but you press Run with a different revision, it throws a
+        // conflict exception.
         if (scenario.getRevision() != revision) {
             throw new ConflictException("The scenario was saved after revision %d. Reload it to run revision %d."
                     .formatted(revision, scenario.getRevision()));
         }
+        // Checks if the scenario has any blocking issues. If it does, it throws a
+        // ScenarioNotRunnableException with the list of issues.
         List<ValidationIssue> errors = blockingIssues(scenario);
         if (!errors.isEmpty()) {
             throw new ScenarioNotRunnableException(errors);
         }
+
+        // Saves the execution with the reservation. The engine starts it after this
+        // transaction commits, so no database transaction waits for Docker.
         Execution execution;
         try {
             execution = repository.saveAndFlush(new Execution(scenario, contractVersions(scenario)));
         } catch (DataIntegrityViolationException exception) {
-            // Another scenario reserved the instance between the check above and this insert.
+            // Another scenario reserved the instance between the check above and this
+            // insert.
             if (String.valueOf(exception.getMostSpecificCause().getMessage()).contains(SINGLE_ACTIVE_INDEX)) {
                 throw new ConflictException(ANOTHER_RUNNING);
             }
@@ -81,7 +95,23 @@ public class ExecutionService {
         return repository.findFirstByScenarioIdOrderByCreatedAtDescIdDesc(scenario.getId());
     }
 
-    // A double click or a retry after a lost response gets the execution it already created.
+    // Stop only records the cause; the reconciler cleans up afterwards, so the
+    // request returns at once.
+    // Repeating it changes nothing, including after the execution was released.
+    @Transactional
+    public Execution stop(String ownerEmail, Long projectId, Long scenarioId, Long executionId) {
+        Scenario scenario = scenarioService.getScenario(ownerEmail, projectId, scenarioId);
+        Optional<Execution> found = repository.findForUpdateById(executionId);
+        if (found.isEmpty() || !found.get().getScenario().getId().equals(scenario.getId())) {
+            throw new NotFoundException("Execution not found");
+        }
+        Execution execution = found.get();
+        execution.requestStop();
+        return execution;
+    }
+
+    // A double click or a retry after a lost response gets the execution it already
+    // created.
     private static Execution sameRun(Execution active, Scenario scenario, int revision) {
         if (!active.getScenario().getId().equals(scenario.getId())) {
             throw new ConflictException(ANOTHER_RUNNING);
@@ -100,12 +130,14 @@ public class ExecutionService {
                 errors.add(issue);
             }
         }
-        // shortcut: only HTTP Service STATELESS has a driver in #86; move this to the plan compiler with P07.
+        // shortcut: only HTTP Service STATELESS has a driver in #86; move this to the
+        // plan compiler with P07.
         for (Component component : scenario.getComponents()) {
             if (component.getType() != ComponentType.HTTP_SERVICE
                     || !"STATELESS".equals(component.getConfiguration().profile())) {
                 errors.add(new ValidationIssue(Severity.ERROR, "UNSUPPORTED_IN_THIS_VERSION",
-                        "%s cannot run yet: this version runs HTTP Service STATELESS only".formatted(component.getName()),
+                        "%s cannot run yet: this version runs HTTP Service STATELESS only"
+                                .formatted(component.getName()),
                         new Target(Kind.COMPONENT, component.getKey().toString()), "profile"));
             }
         }

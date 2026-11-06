@@ -2,6 +2,7 @@ package es.codeurjc.infracture.execution.application;
 
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,8 @@ import org.springframework.stereotype.Component;
 //Compiler of the Componente to its Docker compose info.
 @Component
 class HttpServiceDriver implements ComponentDriver {
+
+    private static final int PORT = 8080;
 
     private final String image;
 
@@ -35,11 +38,16 @@ class HttpServiceDriver implements ComponentDriver {
         service.put("image", image);
         service.put("environment", environment);
         service.put("healthcheck", Map.of(
-                "test", List.of("CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"),
+                "test", List.of("CMD", "wget", "-qO-", "http://127.0.0.1:" + PORT + "/health"),
                 "interval", "2s",
                 "timeout", "2s",
                 "retries", 15,
                 "start_period", "60s"));
         return service;
+    }
+
+    @Override
+    public URI evidence(String serviceName) {
+        return URI.create("http://" + serviceName + ":" + PORT + "/");
     }
 }

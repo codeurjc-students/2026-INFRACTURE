@@ -7,7 +7,18 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import es.codeurjc.infracture.execution.application.ComponentStatus;
+import es.codeurjc.infracture.execution.application.ExecutionReconciler;
+import es.codeurjc.infracture.execution.application.RuntimeEngine;
+import es.codeurjc.infracture.execution.application.RuntimeEngineException;
+import es.codeurjc.infracture.execution.application.ServiceProbe;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
 import es.codeurjc.infracture.project.api.ApiSession;
 import es.codeurjc.infracture.project.persistence.ProjectRepository;
@@ -15,6 +26,7 @@ import es.codeurjc.infracture.project.persistence.ScenarioRepository;
 import io.restassured.specification.RequestSpecification;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,12 +39,14 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@TestPropertySource("classpath:admin-test.properties")
+@TestPropertySource(locations = "classpath:admin-test.properties",
+        properties = "infracture.execution.reconciler.enabled=false")
 @Testcontainers
 class ExecutionApiSystemTests {
 
@@ -56,8 +70,19 @@ class ExecutionApiSystemTests {
     @Autowired
     private ProjectRepository projects;
 
+    @Autowired
+    private ExecutionReconciler reconciler;
+
+    // Docker is exercised by ComposeRuntimeEngineIntegrationTests; here the test drives each tick by hand.
+    @MockitoBean
+    private RuntimeEngine engine;
+
+    @MockitoBean
+    private ServiceProbe probe;
+
     @BeforeEach
     void clearData() {
+        when(engine.status(anyMap())).thenReturn(Map.of("c-" + ORDERS, ComponentStatus.HEALTHY));
         executions.deleteAllInBatch();
         scenarios.deleteAllInBatch();
         projects.deleteAllInBatch();
@@ -87,6 +112,67 @@ class ExecutionApiSystemTests {
         alice.write().body("{\"name\":\"Renamed\"}").put(scenario).then().spec(problem(409, readOnly));
         alice.read().get(scenario + "/graph").then().body("revision", equalTo(2));
         alice.write().body(graph(1, http(ORDERS))).put(other + "/graph").then().statusCode(200);
+    }
+
+    @Test
+    void stopsTheRunningExecutionAndUnlocksTheScenarioOnceCleanupEnds() {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = statelessScenario(alice);
+        long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+            .extract().jsonPath().getLong("id");
+        String stop = scenario + "/executions/" + id + "/stop";
+
+        when(probe.get(any())).thenReturn("{\"component\":\"orders-api\"}");
+        alice.read().get(scenario + "/executions/current").then()
+            .body("components[0].name", equalTo("orders-api")).body("components[0].status", nullValue());
+        reconciler.reconcile();
+        reconciler.reconcile();
+        alice.read().get(scenario + "/executions/current").then().body("phase", equalTo("RUNNING"))
+            .body("components[0].key", equalTo(ORDERS))
+            .body("components[0].status", equalTo("HEALTHY"))
+            .body("components[0].response", equalTo("{\"component\":\"orders-api\"}"));
+        alice.write().post(stop).then().statusCode(202)
+            .body("phase", equalTo("RUNNING")).body("stopCause", equalTo("STOP_REQUESTED"));
+        alice.write().body(graph(2, "")).put(scenario + "/graph").then().statusCode(409);
+
+        reconciler.reconcile();
+        alice.read().get(scenario + "/executions/current").then()
+            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"));
+        alice.write().post(stop).then().statusCode(202).body("outcome", equalTo("COMPLETED"));
+        alice.write().body(graph(2, http(ORDERS))).put(scenario + "/graph").then().statusCode(200);
+        verify(engine).up(anyMap());
+        verify(engine).down(anyMap(), eq(Map.of("io.infracture.instance", instanceOf(alice, scenario),
+            "io.infracture.execution", String.valueOf(id))));
+    }
+
+    @Test
+    void reportsAFailedStartAndFreesTheInstanceAfterCleanup() {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = statelessScenario(alice);
+        doThrow(new RuntimeEngineException("docker compose up failed: container is unhealthy"))
+            .when(engine).up(anyMap());
+        alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202);
+
+        reconciler.reconcile();
+        reconciler.reconcile();
+
+        alice.read().get(scenario + "/executions/current").then()
+            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("FAILED"))
+            .body("failureReason", equalTo("docker compose up failed: container is unhealthy"));
+        alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+            .body("phase", equalTo("RESERVED"));
+    }
+
+    @Test
+    void hidesStopFromOtherUsers() {
+        ApiSession alice = ApiSession.signUp(port);
+        ApiSession bob = ApiSession.signUp(port);
+        String scenario = statelessScenario(alice);
+        long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+            .extract().jsonPath().getLong("id");
+
+        bob.write().post(scenario + "/executions/" + id + "/stop").then().statusCode(404);
+        alice.read().get(scenario + "/executions/current").then().body("stopCause", nullValue());
     }
 
     @Test
@@ -170,6 +256,11 @@ class ExecutionApiSystemTests {
             executor.shutdownNow();
         }
         assertThat(executions.count()).isEqualTo(1);
+    }
+
+    private static String instanceOf(ApiSession session, String scenario) {
+        return session.read().get(scenario + "/executions/current").then().extract()
+            .path("plan.networks.exec.labels['io.infracture.instance']");
     }
 
     private String statelessScenario(ApiSession session) {
