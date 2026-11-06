@@ -272,10 +272,10 @@ class ExecutionApiSystemTests {
     private String createScenario(ApiSession session) {
         long project = session.write().body("{\"name\":\"Lab\"}").post("/api/v1/projects")
             .then().statusCode(201).extract().jsonPath().getLong("id");
-        String scenarios = "/api/v1/projects/" + project + "/scenarios";
-        long id = session.write().body("{\"name\":\"Run\"}").post(scenarios)
+        String path = "/api/v1/projects/" + project + "/scenarios";
+        long id = session.write().body("{\"name\":\"Run\"}").post(path)
             .then().statusCode(201).extract().jsonPath().getLong("id");
-        return scenarios + "/" + id;
+        return path + "/" + id;
     }
 
     private static String run(int revision) {

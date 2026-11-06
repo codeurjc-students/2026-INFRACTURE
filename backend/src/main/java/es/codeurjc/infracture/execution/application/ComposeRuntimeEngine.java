@@ -5,13 +5,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -46,7 +46,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         compose(plan, START_TIMEOUT.plusMinutes(1),
                 "up", "--wait", "--wait-timeout", String.valueOf(START_TIMEOUT.toSeconds()));
         if (!backendContainer.isBlank()) {
-            docker(List.of("network", "connect", network(plan), backendContainer));
+            backendNetwork(plan, "connect");
         }
     }
 
@@ -68,8 +68,8 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         // Docker cannot remove the network while the backend is still in it.
         if (!backendContainer.isBlank()) {
             try {
-                docker(List.of("network", "disconnect", "--force", network(plan), backendContainer));
-            } catch (RuntimeEngineException alreadyDetached) {
+                backendNetwork(plan, "disconnect", "--force");
+            } catch (RuntimeEngineException _) {
                 // Never attached, or the network is gone: nothing keeps it busy.
             }
         }
@@ -100,6 +100,14 @@ class ComposeRuntimeEngine implements RuntimeEngine {
                 "-p", String.valueOf(plan.get("name")), "-f", "-", verb));
         command.addAll(List.of(flags));
         return execute("docker compose " + verb, command, jsonMapper.writeValueAsString(plan), timeout);
+    }
+
+    private void backendNetwork(Map<String, Object> plan, String... action) {
+        List<String> arguments = new ArrayList<>(List.of("network"));
+        arguments.addAll(List.of(action));
+        arguments.add(network(plan));
+        arguments.add(backendContainer);
+        docker(arguments);
     }
 
     // Compose names each network after the project: <project>_<network>.
@@ -133,13 +141,14 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         return ids;
     }
 
-    // Output goes to a file: an unread pipe could block the process.
+    // The output is read while the process runs: an unread pipe fills up and
+    // blocks the process.
     private static String execute(String step, List<String> command, String input, Duration timeout) {
-        Path output = null;
         try {
-            output = Files.createTempFile("infracture-docker-", ".log");
-            Process process = new ProcessBuilder(command).redirectErrorStream(true)
-                    .redirectOutput(output.toFile()).start();
+            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            FutureTask<String> output = new FutureTask<>(
+                    () -> new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
+            Thread.ofVirtual().start(output);
             try (OutputStream stdin = process.getOutputStream()) {
                 if (input != null) {
                     stdin.write(input.getBytes(StandardCharsets.UTF_8));
@@ -150,18 +159,16 @@ class ComposeRuntimeEngine implements RuntimeEngine {
                 throw new RuntimeEngineException(
                         "%s did not finish within %d seconds".formatted(step, timeout.toSeconds()));
             }
-            String text = Files.readString(output);
+            String text = output.get();
             if (process.exitValue() != 0) {
                 throw new RuntimeEngineException(step + " failed: " + tail(text));
             }
             return text;
-        } catch (IOException exception) {
+        } catch (IOException | ExecutionException exception) {
             throw new RuntimeEngineException(step + " could not run: " + exception.getMessage(), exception);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new RuntimeEngineException(step + " was interrupted", exception);
-        } finally {
-            deleteQuietly(output);
         }
     }
 
@@ -175,16 +182,5 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         return trimmed.length() > MAX_OUTPUT_IN_REASON
                 ? trimmed.substring(trimmed.length() - MAX_OUTPUT_IN_REASON)
                 : trimmed;
-    }
-
-    private static void deleteQuietly(Path file) {
-        if (file == null) {
-            return;
-        }
-        try {
-            Files.deleteIfExists(file);
-        } catch (IOException ignored) {
-            // A leftover temporary log does not affect the execution.
-        }
     }
 }

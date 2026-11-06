@@ -28,9 +28,9 @@ public class ServiceProbe {
             }
             String body = response.body();
             return body.length() > MAX_RESPONSE_LENGTH ? body.substring(0, MAX_RESPONSE_LENGTH) : body;
-        } catch (IOException exception) {
+        } catch (IOException _) {
             return null;
-        } catch (InterruptedException exception) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return null;
         }

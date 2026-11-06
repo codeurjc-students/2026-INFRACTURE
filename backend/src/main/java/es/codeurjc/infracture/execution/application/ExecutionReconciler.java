@@ -74,8 +74,6 @@ public class ExecutionReconciler {
             // and #90 will record the interruption on its own.
             return null;
         }
-        // The nodes are read after the transaction ends, so they are loaded now.
-        execution.getComponents().size();
         return execution;
     }
 

@@ -127,7 +127,7 @@ public class Execution {
     }
 
     public void requestStop() {
-        record(StopCause.STOP_REQUESTED);
+        recordCause(StopCause.STOP_REQUESTED);
     }
 
     public void fail(String reason) {
@@ -136,11 +136,11 @@ public class Execution {
                     ? reason.substring(0, MAX_FAILURE_REASON_LENGTH)
                     : reason;
         }
-        record(StopCause.FAILURE);
+        recordCause(StopCause.FAILURE);
     }
 
     public void interrupt() {
-        record(StopCause.INTERRUPTION);
+        recordCause(StopCause.INTERRUPTION);
     }
 
     public void beginStopping() {
@@ -161,7 +161,7 @@ public class Execution {
         return phase != Phase.RELEASED;
     }
 
-    private void record(StopCause cause) {
+    private void recordCause(StopCause cause) {
         if (isActive() && cause.isWorseThan(stopCause)) {
             stopCause = cause;
         }

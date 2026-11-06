@@ -6,7 +6,8 @@ import java.util.List;
 // Run found errors that block it. The issues travel with the exception so the client can mark them.
 public class ScenarioNotRunnableException extends RuntimeException {
 
-    private final List<ValidationIssue> issues;
+    // Exceptions are never serialized here, and ValidationIssue is not Serializable.
+    private final transient List<ValidationIssue> issues;
 
     public ScenarioNotRunnableException(List<ValidationIssue> issues) {
         super("The scenario has errors that block Run");
