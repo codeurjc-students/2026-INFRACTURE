@@ -32,13 +32,15 @@ public class ExecutionService {
     private final ScenarioService scenarioService;
     private final ScenarioValidator validator;
     private final ContractCatalog contracts;
+    private final PlanCompiler planCompiler;
 
     public ExecutionService(ExecutionRepository repository, ScenarioService scenarioService,
-            ScenarioValidator validator, ContractCatalog contracts) {
+            ScenarioValidator validator, ContractCatalog contracts, PlanCompiler planCompiler) {
         this.repository = repository;
         this.scenarioService = scenarioService;
         this.validator = validator;
         this.contracts = contracts;
+        this.planCompiler = planCompiler;
     }
 
     // Reserves the exact revision the client saved. Docker is not touched here: the engine starts the
@@ -58,8 +60,9 @@ public class ExecutionService {
         if (!errors.isEmpty()) {
             throw new ScenarioNotRunnableException(errors);
         }
+        Execution execution;
         try {
-            return repository.saveAndFlush(new Execution(scenario, contractVersions(scenario)));
+            execution = repository.saveAndFlush(new Execution(scenario, contractVersions(scenario)));
         } catch (DataIntegrityViolationException exception) {
             // Another scenario reserved the instance between the check above and this insert.
             if (String.valueOf(exception.getMostSpecificCause().getMessage()).contains(SINGLE_ACTIVE_INDEX)) {
@@ -67,6 +70,9 @@ public class ExecutionService {
             }
             throw exception;
         }
+        // Saved with the reservation when the transaction commits.
+        execution.attachPlan(planCompiler.compile(execution));
+        return execution;
     }
 
     @Transactional(readOnly = true)

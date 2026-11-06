@@ -48,7 +48,8 @@ class ExecutionServiceTests {
     private final ScenarioService scenarioService = mock(ScenarioService.class);
     private final ContractCatalog contracts = ContractCatalogs.standard();
     private final ExecutionService service = new ExecutionService(repository, scenarioService,
-            new ScenarioValidator(contracts), contracts);
+            new ScenarioValidator(contracts), contracts,
+            new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local"));
     private final Project project = new Project(new User("alice", "hash", OWNER, "Alice", UserRole.USER), "Lab", null);
 
     @Test
@@ -56,7 +57,11 @@ class ExecutionServiceTests {
         Scenario scenario = scenario(3L, stateless());
         when(scenarioService.lockOwnScenario(OWNER, 5L, 3L)).thenReturn(scenario);
         when(repository.findByReleasedAtIsNull()).thenReturn(Optional.empty());
-        when(repository.saveAndFlush(any(Execution.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.saveAndFlush(any(Execution.class))).thenAnswer(invocation -> {
+            Execution saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 12L);
+            return saved;
+        });
 
         Execution execution = service.run(OWNER, 5L, 3L, 2);
 
@@ -65,6 +70,7 @@ class ExecutionServiceTests {
         assertThat(execution.getComponents()).singleElement()
                 .satisfies(component -> assertThat(component.getContractVersion())
                         .isEqualTo(contracts.find(ComponentType.HTTP_SERVICE).orElseThrow().version()));
+        assertThat(execution.getPlan()).containsEntry("name", "infracture-local-exec-12");
     }
 
     @Test

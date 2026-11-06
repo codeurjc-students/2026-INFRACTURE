@@ -4,6 +4,7 @@ import es.codeurjc.infracture.execution.domain.Outcome;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.domain.StopCause;
 import java.time.Instant;
+import java.util.Map;
 
 public record ExecutionDTO(
         Long id,
@@ -14,5 +15,6 @@ public record ExecutionDTO(
         Outcome outcome,
         String failureReason,
         Instant createdAt,
-        Instant releasedAt) {
+        Instant releasedAt,
+        Map<String, Object> plan) {
 }

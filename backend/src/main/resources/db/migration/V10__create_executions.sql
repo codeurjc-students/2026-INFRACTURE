@@ -8,6 +8,7 @@ CREATE TABLE executions (
     stop_cause VARCHAR(20),
     outcome VARCHAR(20),
     failure_reason VARCHAR(1000),
+    plan JSONB,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     released_at TIMESTAMP WITH TIME ZONE,
@@ -20,6 +21,10 @@ CREATE TABLE executions (
 
     CONSTRAINT ck_executions_revision_positive
         CHECK (scenario_revision >= 1),
+
+    -- The Compose-shaped plan, written right after the reservation; it never holds secrets.
+    CONSTRAINT ck_executions_plan_object
+        CHECK (plan IS NULL OR jsonb_typeof(plan) = 'object'),
 
     CONSTRAINT ck_executions_phase
         CHECK (phase IN ('RESERVED', 'STARTING', 'RUNNING', 'STOPPING', 'RELEASED')),

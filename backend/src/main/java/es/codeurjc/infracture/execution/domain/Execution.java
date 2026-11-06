@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 // One run of an exact scenario revision. The phase says what the engine is doing; the stop cause says why
 // it stops. Stop, failure and interruption only record a cause; the engine then cleans up and releases.
@@ -69,6 +71,9 @@ public class Execution {
     @Column(name = "failure_reason")
     private String failureReason;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> plan;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -101,6 +106,14 @@ public class Execution {
     @PreUpdate
     void updateTimestamp() {
         this.updatedAt = Instant.now();
+    }
+
+    // The plan names resources after the execution id, so it is attached once the reservation has an id.
+    public void attachPlan(Map<String, Object> plan) {
+        if (this.plan != null) {
+            throw new IllegalStateException("Execution %d already has a plan".formatted(id));
+        }
+        this.plan = plan;
     }
 
     public void startStarting() {
@@ -195,6 +208,10 @@ public class Execution {
 
     public String getFailureReason() {
         return failureReason;
+    }
+
+    public Map<String, Object> getPlan() {
+        return plan;
     }
 
     public Instant getCreatedAt() {

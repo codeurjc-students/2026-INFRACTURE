@@ -117,6 +117,14 @@ class ExecutionTests {
     }
 
     @Test
+    void acceptsThePlanOnlyOnce() {
+        execution.attachPlan(Map.of("name", "infracture-local-exec-12"));
+
+        assertThat(execution.getPlan()).containsEntry("name", "infracture-local-exec-12");
+        assertThatIllegalStateException().isThrownBy(() -> execution.attachPlan(Map.of()));
+    }
+
+    @Test
     void rejectsTransitionsOutOfOrder() {
         assertThatIllegalStateException().isThrownBy(execution::markRunning);
         assertThatIllegalStateException().isThrownBy(execution::beginStopping);

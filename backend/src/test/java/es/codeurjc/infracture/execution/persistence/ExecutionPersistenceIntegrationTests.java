@@ -79,6 +79,9 @@ class ExecutionPersistenceIntegrationTests {
     @Test
     void reopensTheFrozenRevisionNodesAndConnections() {
         Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
+        execution.attachPlan(Map.of("name", "infracture-local-exec-" + execution.getId(),
+                "services", Map.of("c-" + orders, Map.of("image", "infracture/demo-app:0.1.0"))));
+        repository.saveAndFlush(execution);
         entityManager.clear();
 
         Execution reopened = repository.findById(execution.getId()).orElseThrow();
@@ -89,6 +92,8 @@ class ExecutionPersistenceIntegrationTests {
         assertThat(reopened.getComponents().getFirst().getParameters()).containsEntry("responseDelayMs", 50);
         assertThat(reopened.getConnections()).containsExactly(new Connection(orders, "cache", redis));
         assertThat(reopened.getCreatedAt()).isNotNull();
+        assertThat(reopened.getPlan()).containsEntry("name", "infracture-local-exec-" + execution.getId())
+                .containsKey("services");
         assertThat(repository.findByReleasedAtIsNull()).map(Execution::getId).contains(execution.getId());
     }
 

@@ -4,6 +4,8 @@ import static es.codeurjc.infracture.shared.api.ProblemResponses.problem;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.Matchers.nullValue;
 
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
@@ -72,10 +74,14 @@ class ExecutionApiSystemTests {
             .body("scenarioRevision", equalTo(2))
             .body("stopCause", nullValue())
             .body("outcome", nullValue())
+            .body("plan.services.c-" + ORDERS + ".image", equalTo("infracture/demo-app:0.1.0"))
+            .body("plan.services.c-" + ORDERS + ".environment.COMPONENT_NAME", equalTo("orders-api"))
             .extract().jsonPath().getLong("id");
 
         alice.read().get(scenario + "/executions/current").then().statusCode(200)
-            .body("id", equalTo((int) id)).body("phase", equalTo("RESERVED"));
+            .body("id", equalTo((int) id)).body("phase", equalTo("RESERVED"))
+            .body("plan.name", matchesPattern("infracture-test-[0-9a-f]{32}-exec-" + id))
+            .body("plan.networks.exec.labels['io.infracture.instance']", startsWith("test-"));
         String readOnly = "The scenario is read-only while an experiment uses it. Stop it to edit the scenario.";
         alice.write().body(graph(2, "")).put(scenario + "/graph").then().spec(problem(409, readOnly));
         alice.write().body("{\"name\":\"Renamed\"}").put(scenario).then().spec(problem(409, readOnly));
