@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlanCompiler paso a paso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: three panes left to right (input → stages → plan), stacked on phones. Color marks where each line comes from. */
+  :root {
+    --bg: #f3f5f8;
+    --surface: #ffffff;
+    --head: #eef1f5;
+    --ink: #131a24;
+    --muted: #5a6577;
+    --edge: #d3d9e2;
+    --accent: #c2650c;
+    --src-exec: #2f62c9;
+    --src-driver: #c2650c;
+    --src-common: #127a6a;
+    --src-security: #b8354a;
+    --src-limits: #7a4fc0;
+    --tint: 0.12;
+    --danger: #be3a2e;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1218; --surface: #151c25; --head: #1b2430; --ink: #e5e9f0; --muted: #9ea8b8; --edge: #2a3542;
+      --accent: #f2a04e; --src-exec: #7ea6ff; --src-driver: #f2a04e; --src-common: #4fd1bd; --src-security: #ff8a9b;
+      --src-limits: #b99bff; --danger: #f2837a; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1218; --surface: #151c25; --head: #1b2430; --ink: #e5e9f0; --muted: #9ea8b8; --edge: #2a3542;
+    --accent: #f2a04e; --src-exec: #7ea6ff; --src-driver: #f2a04e; --src-common: #4fd1bd; --src-security: #ff8a9b;
+    --src-limits: #b99bff; --danger: #f2837a; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
+  main {
+    max-width: 1320px; margin: 0 auto; padding-block: 28px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 22px;
+  }
+  code, .mono { font-family: var(--mono); font-size: .9em; }
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  header { display: grid; gap: 8px; max-width: 75ch; }
+  .eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  h1 { font-size: clamp(24px, 3.4vw, 34px); line-height: 1.15; font-weight: 700; letter-spacing: -.01em; }
+  .lead { color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: minmax(260px, 0.9fr) minmax(250px, 0.8fr) minmax(0, 1.5fr); gap: 16px; align-items: start; }
+  @media (max-width: 1060px) { .grid { grid-template-columns: 1fr 1fr; } .out { grid-column: 1 / -1; } }
+  @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+  .pane { background: var(--surface); border: 1px solid var(--edge); border-radius: 14px; min-width: 0; overflow: hidden; }
+  .pane > .ph { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; background: var(--head); border-bottom: 1px solid var(--edge); }
+  .ph h2 { font-size: 15px; font-weight: 600; }
+  .ph .tag { font: 500 11.5px var(--mono); color: var(--muted); }
+  .pb { padding: 14px 16px; display: grid; gap: 14px; }
+
+  label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  input[type="text"], input[type="number"], select {
+    font: 13.5px var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--edge);
+    border-radius: 8px; padding: 7px 9px; width: 100%;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hint { font-size: 12px; color: var(--muted); }
+  .bad { color: var(--danger); }
+  .node { border: 1px solid var(--edge); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; border-left: 3px solid var(--src-exec); }
+  .node .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .node .key { font: 11.5px var(--mono); color: var(--muted); word-break: break-all; }
+  .range { display: flex; gap: 10px; align-items: center; }
+  .range input { flex: 1; accent-color: var(--src-exec); }
+  .range output { font: 13px var(--mono); min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+  button {
+    font: 500 13px var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--edge);
+    border-radius: 8px; padding: 7px 12px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.ghost { border: none; background: none; color: var(--muted); padding: 4px 6px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  ol.stages { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .stage { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; padding: 9px 10px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; }
+  .stage:hover { border-color: var(--edge); }
+  .stage .n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 600 12px var(--mono); border: 1.5px solid var(--c); color: var(--c); }
+  .stage.done .n { background: var(--c); color: var(--surface); }
+  .stage.current { border-color: var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); }
+  .stage .t { font-weight: 600; font-size: 14px; }
+  .stage .d { font-size: 12.5px; color: var(--muted); }
+  .stage .where { font: 11.5px var(--mono); color: var(--c); }
+  .stage.future { opacity: .55; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); display: inline-block; }
+
+  .code { overflow-x: auto; background: var(--bg); border-top: 1px solid var(--edge); }
+  .code pre { margin: 0; padding: 12px 0; font: 12.5px/1.6 var(--mono); min-width: max-content; }
+  .ln { display: block; padding: 0 16px 0 12px; border-left: 3px solid var(--c, transparent); white-space: pre; }
+  .ln.fresh { background: color-mix(in srgb, var(--c) 16%, transparent); animation: glow 1.2s ease-out; }
+  @keyframes glow { from { background: color-mix(in srgb, var(--c) 40%, transparent); } }
+  @media (prefers-reduced-motion: reduce) { .ln.fresh { animation: none; } }
+  .k { color: var(--ink); }
+  .s { color: var(--c, var(--ink)); }
+  .p { color: var(--muted); }
+  .err { margin: 14px 16px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); font-size: 13.5px; display: grid; gap: 4px; }
+  .err code { font-size: 12.5px; }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font: 500 12px var(--mono); padding: 4px 9px; border-radius: 999px; border: 1px solid var(--edge); color: var(--muted); }
+  .chip b { color: var(--ink); font-weight: 600; }
+  .seg { display: inline-flex; border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; padding: 5px 12px; font: 600 12px var(--mono); background: var(--surface); color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .fmtnote { margin: 0 16px 12px; font-size: 12.5px; color: var(--muted); }
+  .cm { color: var(--muted); font-style: italic; }
+  .java { font: 12px/1.5 var(--mono); background: var(--bg); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="eyebrow">Infracture · #86 · execution/application/PlanCompiler.java</span>
+    <h1>De una ejecución reservada a un plan de Docker Compose</h1>
+    <p class="lead">Cambia la ejecución de la izquierda y mira cómo <code>PlanCompiler.compile()</code> construye el plan, etapa a etapa. El color de cada línea dice de dónde sale. Es el mismo algoritmo que el código Java, reescrito aquí para verlo funcionar.</p>
+  </header>
+
+  <div class="grid">
+    <section class="pane" aria-labelledby="in-title">
+      <div class="ph"><h2 id="in-title">1 · Lo que le llega</h2><span class="tag">Execution</span></div>
+      <div class="pb">
+        <div class="row2">
+          <label for="instance">Instancia
+            <input id="instance" type="text" value="local" autocomplete="off" spellcheck="false">
+          </label>
+          <label for="execId">Id de la ejecución
+            <input id="execId" type="number" value="12" min="1">
+          </label>
+        </div>
+        <p class="hint" id="instanceHint"><code>infracture.instance-id</code>: minúsculas, dígitos, <code>-</code> o <code>_</code>, hasta 40 caracteres.</p>
+        <div id="nodes" style="display:grid;gap:10px"></div>
+        <div class="btns">
+          <button id="addHttp" type="button">Añadir HTTP Service</button>
+          <button id="addRedis" type="button">Añadir Redis (sin driver)</button>
+        </div>
+        <p class="hint">Cada nodo es un <code>ExecutedComponent</code>: la copia congelada que se hizo al reservar.</p>
+      </div>
+    </section>
+
+    <section class="pane" aria-labelledby="st-title">
+      <div class="ph"><h2 id="st-title">2 · Cómo lo transforma</h2><span class="tag" id="stageTag">etapa 7/7</span></div>
+      <div class="pb">
+        <ol class="stages" id="stages"></ol>
+        <div class="btns">
+          <button id="prev" type="button">Anterior</button>
+          <button id="play" type="button" class="primary">Reproducir</button>
+          <button id="next" type="button">Siguiente</button>
+        </div>
+        <div class="java" id="javaLine"></div>
+      </div>
+    </section>
+
+    <section class="pane out" aria-labelledby="out-title">
+      <div class="ph"><h2 id="out-title">3 · Lo que devuelve</h2>
+        <div class="btns">
+          <div class="seg" role="group" aria-label="Formato">
+            <button id="fmtYaml" type="button" aria-pressed="true">YAML</button>
+            <button id="fmtJson" type="button" aria-pressed="false">JSON</button>
+          </div>
+          <button id="copy" type="button" class="ghost">Copiar</button>
+        </div>
+      </div>
+      <div class="pb">
+        <div class="summary" id="summary"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div id="errorBox"></div>
+      <p class="fmtnote" id="fmtNote"></p>
+      <div class="code"><pre id="out" aria-live="polite"></pre></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const SOURCES = {
+  exec:     { name: "de la ejecución",        color: "var(--src-exec)" },
+  common:   { name: "común a todos (compilador)", color: "var(--src-common)" },
+  driver:   { name: "del driver del tipo",    color: "var(--src-driver)" },
+  security: { name: "seguridad (compilador)", color: "var(--src-security)" },
+  limits:   { name: "límites (compilador)",   color: "var(--src-limits)" },
+};
+
+const STAGES = [
+  { t: "Etiquetas de la ejecución", d: "instance y execution: lo que filtra la limpieza.", src: "exec",
+    java: 'labels.put(INSTANCE_LABEL, instance);\nlabels.put(EXECUTION_LABEL, String.valueOf(execution.getId()));' },
+  { t: "Nombre del proyecto y red", d: "infracture-<instancia>-exec-<id> y la red exec con las etiquetas.", src: "common",
+    java: 'plan.put("name", projectName(execution.getId()));\nplan.put("networks", Map.of(NETWORK, Map.of("labels", labels)));' },
+  { t: "Un servicio por nodo", d: "Se llama c-<clave>, porque el nombre del usuario puede no valer para Compose.", src: "common",
+    java: 'for (ExecutedComponent component : execution.getComponents())\n    services.put(serviceName(component), service(component, labels));' },
+  { t: "Lo que pone el driver", d: "Imagen, variables y comprobación de salud del tipo.", src: "driver",
+    java: 'ComponentDriver driver = drivers.get(component.getType());\nnew LinkedHashMap<>(driver.service(component));' },
+  { t: "Red y etiquetas del nodo", d: "Se une a la red exec (su nombre de servicio es su nombre DNS) y la etiqueta component.", src: "common",
+    java: 'service.put("networks", List.of(NETWORK));\nservice.put("labels", labels + COMPONENT_LABEL);' },
+  { t: "Seguridad", d: "Solo lectura, sin capacidades, sin escalar privilegios. Nunca puertos ni volúmenes.", src: "security",
+    java: 'service.put("read_only", true);\nservice.put("tmpfs", List.of("/tmp"));\nservice.put("cap_drop", List.of("ALL"));\nservice.put("security_opt", List.of("no-new-privileges:true"));' },
+  { t: "Límites", d: "0,5 CPU, 384 MB y 200 procesos por servicio (provisionales).", src: "limits",
+    java: 'service.put("deploy", Map.of("resources", Map.of("limits",\n    Map.of("cpus", "0.5", "memory", "384M", "pids", 200))));' },
+];
+
+const KEYS = [
+  "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10", "7a1d2c3b-4e5f-4a6b-8c9d-0e1f2a3b4c5d",
+  "0b9c8d7e-6f5a-4b3c-8d2e-1f0a9b8c7d6e", "5c4b3a29-1807-4f6e-9d5c-4b3a29180700",
+  "9c8b7a6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", "1e2d3c4b-5a69-4788-9a6b-5c4d3e2f1a0b",
+];
+const state = {
+  stage: STAGES.length,
+  format: "yaml",
+  nodes: [{ key: KEYS[0], type: "HTTP_SERVICE", name: "orders-api", profile: "STATELESS", delay: 50 }],
+};
+let nextKey = 1;
+let previousRender = new Set();
+let playing = null;
+
+// Annotated tree: each entry knows its source and the stage that adds it.
+const obj = (entries) => ({ kind: "obj", entries });
+const arr = (items, src, stage) => ({ kind: "arr", items, src, stage });
+const val = (v, src, stage) => ({ kind: "val", v, src, stage });
+const e = (key, node, src, stage) => ({ key, node, src, stage });
+
+function compile(instance, id, nodes) {
+  if (!/^[a-z0-9][a-z0-9_-]{0,39}$/.test(instance)) {
+    throw new Error("IllegalStateException: infracture.instance-id must be 1-40 lowercase letters, digits, - or _");
+  }
+  const execLabels = () => obj([
+    e("io.infracture.instance", val(instance, "exec", 1), "exec", 1),
+    e("io.infracture.execution", val(String(id), "exec", 1), "exec", 1),
+  ]);
+  const services = [];
+  for (const n of nodes) {
+    if (n.type !== "HTTP_SERVICE") {
+      throw new Error("IllegalStateException: No driver runs " + n.type);
+    }
+    const sn = "c-" + n.key;
+    const labels = execLabels();
+    labels.entries.push(e("io.infracture.component", val(n.key, "common", 5), "common", 5));
+    services.push(e(sn, obj([
+      e("image", val("infracture/demo-app:0.1.0", "driver", 4), "driver", 4),
+      e("environment", obj([
+        e("APP_ROLE", val("http", "driver", 4), "driver", 4),
+        e("APP_MODE", val(n.profile, "driver", 4), "driver", 4),
+        e("COMPONENT_NAME", val(n.name, "driver", 4), "driver", 4),
+        e("RESPONSE_DELAY_MS", val(String(n.delay), "driver", 4), "driver", 4),
+      ]), "driver", 4),
+      e("healthcheck", obj([
+        e("test", arr(["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"].map(x => val(x, "driver", 4)), "driver", 4), "driver", 4),
+        e("interval", val("2s", "driver", 4), "driver", 4),
+        e("timeout", val("2s", "driver", 4), "driver", 4),
+        e("retries", val(15, "driver", 4), "driver", 4),
+        e("start_period", val("60s", "driver", 4), "driver", 4),
+      ]), "driver", 4),
+      e("networks", arr([val("exec", "common", 5)], "common", 5), "common", 5),
+      e("labels", labels, "common", 5),
+      e("read_only", val(true, "security", 6), "security", 6),
+      e("tmpfs", arr([val("/tmp", "security", 6)], "security", 6), "security", 6),
+      e("cap_drop", arr([val("ALL", "security", 6)], "security", 6), "security", 6),
+      e("security_opt", arr([val("no-new-privileges:true", "security", 6)], "security", 6), "security", 6),
+      e("deploy", obj([e("resources", obj([e("limits", obj([
+        e("cpus", val("0.5", "limits", 7), "limits", 7),
+        e("memory", val("384M", "limits", 7), "limits", 7),
+        e("pids", val(200, "limits", 7), "limits", 7),
+      ]), "limits", 7)]), "limits", 7)]), "limits", 7),
+    ]), "common", 3));
+  }
+  return obj([
+    e("name", val("infracture-" + instance + "-exec-" + id, "common", 2), "common", 2),
+    e("networks", obj([e("exec", obj([e("labels", execLabels(), "common", 2)]), "common", 2)]), "common", 2),
+    e("services", obj(services), "common", 3),
+  ]);
+}
+
+// Renders only what exists up to the chosen stage. Stage 1 shows the labels the compiler prepares first.
+function render(tree, stage) {
+  const lines = [];
+  const pad = (d) => "  ".repeat(d);
+  const lit = (v) => typeof v === "string" ? JSON.stringify(v) : String(v);
+  function visible(node) {
+    if (node.kind === "val") return true;
+    if (node.kind === "arr") return node.items.length > 0;
+    return node.entries.some(en => en.stage <= stage);
+  }
+  function walk(node, depth, key, src, st, last) {
+    const comma = last ? "" : ",";
+    const head = key === null ? "" : JSON.stringify(key) + ": ";
+    if (node.kind === "val") {
+      lines.push({ d: depth, head, body: lit(node.v), tail: comma, src, st, val: true });
+    } else if (node.kind === "arr") {
+      lines.push({ d: depth, head, body: "[" + node.items.map(i => lit(i.v)).join(", ") + "]", tail: comma, src, st, val: true });
+    } else {
+      const shown = node.entries.filter(en => en.stage <= stage);
+      lines.push({ d: depth, head, body: "{", tail: "", src, st });
+      shown.forEach((en, i) => walk(en.node, depth + 1, en.key, en.src, en.stage, i === shown.length - 1));
+      lines.push({ d: depth, head: "", body: "}", tail: comma, src, st });
+    }
+  }
+  if (stage === 1) {
+    const labels = tree.entries[1].node.entries[0].node.entries[0].node;
+    lines.push({ d: 0, head: "", body: "// labels (preparadas antes de crear nada)", tail: "", src: "exec", st: 1, note: true });
+    walk(labels, 0, null, "exec", 1, true);
+    return lines;
+  }
+  walk(tree, 0, null, null, 0, true);
+  return lines.map(l => ({ ...l, d: l.d }));
+}
+
+// YAML view of the same tree: block style, with comments that say what each part is.
+function renderYaml(tree, stage) {
+  const lines = [];
+  const names = {};
+  for (const n of state.nodes) names["c-" + n.key] = n.name;
+  const scalar = (v) => {
+    if (typeof v !== "string") return String(v);
+    // Quote what YAML would otherwise read as a number, a boolean or a mapping.
+    return /^(-?[0-9.]+|true|false|null|yes|no|on|off)$/i.test(v) || /[:#{}\[\],&*!|>'"%@`]/.test(v) || v === ""
+      ? JSON.stringify(v) : v;
+  };
+  const comment = (d, text, src, st) => lines.push({ d, head: "", body: "# " + text, tail: "", src, st, cm: true });
+  const shownOf = (node) => node.entries.filter(en => en.stage <= stage);
+  function walk(node, depth, path) {
+    for (const en of shownOf(node)) {
+      const here = [...path, en.key];
+      const top = path.length === 0;
+      if (top && en.key === "name") comment(depth, "Proyecto Compose: agrupa todo lo que crea esta ejecución", en.src, en.stage);
+      if (top && en.key === "networks") comment(depth, "Redes del proyecto: las comparten todos los servicios", en.src, en.stage);
+      if (top && en.key === "services") comment(depth, "Servicios: un contenedor por cada nodo del escenario", en.src, en.stage);
+      if (path.length === 1 && path[0] === "services") comment(depth, "Nodo «" + (names[en.key] || "?") + "» · HTTP Service", en.src, en.stage);
+      if (path.length === 2 && path[0] === "services" && en.key === "image") comment(depth, "Lo que pone el driver del HTTP Service", en.src, en.stage);
+      if (path.length === 2 && path[0] === "services" && en.key === "networks") comment(depth, "Igual para cualquier tipo de nodo: red, etiquetas, seguridad y límites", en.src, en.stage);
+      const n = en.node;
+      if (n.kind === "val") {
+        lines.push({ d: depth, head: en.key + ": ", body: scalar(n.v), tail: "", src: en.src, st: en.stage, val: true });
+      } else if (n.kind === "arr") {
+        lines.push({ d: depth, head: en.key + ":", body: "", tail: "", src: en.src, st: en.stage });
+        for (const it of n.items) lines.push({ d: depth + 1, head: "- ", body: scalar(it.v), tail: "", src: en.src, st: en.stage, val: true });
+      } else {
+        lines.push({ d: depth, head: en.key + ":", body: "", tail: "", src: en.src, st: en.stage });
+        walk(n, depth + 1, here);
+      }
+    }
+  }
+  if (stage === 1) {
+    comment(0, "labels, preparadas antes de crear nada", "exec", 1);
+    walk(tree.entries[1].node.entries[0].node.entries[0].node, 0, ["labels"]);
+    return lines;
+  }
+  walk(tree, 0, []);
+  return lines;
+}
+
+function plainText(lines) {
+  return lines.filter(l => !l.note).map(l => "  ".repeat(l.d) + l.head + l.body + l.tail).join("\n");
+}
+
+function plainJson(lines) {
+  return lines.filter(l => !l.note).map(l => "  ".repeat(l.d) + l.head + l.body + l.tail).join("\n");
+}
+
+function draw() {
+  const instance = document.getElementById("instance").value;
+  const id = Math.max(1, parseInt(document.getElementById("execId").value || "1", 10));
+  const okInstance = /^[a-z0-9][a-z0-9_-]{0,39}$/.test(instance);
+  document.getElementById("instanceHint").className = okInstance ? "hint" : "hint bad";
+
+  const stageList = document.getElementById("stages");
+  stageList.innerHTML = "";
+  STAGES.forEach((s, i) => {
+    const n = i + 1;
+    const li = document.createElement("li");
+    li.className = "stage " + (n < state.stage ? "done" : n === state.stage ? "current done" : "future");
+    li.style.setProperty("--c", SOURCES[s.src].color);
+    li.tabIndex = 0;
+    li.setAttribute("role", "button");
+    li.setAttribute("aria-label", "Ir a la etapa " + n + ": " + s.t);
+    li.innerHTML = `<span class="n">${n}</span><span><span class="t">${esc(s.t)}</span><br><span class="d">${esc(s.d)}</span></span>`;
+    li.addEventListener("click", () => { stop(); state.stage = n; draw(); });
+    li.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); stop(); state.stage = n; draw(); } });
+    stageList.appendChild(li);
+  });
+  document.getElementById("stageTag").textContent = "etapa " + state.stage + "/" + STAGES.length;
+  document.getElementById("javaLine").textContent = STAGES[state.stage - 1].java;
+
+  const errorBox = document.getElementById("errorBox");
+  const out = document.getElementById("out");
+  let tree;
+  try {
+    tree = compile(instance, id, state.nodes);
+    errorBox.innerHTML = "";
+  } catch (err) {
+    const noDriver = err.message.includes("No driver");
+    errorBox.innerHTML = `<div class="err"><strong>compile() lanza una excepción</strong><code>${err.message}</code>${
+      noDriver ? "<span>En la aplicación real no se llega aquí: Run ya rechaza ese nodo antes con un 422 <code>UNSUPPORTED_IN_THIS_VERSION</code>. Redis tendrá su driver en P07.</span>"
+               : "<span>El constructor de PlanCompiler comprueba la instancia al arrancar: el backend no llegaría a arrancar.</span>"}</div>`;
+    out.innerHTML = "";
+    document.getElementById("summary").innerHTML = "";
+    return;
+  }
+  const lines = state.format === "yaml" ? renderYaml(tree, state.stage) : render(tree, state.stage);
+  document.getElementById("fmtNote").textContent = state.format === "yaml"
+    ? "El mismo plan en YAML, como lo leería un fichero compose.yaml. Las líneas con # son comentarios explicativos: el plan real no los lleva."
+    : "Así lo guarda el backend (columna plan, JSONB) y así se lo pasa a docker compose. Todo JSON es también YAML válido.";
+  const now = new Set();
+  out.innerHTML = "";
+  for (const l of lines) {
+    const sig = l.d + "|" + l.head + "|" + l.body;
+    now.add(sig);
+    const span = document.createElement("span");
+    span.className = "ln" + (l.st === state.stage && !previousRender.has(sig) ? " fresh" : "");
+    if (l.src) span.style.setProperty("--c", SOURCES[l.src].color);
+    span.title = l.src ? "Origen: " + SOURCES[l.src].name + " · etapa " + l.st : "";
+    span.innerHTML = l.cm
+      ? `<span class="p">${"  ".repeat(l.d)}</span><span class="cm">${esc(l.body)}</span>`
+      : `<span class="p">${"  ".repeat(l.d)}</span><span class="k">${esc(l.head)}</span><span class="${l.val ? "s" : "p"}">${esc(l.body)}</span><span class="p">${esc(l.tail)}</span>`;
+    out.appendChild(span);
+  }
+  previousRender = now;
+
+  const http = state.nodes.length;
+  document.getElementById("summary").innerHTML =
+    `<span class="chip">proyecto <b>infracture-${esc(instance)}-exec-${id}</b></span>` +
+    `<span class="chip">servicios <b>${state.stage >= 3 ? http : 0}</b></span>` +
+    `<span class="chip">puertos publicados <b>0</b></span>` +
+    `<span class="chip">volúmenes <b>0</b></span>`;
+  out.dataset.text = state.format === "yaml" ? plainText(lines.filter(l => !l.cm)) : plainJson(lines);
+}
+
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+function drawNodes() {
+  const box = document.getElementById("nodes");
+  box.innerHTML = "";
+  state.nodes.forEach((n, i) => {
+    const div = document.createElement("div");
+    div.className = "node";
+    if (n.type === "HTTP_SERVICE") {
+      div.innerHTML = `
+        <div class="top"><strong>HTTP Service · STATELESS</strong>${state.nodes.length > 1 ? `<button type="button" class="ghost" data-remove="${i}" aria-label="Quitar ${esc(n.name)}">Quitar</button>` : ""}</div>
+        <label for="name-${n.key}">name <input id="name-${n.key}" type="text" value="${esc(n.name)}" maxlength="30" data-i="${i}" data-f="name"></label>
+        <label for="delay-${n.key}">parameters.responseDelayMs
+          <span class="range"><input id="delay-${n.key}" type="range" min="0" max="5000" step="50" value="${n.delay}" data-i="${i}" data-f="delay"><output>${n.delay} ms</output></span>
+        </label>
+        <span class="key">key ${n.key}</span>`;
+    } else {
+      div.style.borderLeftColor = "var(--danger)";
+      div.innerHTML = `
+        <div class="top"><strong>Redis · DEFAULT</strong><button type="button" class="ghost" data-remove="${i}" aria-label="Quitar Redis">Quitar</button></div>
+        <span class="hint">Este tipo aún no tiene <code>ComponentDriver</code>.</span>
+        <span class="key">key ${n.key}</span>`;
+    }
+    box.appendChild(div);
+  });
+  box.querySelectorAll("input[data-f]").forEach(inp => inp.addEventListener("input", (ev) => {
+    const n = state.nodes[+ev.target.dataset.i];
+    if (ev.target.dataset.f === "name") n.name = ev.target.value;
+    else { n.delay = +ev.target.value; ev.target.nextElementSibling.textContent = n.delay + " ms"; }
+    draw();
+  }));
+  box.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => {
+    state.nodes.splice(+b.dataset.remove, 1); drawNodes(); draw();
+  }));
+}
+
+function stop() { if (playing) { clearInterval(playing); playing = null; document.getElementById("play").textContent = "Reproducir"; } }
+
+document.getElementById("instance").addEventListener("input", draw);
+document.getElementById("execId").addEventListener("input", draw);
+document.getElementById("prev").addEventListener("click", () => { stop(); state.stage = Math.max(1, state.stage - 1); draw(); });
+document.getElementById("next").addEventListener("click", () => { stop(); state.stage = Math.min(STAGES.length, state.stage + 1); draw(); });
+document.getElementById("play").addEventListener("click", () => {
+  if (playing) { stop(); return; }
+  state.stage = 1; previousRender = new Set(); draw();
+  document.getElementById("play").textContent = "Pausar";
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  playing = setInterval(() => {
+    if (state.stage >= STAGES.length) { stop(); return; }
+    state.stage++; draw();
+  }, reduce ? 2200 : 1400);
+});
+document.getElementById("addHttp").addEventListener("click", () => {
+  const key = KEYS[nextKey++ % KEYS.length];
+  state.nodes.push({ key, type: "HTTP_SERVICE", name: "users-api", profile: "STATELESS", delay: 0 });
+  drawNodes(); draw();
+});
+document.getElementById("addRedis").addEventListener("click", () => {
+  const key = KEYS[nextKey++ % KEYS.length];
+  state.nodes.push({ key, type: "REDIS", name: "cache", profile: "DEFAULT", delay: 0 });
+  drawNodes(); draw();
+});
+document.getElementById("copy").addEventListener("click", async () => {
+  const btn = document.getElementById("copy");
+  const text = document.getElementById("out").dataset.text || "";
+  try { await navigator.clipboard.writeText(text); btn.textContent = "Copiado"; }
+  catch { const r = document.createRange(); r.selectNodeContents(document.getElementById("out")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = "Seleccionado"; }
+  setTimeout(() => { btn.textContent = "Copiar"; }, 1600);
+});
+
+function setFormat(f) {
+  state.format = f;
+  previousRender = new Set();
+  document.getElementById("fmtYaml").setAttribute("aria-pressed", String(f === "yaml"));
+  document.getElementById("fmtJson").setAttribute("aria-pressed", String(f === "json"));
+  draw();
+}
+document.getElementById("fmtYaml").addEventListener("click", () => setFormat("yaml"));
+document.getElementById("fmtJson").addEventListener("click", () => setFormat("json"));
+
+document.getElementById("legend").innerHTML = Object.values(SOURCES)
+  .map(s => `<span style="--c:${s.color}"><i></i>${s.name}</span>`).join("");
+
+drawNodes();
+draw();
+</script>
+</body>
+</html>

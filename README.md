@@ -44,6 +44,7 @@ Los siguientes bocetos de alta fidelidad representan los tres flujos principales
 - [Seguimiento](docs/tracking.md)
 - [Autores](docs/authors.md)
 - [Guía de desarrollo](docs/development-guide.md)
+- [Mapa del código](docs/CODE_MAP.md)
 - [Uso de herramientas de IA](#uso-de-herramientas-de-ia)
 - [Changelog](CHANGELOG.md)
 
