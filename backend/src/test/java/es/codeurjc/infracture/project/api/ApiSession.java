@@ -7,7 +7,7 @@ import io.restassured.http.ContentType;
 import io.restassured.specification.RequestSpecification;
 import java.util.concurrent.atomic.AtomicInteger;
 
-final class ApiSession {
+public final class ApiSession {
 
     private static final String PASSWORD = "A secure integration password 2026!";
     private static final AtomicInteger ACCOUNTS = new AtomicInteger();
@@ -19,7 +19,7 @@ final class ApiSession {
         this.port = port;
     }
 
-    static ApiSession signUp(int port) {
+    public static ApiSession signUp(int port) {
         String username = "projects_user_" + ACCOUNTS.incrementAndGet();
         String email = username + "@example.com";
         ApiSession session = new ApiSession(port);
@@ -32,11 +32,11 @@ final class ApiSession {
         return session;
     }
 
-    RequestSpecification read() {
+    public RequestSpecification read() {
         return given().port(port).filter(cookies);
     }
 
-    RequestSpecification write() {
+    public RequestSpecification write() {
         given().port(port).filter(cookies).get("/api/v1/auth/csrf").then().statusCode(204);
         String csrf = cookies.getCookieStore().getCookies().stream()
             .filter(cookie -> cookie.getName().equals("XSRF-TOKEN"))

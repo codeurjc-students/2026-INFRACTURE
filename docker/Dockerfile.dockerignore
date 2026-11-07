@@ -1,0 +1,6 @@
+# The build context is the repository root; send only what the image needs.
+*
+!backend/.mvn
+!backend/mvnw
+!backend/pom.xml
+!backend/src

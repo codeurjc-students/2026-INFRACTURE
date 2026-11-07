@@ -8,7 +8,7 @@ Está escrito para dos lectores: quien vaya a programar el motor y quien quiera 
 
 > **Estado.** Este documento describe el diseño aprobado el 30 de octubre de 2026 para Infracture 0.1.0. En `main` existen el catálogo de fichas, los proyectos y los escenarios; el guardado del grafo está en desarrollo (#79). El motor de ejecución, la observación y el historial están pendientes. Cada sección indica las piezas que quedan fuera de la Fase 3.
 
-Los 18 diagramas utilizan el mismo estilo manuscrito. Se pueden editar en el [tablero de tldraw](https://www.tldraw.com/f/X_Wr0fqaWTqaOOYIWoRFA) o descargar juntos en el [archivo fuente `.tldr`](images/execution-architecture/execution-architecture.tldr).
+Los diagramas manuscritos se pueden editar en el [tablero de tldraw](https://www.tldraw.com/f/X_Wr0fqaWTqaOOYIWoRFA) o descargar juntos en el [archivo fuente `.tldr`](images/execution-architecture/execution-architecture.tldr). El diagrama del proxy de Docker ([sección 9.6](#96-acceso-a-docker-desde-el-backend-contenedorizado)) se exporta desde su propia [página HTML](images/execution-architecture/18-proxy-de-docker.html), y el del ciclo de vida ([sección 10](#10-ciclo-de-vida-de-una-execution)) lo genera un modelo comprobado en TLA+.
 
 ## Índice
 
@@ -80,7 +80,7 @@ Hay que distinguir dos mundos que conviven en la misma máquina:
 ![Plataforma y experimento](images/execution-architecture/02-plataforma-y-experimento.png)
 
 - **Dos PostgreSQL distintos.** El de la plataforma guarda usuarios, proyectos, escenarios y ejecuciones. El PostgreSQL que el usuario arrastra al canvas es otro contenedor, creado solo para el experimento. Comparten tecnología, pero no comparten datos, credenciales, red ni ciclo de vida.
-- **Docker de la máquina con proxy.** El backend no monta el socket de Docker. Solo lo monta `docker-socket-proxy`, que deja pasar las operaciones que el motor necesita (contenedores, redes, volúmenes, imágenes) y rechaza las demás. Los contenedores del experimento nunca tienen acceso a Docker ([ADR 0013](adr/0013-motor-de-ejecucion-con-docker-compose.md)).
+- **Docker de la máquina con proxy.** El backend no monta el socket de Docker. Solo lo monta `docker-proxy`, un HAProxy con una lista cerrada de las llamadas que el motor necesita (contenedores, redes, volúmenes, imágenes) que rechaza las demás. Los contenedores del experimento nunca tienen acceso a Docker ([ADR 0013](adr/0013-motor-de-ejecucion-con-docker-compose.md)).
 - **Un proyecto Compose por ejecución.** Cada `Execution` vive en su propio proyecto Compose (por ejemplo `infracture-exec-12`), con su red aislada y sus etiquetas. Así se distingue de la plataforma y de cualquier otro contenedor del usuario.
 
 Durante una ejecución trabajan dos planos:
@@ -315,7 +315,7 @@ Se llama *reconciler* y no *controller* porque en el repositorio el sufijo `Cont
 
 ![De Run a Docker](images/execution-architecture/11-de-run-a-docker.png)
 
-- **Una sola ejecución activa.** La instancia local admite una única `Execution` reservada, arrancando, activa o limpiándose. Un segundo `Run`, aunque sea de otro usuario, se rechaza.
+- **Una sola ejecución activa.** La instancia local admite una única `Execution` reservada, arrancando, activa o limpiándose. Un segundo `Run`, aunque sea de otro usuario, se rechaza. Es una decisión de 0.1.0 ([ADR 0015](adr/0015-una-ejecucion-por-instancia-en-local.md)); en Infracture Cloud pasará a una por usuario.
 - **Run es idempotente.** Un doble clic o un reintento tras un corte de red no crean otra ejecución ni recursos duplicados.
 - **El escenario queda en solo lectura** desde la reserva hasta que termina la limpieza.
 - **Sin transacciones abiertas esperando a Docker.** La reserva y el snapshot se confirman en la base de datos antes de llamar a Docker. Lo que ocurre después se registra como eventos.
@@ -389,8 +389,8 @@ Todas las formas de terminar piden lo mismo. Para alcanzar `STOPPED`, el motor s
 
 1. Detiene k6 para que no se genere más trabajo.
 2. Recoge las últimas métricas disponibles.
-3. Ejecuta `docker compose -p infracture-exec-12 down -v`, que retira contenedores, red y volúmenes temporales.
-4. Comprueba por etiqueta (`io.infracture.execution=12`) que no queda nada. Si queda algo, lo retira y vuelve a comprobar.
+3. Ejecuta `docker compose -p infracture-local-exec-12 down -v`, que retira contenedores, red y volúmenes temporales.
+4. Busca por etiqueta (`io.infracture.instance=local` y `io.infracture.execution=12`, las dos a la vez) lo que haya quedado, lo retira y vuelve a comprobar que no queda nada.
 5. Registra el resultado y libera la reserva.
 
 No se guarda en qué paso iba el arranque, porque nunca se reanuda ([ADR 0005](adr/0005-recuperacion-sin-reanudacion-automatica.md)). Tras una caída, el backend solo necesita saber qué ejecuciones estaban abiertas y retirar todo lo que lleve su etiqueta. Si la limpieza falla, se registra, `Run` sigue bloqueado y la limpieza se puede reintentar sin efectos duplicados. La limpieza filtra siempre por las etiquetas de Infracture, nunca por nombres parecidos, para no tocar contenedores ajenos.
@@ -399,16 +399,38 @@ No se guarda en qué paso iba el arranque, porque nunca se reanuda ([ADR 0005](a
 
 En la distribución, el backend corre dentro de un contenedor. Para crear los contenedores del experimento usa el Docker de la máquina a través de un proxy:
 
+![Proxy de Docker](images/execution-architecture/18-proxy-de-docker.png)
+
+- **Solo el proxy monta el socket.** `docker-proxy` es la imagen oficial de HAProxy con una configuración propia, [`docker/docker-proxy/haproxy.cfg`](../docker/docker-proxy/haproxy.cfg). Monta `/var/run/docker.sock` en solo lectura y no publica su puerto.
+- **El backend habla con el proxy.** Recibe `DOCKER_HOST=tcp://docker-proxy:2375`, así que el CLI de Docker envía cada llamada de la API al proxy en lugar de al socket.
+- **El experimento no ve a ninguno de los dos.** Sus contenedores viven en su propia red, sin puertos publicados. El backend se une a esa red para medir y pedir la respuesta del servicio.
+
 ```yaml
 services:
-  infracture:
+  backend:
+    container_name: infracture-backend
     environment:
       DOCKER_HOST: tcp://docker-proxy:2375
+      INFRACTURE_EXECUTION_BACKEND_CONTAINER: infracture-backend
   docker-proxy:
-    image: tecnativa/docker-socket-proxy
-    environment: { CONTAINERS: 1, NETWORKS: 1, VOLUMES: 1, IMAGES: 1, POST: 1 }
-    volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro"]
+    image: haproxy:3.2.26-alpine
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/docker-proxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 ```
+
+El proxy quita la versión de la ruta (`/v1.51/containers/create` pasa a `/containers/create`) y la compara, junto con el método, con una lista blanca. Lo que no está en la lista recibe `403` y nunca llega a Docker:
+
+| Recurso | Llamadas permitidas | Quién las usa |
+| --- | --- | --- |
+| Motor | `GET`/`HEAD /_ping`, `GET /version` | El CLI al conectar. |
+| Contenedores | Listar, inspeccionar, `create`, `start`, `stop`, `kill` y borrar. | `compose up`, `ps`, `down` y la limpieza. |
+| Redes | Listar, inspeccionar, `create`, `connect`, `disconnect` y borrar. | `compose` y el backend al unirse a la red. |
+| Volúmenes | Listar, inspeccionar, `create` y borrar. | `compose down -v` y la limpieza. |
+| Imágenes | Inspeccionar y descargar (`POST /images/create`). | `compose up`. |
+| Todo lo demás (`exec`, `build`, `info`, `swarm`, `archive`…) | `403 Forbidden`, registrado en el log. | Nadie. |
+
+La lista sale de registrar las llamadas reales del motor. Una llamada nueva, como las estadísticas de CPU de la observación, se añade a propósito.
 
 | | Docker de la máquina con proxy (elegida) | Docker in Docker (descartada) |
 | --- | --- | --- |
@@ -417,15 +439,134 @@ services:
 | Redes | El backend se une a la red de cada ejecución para medir, sin publicar puertos. | Las redes quedan dentro del otro motor. |
 | Plataformas | Linux y Docker Desktop (macOS y Windows). | Problemas de almacenamiento en algunos sistemas. |
 
-**Prueba al empezar P06.** Antes de programar el motor, una prueba corta en macOS, Windows y Linux confirmará tres cosas: que el CLI funciona desde el contenedor, que el backend puede unirse a la red de una ejecución y que la limpieza por etiqueta no toca otros contenedores. Si el CLI falla, se usa `docker-java` con el mismo plan.
+**Prueba al empezar P06.** Antes de programar el motor, una prueba corta en macOS, Windows y Linux confirma tres cosas: que el CLI funciona desde el contenedor, que el backend puede unirse a la red de una ejecución y que la limpieza por etiqueta no toca otros contenedores. Si el CLI falla, se usa `docker-java` con el mismo plan. El 2 de noviembre de 2026 pasó en macOS (Docker 29.9.2, Compose 5.6.1) a través de este proxy; Linux se comprueba en la CI y Windows está pendiente.
+
+**Prueba de extremo a extremo (#86).** El 6 de noviembre de 2026, en macOS, el backend contenedorizado (`docker compose --profile app`) reservó un HTTP Service `STATELESS`, lo arrancó en unos 18 s, se unió a su red y obtuvo su respuesta real (`{"component":"orders-api",…}`). Tras Stop, la ejecución terminó `COMPLETED`, no quedó ningún contenedor, red ni volumen con su etiqueta y el proxy no rechazó ninguna llamada.
 
 ## 10. Ciclo de vida de una Execution
 
-![Ciclo de vida](images/execution-architecture/13-ciclo-de-vida.png)
+Una `Execution` guarda dos cosas por separado: la **fase**, que dice qué hace el motor, y la **causa de parada**, que dice por qué termina. El resultado final sale de la causa más grave registrada, así que una ejecución que falla o se interrumpe nunca acaba como éxito ([ADR 0005](adr/0005-recuperacion-sin-reanudacion-automatica.md)). Este diseño se comprobó con un modelo formal en TLA+ antes de programarlo ([sección 10.3](#103-cómo-se-comprobó-el-diseño-con-tla)).
 
-- **Una interrupción nunca es un éxito.** Tras una caída, la ejecución queda registrada como interrumpida, conserva su snapshot y sus evidencias, y se limpia sin reanudarse.
+### 10.1 Estados
+
+El diagrama lo genera el verificador a partir del modelo, con la regla corregida y un solo escenario. Cada estado es una combinación real de fase y causa; cada flecha, una acción posible.
+
+```mermaid
+stateDiagram-v2
+  s0: Sin ejecución
+  state "Reserva tomada, escenario en solo lectura" as s1 {
+    s2: Reservada
+    s3: Reservada, Stop pedido
+    s4: Arrancando
+    s5: En marcha
+    s6: Arrancando, Stop pedido
+    s7: Limpiando tras una caída
+    s8: Limpiando tras un fallo
+    s9: Limpiando tras Stop
+    s10: En marcha, Stop pedido
+  }
+  s11: Backend caído
+  s12: Terminada con éxito
+  s13: Terminada con fallo
+  [*] --> s0
+  s0 --> s2: pulsas Run
+  s2 --> s3: pulsas Stop
+  s2 --> s4: el plan se compila
+  s11 --> s7: el backend arranca y reconcilia
+  s3 --> s9: empieza la limpieza
+  s4 --> s5: todo arranca sano
+  s4 --> s6: pulsas Stop
+  s4 --> s8: falla la descarga, el arranque o la salud
+  s5 --> s10: pulsas Stop
+  s6 --> s8: falla la descarga, el arranque o la salud
+  s6 --> s10: todo arranca sano
+  s7 --> s13: no queda nada con la etiqueta
+  s8 --> s13: no queda nada con la etiqueta
+  s9 --> s12: no queda nada con la etiqueta
+  s12 --> s2: pulsas Run
+  s13 --> s2: pulsas Run
+  s10 --> s9: empieza la limpieza
+  s1 --> s11: el backend se cae
+```
+
+- **Stop no corta el arranque.** Durante `Arrancando`, Stop solo se apunta; el motor espera a que `docker compose up --wait` termine y después limpia.
+- **Toda salida pasa por la limpieza.** Stop, un fallo o una caída llevan a `Limpiando…`, y la reserva solo se libera cuando no queda nada con la etiqueta de la ejecución.
+- **Una interrupción nunca es un éxito.** Tras una caída, la ejecución se reconcilia, conserva su snapshot y sus evidencias, y se limpia sin reanudarse.
 - **Cerrar el navegador no es Stop.** La ejecución sigue hasta que alguien la detiene o se agota el tiempo, y se puede volver a consultar.
-- **Nombres por confirmar.** `STOPPING`, `COMPLETED` y `FAILED` ya aparecen en la spec. Los nombres exactos del resto de estados se fijan al implementar P06 (condición C05).
+- **Una limpieza que no termina deja `Run` bloqueado.** Si Docker no responde, la ejecución se queda limpiando y el escenario sigue en solo lectura. Es el estado sin salida que el ADR 0005 acepta: el problema queda visible y Stop lo reintenta.
+
+### 10.2 Fase, causa y resultado
+
+Así se guarda en `Execution` (#86). Las fases solo avanzan en orden; un método llamado fuera de su fase lanza un error.
+
+| Fase (`phase`) | Qué hace el motor |
+| --- | --- |
+| `RESERVED` | La revisión está reservada y congelada; aún no hay contenedores. |
+| `STARTING` | `docker compose up -d --wait` está en marcha. |
+| `RUNNING` | Todos los servicios están sanos. |
+| `STOPPING` | `docker compose down -v` y limpieza por etiqueta. |
+| `RELEASED` | No queda nada; la reserva está libre y el escenario vuelve a ser editable. |
+
+Stop, un fallo y una interrupción no cambian la fase: solo registran una causa. Una causa nueva sustituye a la guardada **solo si es más grave**. En cuanto hay causa, la fase deseada de la [sección 9.5](#95-fase-deseada-y-limpieza-por-etiqueta) pasa a ser `STOPPED`.
+
+| Causa (`stopCause`), de menos a más grave | La registra | Resultado al liberar (`outcome`) |
+| --- | --- | --- |
+| `STOP_REQUESTED` | El usuario pulsa Stop. | `COMPLETED` |
+| `FAILURE` | Falla la descarga, el arranque, la salud o la limpieza. Se guarda el primer motivo. | `FAILED` |
+| `INTERRUPTION` | El backend se reinicia con la ejecución abierta (#90). | `INTERRUPTED` |
+
+Por ejemplo, si pulsas Stop mientras arranca y después falla la salud, la causa pasa de `STOP_REQUESTED` a `FAILURE` y el resultado es `FAILED`. Pulsar Stop dos veces no cambia nada.
+
+### 10.3 Cómo se comprobó el diseño con TLA+
+
+**Qué es TLA+.** Es un lenguaje para describir y comprobar diseños, no para programar. Lo creó Leslie Lamport y se usa en la industria, por ejemplo en Amazon Web Services, para revisar sistemas concurrentes antes de escribir el código. Se escribe un modelo pequeño (variables, acciones posibles y reglas que deben cumplirse siempre) y el verificador **TLC** recorre todos los estados alcanzables, en cualquier orden. Si una regla se rompe, devuelve el camino más corto hasta ese estado.
+
+**Por qué aquí.** Es la única parte del dominio con varios actores a la vez (usuario, motor, Docker, caídas del backend), fallos, reintentos y reglas que deben cumplirse en todos los estados. Además, el diagrama dibujado a mano y el diseño de #86 no coincidían en qué pasaba con un Stop durante el arranque. En el resto de Infracture (proyectos, catálogo, guardado del canvas) un modelo formal no aportaría nada que no digan ya las pruebas.
+
+**El modelo.** Está en [`docs/models/execution-lifecycle/Execution.tla`](models/execution-lifecycle/Execution.tla), con unas 120 líneas. Representa dos escenarios que comparten un Docker, para que aparezca la reserva global.
+
+| Parte | Contenido |
+| --- | --- |
+| Variables | Fase, fase deseada, causa, recursos en Docker, reserva liberada, revisión del escenario y del snapshot, si hubo problema, backend encendido. |
+| Acciones | Pulsar Run, guardar el grafo, compilar el plan, `up --wait` bien o mal, pulsar Stop, empezar y terminar la limpieza, caída y reinicio del backend. |
+| Reglas (invariantes) | `OneActiveExecution`: como mucho una ejecución sin liberar. `ReleasedLeavesNothing`: liberada implica cero recursos con la etiqueta. `RunsTheSavedRevision`: mientras hay ejecución, el escenario no cambia de revisión. `TroubleIsNeverSuccess`: una ejecución con fallo o caída nunca acaba con éxito. |
+
+**El resultado.** La constante `FirstCauseWins` permite comparar las dos reglas posibles para la causa:
+
+| Configuración | Escenarios | Regla de la causa | Estados distintos | Resultado |
+| --- | --- | --- | --- | --- |
+| [`first-cause.cfg`](models/execution-lifecycle/first-cause.cfg) | 2 | Manda la primera | 2.232 | Se rompe `TroubleIsNeverSuccess` |
+| [`worst-cause.cfg`](models/execution-lifecycle/worst-cause.cfg) | 2 | Manda la peor | 1.400 | Se cumplen las cuatro reglas y no hay bloqueos |
+| [`worst-cause-one.cfg`](models/execution-lifecycle/worst-cause-one.cfg) | 1 | Manda la peor | 64 | Se cumplen; genera el diagrama de la sección 10.1 |
+
+Con la regla más natural, "manda la primera causa", TLC encontró este camino de cinco pasos:
+
+1. Pulsas Run: la ejecución queda reservada.
+2. El plan se compila: arrancando.
+3. Pulsas Stop: el arranque sigue, porque Stop espera a que `up --wait` termine.
+4. Falla la descarga, el arranque o la salud: se limpia, pero la causa guardada es Stop.
+5. No queda nada con la etiqueta: **terminada con éxito**, aunque el arranque falló.
+
+Hay un segundo camino al mismo error: pulsas Stop, el backend se cae durante la limpieza y, al reiniciar, la ejecución se cierra como Stop. Con la regla "manda la peor causa", TLC no encuentra ningún estado que rompa las reglas. Esa regla es la que implementa `StopCause`.
+
+**Del modelo al código.** Cada camino que encontró TLC es un test de `ExecutionTests`: `failsWhenStartUpFailsAfterStopWasRequested` e `isInterruptedWhenTheBackendStopsDuringTheCleanupOfAStop`. El modelo comprueba el diseño en todos los casos, pero no es el código; los tests comprueban que el código sigue el diseño. Se complementan.
+
+**Límites.**
+
+- El modelo no incluye el tiempo máximo de 30 minutos (#89), el borrado del escenario ni los reintentos de una limpieza fallida (#88).
+- Dos reglas se cumplen porque el modelo copia las guardas del diseño (solo se libera tras limpiar y el guardado se rechaza con la reserva tomada). Lo que demuestra es que ninguna combinación de Stop, fallo y caída las salta.
+- El modelo agrupa fallo y caída en "terminada con fallo"; el código los distingue con `FAILED` e `INTERRUPTED`.
+
+**Cómo repetirlo.** El modelo se comprueba con TLC (`tla2tools.jar`) y el diagrama se genera con la herramienta [Statechart](https://github.com/cursor/plugins/tree/main/pstack/skills/statechart), que usa la vista [`view.ts`](models/execution-lifecycle/view.ts) para poner los nombres en español. Cada `--out` debe ser una carpeta nueva:
+
+```bash
+export TLA2TOOLS=~/.agents/skills/statechart/tools/tla2tools.jar
+~/.agents/skills/statechart/scripts/statechart docs/models/execution-lifecycle/Execution.tla \
+  --config docs/models/execution-lifecycle/worst-cause-one.cfg \
+  --view docs/models/execution-lifecycle/view.ts --out /tmp/execution-chart
+```
+
+**Cómo contarlo en la memoria.** El ciclo de vida se explica con el diagrama y las dos tablas de la sección 10.2, sin necesitar TLA+. La verificación es un apartado aparte, dentro del diseño: qué riesgo había (un fallo contado como éxito), qué técnica se usó y por qué solo aquí, qué encontró y cómo pasó a tests. Basta con entender las cuatro reglas y el camino de cinco pasos; no hace falta dominar el lenguaje.
 
 ## 11. Observación: salud, métricas y eventos
 
@@ -435,6 +576,14 @@ services:
 - **Healthy:** la comprobación específica del servicio responde bien.
 
 Un contenedor puede estar activo y no estar sano, por ejemplo mientras PostgreSQL arranca. La interfaz muestra los dos estados por separado.
+
+Así lo hace hoy el motor (#86):
+
+- **Estado de cada nodo.** Mientras la ejecución está en `RUNNING`, cada vuelta del `ExecutionReconciler` lee `docker compose ps` y guarda para cada nodo `STARTING`, `HEALTHY`, `UNHEALTHY` o `EXITED`. La API lo devuelve en `components[]`.
+- **Arrancar no es funcionar.** Si un nodo pasa a `UNHEALTHY` o desaparece estando en marcha, se registra `FAILURE` con su nombre (`orders-api is unhealthy`) y se limpia como cualquier otro fallo.
+- **Respuesta real.** Al llegar a `RUNNING`, el backend se une a la red `exec` y pide `GET /` a cada HTTP Service. Guarda la respuesta como evidencia. Solo funciona con el backend en contenedor; arrancado desde la máquina, la respuesta queda vacía.
+- **Tiempo límite.** A los 30 minutos (`infracture.execution.max-duration`), la ejecución se detiene como si se pulsara Stop.
+- **En memoria.** Estado y respuesta solo importan mientras el experimento corre, y un reinicio del backend lo termina. Se guardarán como eventos y muestras en P08.
 
 ### 11.2 Qué mide cada tipo
 
@@ -543,6 +692,7 @@ Estas piezas no forman parte de 0.1.0. El diseño actual las deja preparadas sin
 | Fallos controlados | Parar, reiniciar o pausar un nodo e introducir latencia en una conexión con Toxiproxy. | Las direcciones de las dependencias ya llegan por variable de entorno, así que el compilador podrá apuntarlas a un proxy sin tocar las imágenes. |
 | Análisis de impacto | Calcular con un recorrido en anchura (BFS) qué nodos se ven afectados por un fallo. | El grafo ya es acíclico y sus dependencias están explícitas. |
 | Laboratorios guiados | Escenarios con objetivos, pistas y evaluación. | El snapshot y las evidencias ya identifican qué se ejecutó y qué se midió. |
+| Una ejecución por usuario | Que cada usuario tenga su propio experimento en marcha, con un límite global, en Infracture Cloud. | La reserva ya es un índice único parcial: basta con cambiar su clave a `owner_id` ([ADR 0015](adr/0015-una-ejecucion-por-instancia-en-local.md)). |
 | Otros destinos de ejecución | Traducir el mismo plan a Kubernetes. | El `ExecutionPlan` usa conceptos comunes (servicios, salud, dependencias, etiquetas) y el `RuntimeEngine` está aislado. |
 
 ## 16. Mapa al código
@@ -559,7 +709,7 @@ El backend es un monolito modular. Cada módulo sigue las capas `api`, `applicat
 | `Connection`, puertos y capacidades | `project`, `catalog` | En desarrollo (#80). |
 | `ScenarioValidator`, `ValidationIssue` | `project` | Pendiente. |
 | `Workload` | `project` | Pendiente. |
-| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Pendiente (P06–P07). |
+| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | En desarrollo (#86): HTTP Service `STATELESS` con `docker compose`. El resto de tipos, en P07. |
 | Observación e historial | `observation` | Pendiente (P08). |
 | Load Balancer | `catalog`, `execution` | Pendiente (P07). |
 
@@ -578,13 +728,14 @@ Los nombres de clases son los previstos. Pueden ajustarse al implementar si se c
 | [0011](adr/0011-puertos-con-nombre-que-piden-capacidades.md) | Puertos con nombre que piden capacidades. |
 | [0012](adr/0012-la-carga-es-un-workload-del-escenario.md) | La carga es un `Workload` del escenario. |
 | [0013](adr/0013-motor-de-ejecucion-con-docker-compose.md) | Motor de ejecución con Docker Compose. |
+| [0015](adr/0015-una-ejecucion-por-instancia-en-local.md) | Una ejecución por instancia en Infracture Local. |
 
 ### Referencias para aprender
 
 - [Docker Compose: servicios, `depends_on` y `healthcheck`](https://docs.docker.com/reference/compose-file/services/)
 - [Docker Compose: `up --wait`](https://docs.docker.com/reference/cli/docker/compose/up/)
 - [Docker: redes de contenedores](https://docs.docker.com/engine/network/)
-- [Tecnativa docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy)
+- [HAProxy: listas de control de acceso](https://docs.haproxy.org/3.2/configuration.html#7)
 - [OASIS TOSCA: requirements y capabilities](https://docs.oasis-open.org/tosca/TOSCA/v2.0/TOSCA-v2.0.html)
 - [Kubernetes: el patrón controlador](https://kubernetes.io/docs/concepts/architecture/controller/)
 - [Grafana k6: ejecutar pruebas de carga](https://grafana.com/docs/k6/latest/get-started/running-k6/)
@@ -594,3 +745,6 @@ Los nombres de clases son los previstos. Pueden ajustarse al implementar si se c
 - [RabbitMQ: Work Queues con Java](https://www.rabbitmq.com/tutorials/tutorial-two-java)
 - [Toxiproxy: simulación de condiciones de red](https://github.com/Shopify/toxiproxy)
 - [Google SRE: monitorización de sistemas distribuidos](https://sre.google/sre-book/monitoring-distributed-systems/)
+- [Leslie Lamport: The TLA+ Home Page](https://lamport.azurewebsites.net/tla/tla.html)
+- [Learn TLA+](https://learntla.com/)
+- [Newcombe et al.: How Amazon Web Services Uses Formal Methods (CACM, 2015)](https://lamport.azurewebsites.net/tla/formal-methods-amazon.pdf)

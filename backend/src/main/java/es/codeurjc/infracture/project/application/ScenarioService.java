@@ -9,6 +9,7 @@ import es.codeurjc.infracture.project.domain.Connection;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.persistence.ScenarioRepository;
+import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.NotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -29,14 +30,17 @@ public class ScenarioService {
     private final ProjectService projectService;
     private final ComponentTemplateService templateService;
     private final ScenarioValidator scenarioValidator;
+    private final ScenarioReservations reservations;
     private final Validator validator;
 
     public ScenarioService(ScenarioRepository scenarioRepository, ProjectService projectService,
-            ComponentTemplateService templateService, ScenarioValidator scenarioValidator, Validator validator) {
+            ComponentTemplateService templateService, ScenarioValidator scenarioValidator,
+            ScenarioReservations reservations, Validator validator) {
         this.scenarioRepository = scenarioRepository;
         this.projectService = projectService;
         this.templateService = templateService;
         this.scenarioValidator = scenarioValidator;
+        this.reservations = reservations;
         this.validator = validator;
     }
 
@@ -61,6 +65,7 @@ public class ScenarioService {
     @Transactional
     public Scenario updateScenario(String ownerEmail, Long projectId, Long id, String name, String description) {
         Scenario scenario = lockOwnScenario(ownerEmail, projectId, id);
+        requireEditable(scenario);
         scenario.changeDetails(normalizeText(name), normalizeDescription(description));
         validate(scenario);
         return scenarioRepository.saveAndFlush(scenario);
@@ -76,6 +81,7 @@ public class ScenarioService {
     public ScenarioGraph saveGraph(String ownerEmail, Long projectId, Long id, int expectedRevision,
             List<ComponentDraft> components, List<Connection> connections) {
         Scenario scenario = lockOwnScenario(ownerEmail, projectId, id);
+        requireEditable(scenario);
         Set<String> templateKeys = components.stream().map(ComponentDraft::templateKey)
                 .filter(Objects::nonNull).collect(Collectors.toSet());
         List<ComponentDraft> normalized = components.stream()
@@ -87,10 +93,17 @@ public class ScenarioService {
         return new ScenarioGraph(saved, scenarioValidator.validate(saved));
     }
 
-    private Scenario lockOwnScenario(String ownerEmail, Long projectId, Long id) {
+    // The row lock orders saving and Run on the same scenario: whichever comes second sees the other's result.
+    public Scenario lockOwnScenario(String ownerEmail, Long projectId, Long id) {
         Project project = projectService.getOwnProject(ownerEmail, projectId);
         return scenarioRepository.findForUpdateByIdAndProjectId(id, project.getId())
                 .orElseThrow(() -> new NotFoundException("Scenario not found"));
+    }
+
+    private void requireEditable(Scenario scenario) {
+        if (reservations.isReserved(scenario.getId())) {
+            throw new ConflictException("The scenario is read-only while an experiment uses it. Stop it to edit the scenario.");
+        }
     }
 
     private void validate(Scenario scenario) {
