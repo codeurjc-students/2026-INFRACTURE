@@ -21,6 +21,7 @@ import {
   CircleXIcon,
   HistoryIcon,
   InfoIcon,
+  LockIcon,
   MaximizeIcon,
   SaveIcon,
   TriangleAlertIcon,
@@ -46,6 +47,11 @@ import type { ProjectDTO } from "~/features/projects/model/ProjectDTO";
 import type { ScenarioDTO } from "~/features/projects/model/ScenarioDTO";
 import { HttpError } from "~/shared/api/api-fetch";
 import { getGraph, saveGraph } from "../api/graph-service";
+import type { ExecutionDTO } from "../model/ExecutionDTO";
+import { nodeView, type StatusView } from "../execution-status";
+import { useExecution } from "../use-execution";
+import { ExecutionBadge } from "./execution-badge";
+import { RunButton } from "./run-button";
 import {
   connectionId,
   connectionIssue,
@@ -128,6 +134,8 @@ interface ScenarioCanvasProps {
   scenario: ScenarioDTO;
   graph: ScenarioGraphDTO;
   templates: ComponentTemplateDTO[];
+  // The scenario's latest execution, or null when it has never run.
+  execution: ExecutionDTO | null;
   // The signed-in account; the local draft is kept per account. Without it there is no draft.
   userId?: number;
 }
@@ -280,11 +288,18 @@ function nodeConnections(
 
 // The nodes as they are drawn: each one gets its template name, its issues and its ports.
 // Only for drawing; the state keeps the data as the backend sends it.
+// What the running experiment shows of each node, by node key.
+type Runtime = Map<
+  string,
+  { view: StatusView | null; response: string | null }
+>;
+
 function toDisplayed(
   nodes: ComponentNodeModel[],
   edges: Edge[],
   issues: ValidationIssueDTO[],
   templatesByKey: Map<string, ComponentTemplateDTO>,
+  runtime: Runtime,
 ): DisplayedNode[] {
   const byNode = new Map<string, ValidationIssueDTO[]>();
   for (const issue of issues) {
@@ -326,6 +341,7 @@ function toDisplayed(
           issue.severity === "ERROR" && issue.field ? [issue.field] : [],
         ),
         ports,
+        runtime: runtime.get(node.id)?.view ?? null,
       },
     };
   });
@@ -365,6 +381,7 @@ function Editor({
   scenario,
   graph,
   templates,
+  execution: initialExecution,
   userId,
 }: Readonly<ScenarioCanvasProps>) {
   // The graph state lives in the reducer; every change goes through dispatch.
@@ -429,9 +446,37 @@ function Editor({
     draft.take();
   }
 
+  const experiment = useExecution(projectId, scenarioId, initialExecution);
+  // An experiment holds the scenario from the reservation until its cleanup ends (#86).
+  const readOnly = experiment.active;
+  const runtime: Runtime = useMemo(() => {
+    const byKey: Runtime = new Map();
+    if (!experiment.active) return byKey;
+    for (const component of experiment.execution?.components ?? []) {
+      byKey.set(component.key, {
+        view: component.status ? nodeView(component.status) : null,
+        response: component.response,
+      });
+    }
+    return byKey;
+  }, [experiment.active, experiment.execution]);
+  const [dismissedFailure, setDismissedFailure] = useState<number | null>(null);
+  const failure =
+    experiment.execution?.stopCause === "FAILURE" &&
+    experiment.execution.id !== dismissedFailure
+      ? experiment.execution
+      : null;
+
   const displayed = useMemo(
-    () => toDisplayed(state.nodes, state.edges, state.issues, templatesByKey),
-    [state.nodes, state.edges, state.issues, templatesByKey],
+    () =>
+      toDisplayed(
+        state.nodes,
+        state.edges,
+        state.issues,
+        templatesByKey,
+        runtime,
+      ),
+    [state.nodes, state.edges, state.issues, templatesByKey, runtime],
   );
   const displayedEdges = useMemo(
     () =>
@@ -519,7 +564,7 @@ function Editor({
       event.dataTransfer.getData(TEMPLATE_MIME),
     );
     setDragging(false);
-    if (!template || full) return;
+    if (!template || full || readOnly) return;
     event.preventDefault();
     add(template, { x: event.clientX, y: event.clientY });
   }
@@ -546,8 +591,17 @@ function Editor({
     }
   }
 
+  // Run uses the saved revision, so it waits for the save and for the errors to be fixed.
+  let runBlocker: string | null = null;
+  if (state.dirty || saving) {
+    runBlocker = "Save your changes first: Run uses the saved scenario";
+  } else if (errorCount > 0) {
+    runBlocker = "Fix the errors first: they block Run";
+  }
+
   const canSave =
     state.dirty &&
+    !readOnly &&
     !saving &&
     state.status !== "conflict" &&
     state.status !== "expired";
@@ -667,6 +721,9 @@ function Editor({
         >
           <InfoIcon />
         </Button>
+        {experiment.execution && (
+          <ExecutionBadge execution={experiment.execution} />
+        )}
         <SaveStatus state={state} />
         <Button
           type="button"
@@ -678,6 +735,14 @@ function Editor({
         >
           <SaveButtonContent saving={saving} dirty={state.dirty} />
         </Button>
+        <RunButton
+          active={experiment.active}
+          stopping={experiment.stopping}
+          pending={experiment.pending}
+          blockedBy={runBlocker}
+          onRun={() => void experiment.run(state.revision)}
+          onStop={experiment.stop}
+        />
       </header>
 
       <div
@@ -692,6 +757,7 @@ function Editor({
           <ComponentPalette
             templates={templates}
             count={state.nodes.length}
+            readOnly={readOnly}
             onAdd={(template) => add(template)}
           />
         </aside>
@@ -700,7 +766,7 @@ function Editor({
         <div
           ref={area}
           onDragOver={(event) => {
-            if (event.dataTransfer.types.includes(TEMPLATE_MIME)) {
+            if (!readOnly && event.dataTransfer.types.includes(TEMPLATE_MIME)) {
               event.preventDefault();
               event.dataTransfer.dropEffect = "copy";
               if (!dragging) setDragging(true);
@@ -722,16 +788,31 @@ function Editor({
             nodes={displayed}
             edges={displayedEdges}
             nodeTypes={nodeTypes}
+            // While read-only only selecting and measuring go through, so a node can still be inspected.
             onNodesChange={(changes) =>
               dispatch({
                 type: "nodesChanged",
-                changes: changes as NodeChange<ComponentNodeModel>[],
+                changes: (readOnly
+                  ? changes.filter(
+                      (change) =>
+                        change.type === "select" ||
+                        change.type === "dimensions",
+                    )
+                  : changes) as NodeChange<ComponentNodeModel>[],
               })
             }
             onEdgesChange={(changes) =>
-              dispatch({ type: "edgesChanged", changes })
+              dispatch({
+                type: "edgesChanged",
+                changes: readOnly
+                  ? changes.filter((change) => change.type === "select")
+                  : changes,
+              })
             }
+            nodesDraggable={!readOnly}
+            nodesConnectable={!readOnly}
             onConnect={(connection) =>
+              !readOnly &&
               dispatch({
                 type: "connected",
                 connection: {
@@ -742,7 +823,7 @@ function Editor({
               })
             }
             isValidConnection={canConnect}
-            deleteKeyCode={["Backspace", "Delete"]}
+            deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
             nodeExtent={BOARD_EXTENT}
             translateExtent={BOARD_EXTENT}
             minZoom={minZoom}
@@ -815,7 +896,11 @@ function Editor({
                 <AlertDescription className="flex flex-col gap-3">
                   <span>{draftDescription(pendingDraft, state.revision)}</span>
                   <span className="flex flex-wrap gap-2">
-                    <Button type="button" onClick={restoreDraft}>
+                    <Button
+                      type="button"
+                      onClick={restoreDraft}
+                      disabled={readOnly}
+                    >
                       Restore my changes
                     </Button>
                     <Button
@@ -852,6 +937,70 @@ function Editor({
                     >
                       Sign in again
                     </Link>
+                  </span>
+                </AlertDescription>
+              </Alert>
+            )}
+            {readOnly && (
+              <Alert className="bg-card shadow-lg">
+                <LockIcon />
+                <AlertTitle>
+                  The scenario is read-only while the experiment runs
+                </AlertTitle>
+                <AlertDescription>
+                  Stop the experiment to edit it again. Select a component to
+                  see its state.
+                </AlertDescription>
+              </Alert>
+            )}
+            {failure && (
+              <Alert
+                variant="destructive"
+                role="alert"
+                className="bg-card shadow-lg"
+              >
+                <CircleXIcon />
+                <AlertTitle>The experiment failed</AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  <span className="[overflow-wrap:anywhere]">
+                    {failure.failureReason ?? "The backend did not say why."}
+                  </span>
+                  <span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setDismissedFailure(failure.id)}
+                      className="text-foreground"
+                    >
+                      Dismiss
+                    </Button>
+                  </span>
+                </AlertDescription>
+              </Alert>
+            )}
+            {experiment.error && (
+              <Alert
+                variant="destructive"
+                role="alert"
+                className="bg-card shadow-lg"
+              >
+                <CircleAlertIcon />
+                <AlertTitle>
+                  {experiment.active
+                    ? "Could not stop the experiment"
+                    : "Could not run the scenario"}
+                </AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  <span>{experiment.error}</span>
+                  <span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={experiment.dismissError}
+                      className="text-foreground"
+                    >
+                      Dismiss
+                    </Button>
                   </span>
                 </AlertDescription>
               </Alert>
@@ -919,6 +1068,9 @@ function Editor({
                   state.issues,
                   templatesByKey,
                 )}
+                runtime={runtime.get(selected.id)?.view ?? null}
+                response={runtime.get(selected.id)?.response ?? null}
+                readOnly={readOnly}
                 dispatch={dispatch}
                 onClose={() => select(null)}
               />
@@ -935,6 +1087,7 @@ function Editor({
               <ScenarioDetails
                 scenario={scenario}
                 revision={state.revision}
+                readOnly={readOnly}
                 onClose={() => setPanel(null)}
               />
             )}

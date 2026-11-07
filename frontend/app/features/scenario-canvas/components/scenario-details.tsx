@@ -12,10 +12,13 @@ type SaveResult = DetailsFormResult | { saved: true };
 export default function ScenarioDetails({
   scenario,
   revision,
+  readOnly = false,
   onClose,
 }: Readonly<{
   scenario: ScenarioDTO;
   revision: number;
+  // An experiment holds the scenario: the backend would reject the change with 409.
+  readOnly?: boolean;
   onClose: () => void;
 }>) {
   const fetcher = useFetcher<SaveResult>();
@@ -69,28 +72,30 @@ export default function ScenarioDetails({
         noValidate
         onChange={() => setEdited(true)}
       >
-        <DetailsForm
-          compact
-          {...(result && !("saved" in result) ? result : {})}
-          defaultName={scenario.name}
-          defaultDescription={scenario.description ?? ""}
-          namePlaceholder="Cold cache"
-          errorTitle="Could not save the changes"
-          submitLabel="Save changes"
-          pendingLabel="Saving…"
-          pending={fetcher.state !== "idle"}
-          cancel={
-            saved && (
-              <output className="flex items-center gap-1.5 type-small">
-                <CircleCheckIcon
-                  className="size-4 text-healthy-text"
-                  aria-hidden
-                />
-                Changes saved
-              </output>
-            )
-          }
-        />
+        <fieldset disabled={readOnly} className="min-w-0">
+          <DetailsForm
+            compact
+            {...(result && !("saved" in result) ? result : {})}
+            defaultName={scenario.name}
+            defaultDescription={scenario.description ?? ""}
+            namePlaceholder="Cold cache"
+            errorTitle="Could not save the changes"
+            submitLabel="Save changes"
+            pendingLabel="Saving…"
+            pending={fetcher.state !== "idle"}
+            cancel={
+              saved && (
+                <output className="flex items-center gap-1.5 type-small">
+                  <CircleCheckIcon
+                    className="size-4 text-healthy-text"
+                    aria-hidden
+                  />
+                  Changes saved
+                </output>
+              )
+            }
+          />
+        </fieldset>
       </fetcher.Form>
     </section>
   );

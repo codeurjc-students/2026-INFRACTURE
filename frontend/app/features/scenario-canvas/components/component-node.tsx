@@ -8,8 +8,10 @@ import {
 import { CircleXIcon, TriangleAlertIcon } from "lucide-react";
 import { memo } from "react";
 import { cn } from "cn";
+import { toneText, type StatusView } from "../execution-status";
 import type { ComponentNodeData } from "../graph-reducer";
 import ComponentIcon from "./component-icon";
+import { StatusIcon } from "./status-icon";
 
 // A node ready to draw: its data plus the template name and its issues, added by the editor.
 export type DisplayedNode = Node<
@@ -22,6 +24,8 @@ export type DisplayedNode = Node<
     // The outgoing ports drawn on the node. "stale" ports are not in the profile any more but still
     // have an arrow, so the arrow stays visible until the user removes it.
     ports: { name: string; label: string; stale: boolean }[];
+    // What Docker says about the node while an experiment runs, or null.
+    runtime: StatusView | null;
   },
   "component"
 >;
@@ -37,12 +41,17 @@ function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
   const parameters = Object.entries(data.parameters);
   // While an arrow is being drawn, the whole node is the drop target, not only its small handle.
   const connecting = useConnection((connection) => connection.inProgress);
+  const failed = data.runtime?.tone === "failed";
 
   return (
     <div
       className={cn(
-        "enter-soft flex w-56 flex-col gap-3 rounded-xl border border-input bg-card p-3 text-card-foreground",
+        "enter-soft flex w-56 flex-col gap-3 rounded-xl border border-input bg-card p-3 text-card-foreground motion-safe:transition-colors motion-safe:duration-400 motion-safe:ease-out",
         selected && "outline-2 outline-offset-3 outline-foreground",
+        // DESIGN.md: a failed node is filled infrared, a starting one has a dashed border.
+        failed && "border-transparent bg-failed-fill text-on-failed",
+        data.runtime?.tone === "recovering" &&
+          "border-[1.5px] border-dashed border-recovering-text",
       )}
     >
       <Handle
@@ -59,7 +68,12 @@ function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
       <div className="flex min-w-0 items-center gap-2.5">
         <ComponentIcon type={data.type} className="size-7.5" />
         <div className="min-w-0">
-          <p className="truncate type-caption text-muted-foreground">
+          <p
+            className={cn(
+              "truncate type-caption",
+              failed ? "text-on-failed" : "text-muted-foreground",
+            )}
+          >
             {data.templateName}
           </p>
           <p
@@ -71,7 +85,7 @@ function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
         </div>
       </div>
       {/* Configuration: profile and each parameter. A value with an error turns red. */}
-      <dl className="flex flex-col gap-1 rounded-lg bg-background px-2.5 py-2 font-mono text-xs leading-4">
+      <dl className="flex flex-col gap-1 rounded-lg bg-background px-2.5 py-2 font-mono text-xs leading-4 text-foreground">
         {[["profile", data.profile ?? "—"] as const, ...parameters].map(
           ([name, value]) => (
             <div key={name} className="flex min-w-0 justify-between gap-3">
@@ -110,6 +124,17 @@ function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
             </li>
           ))}
         </ul>
+      )}
+      {data.runtime && (
+        <p
+          className={cn(
+            "flex items-center gap-1.5 type-caption font-[520]",
+            failed ? "text-on-failed" : toneText[data.runtime.tone],
+          )}
+        >
+          <StatusIcon tone={data.runtime.tone} />
+          {data.runtime.label}
+        </p>
       )}
       {data.errorCount + data.warningCount > 0 && (
         <p
