@@ -19,6 +19,7 @@ export default defineConfig({
       ...configDefaults.exclude,
       "test/integration/**",
       "test/system/**",
+      "test/execution/**",
     ],
     setupFiles: "./test/setup.ts",
   },

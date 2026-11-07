@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:system": "playwright test"
+    "test:system": "playwright test",
+    "test:execution": "playwright test --config playwright.execution.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
