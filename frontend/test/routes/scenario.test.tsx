@@ -28,6 +28,12 @@ import {
   saveGraph,
 } from "~/features/scenario-canvas/api/graph-service";
 import {
+  getCurrentExecution,
+  runScenario,
+  stopExecution,
+} from "~/features/scenario-canvas/api/execution-service";
+import type { ExecutionDTO } from "~/features/scenario-canvas/model/ExecutionDTO";
+import {
   draftKey,
   readDraft,
   writeDraft,
@@ -44,6 +50,7 @@ import { httpService, redis } from "../fixtures/component-templates";
 vi.mock("~/features/projects/api/project-service");
 vi.mock("~/features/projects/api/scenario-service");
 vi.mock("~/features/scenario-canvas/api/graph-service");
+vi.mock("~/features/scenario-canvas/api/execution-service");
 vi.mock("~/features/component-catalogue/api/component-template-service");
 
 const project = { id: 7, name: "Cache lab" } as ProjectDTO;
@@ -125,6 +132,31 @@ function connectedGraph(profile: string): ScenarioGraphDTO {
   };
 }
 
+// The saved graph without errors, so Run is allowed.
+const runnableGraph: ScenarioGraphDTO = {
+  ...savedGraph,
+  components: [
+    { ...savedGraph.components[0], parameters: { responseDelayMs: 0 } },
+  ],
+  issues: [],
+};
+
+function execution(overrides: Partial<ExecutionDTO> = {}): ExecutionDTO {
+  return {
+    id: 12,
+    scenarioId: 3,
+    scenarioRevision: 2,
+    phase: "RESERVED",
+    stopCause: null,
+    outcome: null,
+    failureReason: null,
+    createdAt: "2026-11-07T10:00:00Z",
+    releasedAt: null,
+    components: [],
+    ...overrides,
+  };
+}
+
 const activeRouters: ReturnType<typeof createMemoryRouter>[] = [];
 
 function ScenarioTestRoute() {
@@ -169,6 +201,7 @@ function renderScenario(id = "3", userId?: number) {
 
 beforeEach(() => {
   vi.mocked(getGraph).mockResolvedValue(emptyGraph);
+  vi.mocked(getCurrentExecution).mockResolvedValue(null);
   vi.mocked(getComponentTemplates).mockResolvedValue({
     content: [httpService, redis],
     page: { size: 100, number: 0, totalElements: 2, totalPages: 1 },
@@ -724,5 +757,195 @@ describe("scenario route", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Cold cache" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("running the scenario", () => {
+  beforeEach(() => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue(scenario);
+  });
+
+  it("runs the saved revision once even when Run is clicked twice", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    let reserve!: (execution: ExecutionDTO) => void;
+    vi.mocked(runScenario).mockReturnValue(
+      new Promise((resolve) => {
+        reserve = resolve;
+      }),
+    );
+    renderScenario();
+
+    const run = await screen.findByRole("button", { name: "Run" });
+    fireEvent.click(run);
+    fireEvent.click(run);
+    expect(run).toBeDisabled();
+    reserve(execution());
+
+    expect(await screen.findByRole("button", { name: "Stop" })).toBeEnabled();
+    expect(runScenario).toHaveBeenCalledExactlyOnceWith("7", "3", 2);
+  });
+
+  it("waits for the save and for the errors to be fixed before Run", async () => {
+    vi.mocked(getGraph).mockResolvedValue(savedGraph);
+    renderScenario();
+
+    const run = await screen.findByRole("button", { name: "Run" });
+    expect(run).toBeDisabled();
+    expect(run).toHaveAttribute(
+      "title",
+      "Fix the errors first: they block Run",
+    );
+
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    cleanup();
+    renderScenario();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Add HTTP Service" }),
+    );
+    expect(screen.getByRole("button", { name: "Run" })).toHaveAttribute(
+      "title",
+      "Save your changes first: Run uses the saved scenario",
+    );
+  });
+
+  it("stops the running experiment and shows that it is stopping", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({ phase: "RUNNING" }),
+    );
+    vi.mocked(stopExecution).mockResolvedValue(
+      execution({ phase: "RUNNING", stopCause: "STOP_REQUESTED" }),
+    );
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Stop" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Stopping…" }),
+    ).toBeDisabled();
+    expect(stopExecution).toHaveBeenCalledExactlyOnceWith("7", "3", 12);
+  });
+
+  it("follows the experiment every 2 s until it is released", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    const key = runnableGraph.components[0].key;
+    vi.mocked(getCurrentExecution)
+      .mockResolvedValueOnce(execution({ phase: "STARTING" }))
+      .mockResolvedValueOnce(
+        execution({
+          phase: "RUNNING",
+          components: [
+            {
+              key,
+              name: "Orders API",
+              type: "HTTP_SERVICE",
+              status: "HEALTHY",
+              response: '{"component":"orders-api"}',
+            },
+          ],
+        }),
+      )
+      .mockResolvedValue(
+        execution({
+          phase: "RELEASED",
+          stopCause: "STOP_REQUESTED",
+          outcome: "COMPLETED",
+        }),
+      );
+    renderScenario();
+
+    expect(await screen.findByText("Starting")).toBeInTheDocument();
+    // Real timers: each poll waits the real 2 s.
+    expect(
+      await screen.findByText("Running", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    const node = screen.getByRole("group", { name: /Orders API/ });
+    expect(within(node).getByText("Healthy")).toBeInTheDocument();
+    fireEvent.click(within(node).getByText("Orders API"));
+    const inspector = screen.getByRole("complementary", {
+      name: "Inspector",
+    });
+    expect(
+      within(inspector).getByRole("figure", { name: "Response" }),
+    ).toHaveTextContent('{"component":"orders-api"}');
+
+    expect(
+      await screen.findByText("Completed", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
+    expect(screen.queryByText("Healthy")).not.toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 2100));
+    expect(getCurrentExecution).toHaveBeenCalledTimes(3);
+    // Two real polls and the check that no third one follows.
+  }, 10_000);
+
+  it("keeps the scenario read-only while the experiment holds it", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({ phase: "RUNNING" }),
+    );
+    renderScenario();
+
+    expect(
+      await screen.findByText(
+        "The scenario is read-only while the experiment runs",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add HTTP Service" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText("Stop the experiment to add components."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Orders API"));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    expect(within(inspector).getByLabelText("Name")).toBeDisabled();
+    expect(
+      within(inspector).getByRole("button", { name: "Delete component" }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByLabelText("Name")).toBeDisabled();
+  });
+
+  it("explains why the experiment failed until the message is dismissed", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({
+        phase: "RELEASED",
+        stopCause: "FAILURE",
+        outcome: "FAILED",
+        failureReason: "Orders API is unhealthy",
+      }),
+    );
+    renderScenario();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("The experiment failed");
+    expect(alert).toHaveTextContent("Orders API is unhealthy");
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    fireEvent.click(within(alert).getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
+  });
+
+  it("explains why Run was rejected and lets the message go", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(runScenario).mockRejectedValue(
+      new HttpError(
+        409,
+        "Another experiment is running. Run this scenario when it ends.",
+      ),
+    );
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Run" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Could not run the scenario");
+    expect(alert).toHaveTextContent("Another experiment is running.");
+    fireEvent.click(within(alert).getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
   });
 });

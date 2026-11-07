@@ -10,6 +10,7 @@ import {
   DetailsError,
   loadOrNotFound,
 } from "~/features/projects/components/details-page";
+import { getCurrentExecution } from "~/features/scenario-canvas/api/execution-service";
 import { getGraph } from "~/features/scenario-canvas/api/graph-service";
 import ScenarioCanvas from "~/features/scenario-canvas/components/scenario-canvas";
 import type { clientLoader as privateLoader } from "~/routes/private-layout";
@@ -24,16 +25,17 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 // Loads everything the editor needs at once. A missing or foreign scenario becomes the 404 page.
 export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  const [project, scenario, graph, templates] = await loadOrNotFound(
+  const [project, scenario, graph, templates, execution] = await loadOrNotFound(
     Promise.all([
       getProject(params.projectId),
       getScenario(params.projectId, params.scenarioId),
       getGraph(params.projectId, params.scenarioId),
       // The catalogue is small; one page of the maximum size holds every template.
       getComponentTemplates(0, 100),
+      getCurrentExecution(params.projectId, params.scenarioId),
     ]),
   );
-  return { project, scenario, graph, templates: templates.content };
+  return { project, scenario, graph, templates: templates.content, execution };
 }
 
 // Saves the scenario name and description from the Details panel.
@@ -63,7 +65,7 @@ export function ErrorBoundary() {
 export default function ScenarioRoute({
   loaderData,
 }: Pick<Route.ComponentProps, "loaderData">) {
-  const { project, scenario, graph, templates } = loaderData;
+  const { project, scenario, graph, templates, execution } = loaderData;
   // The private layout already loaded the signed-in account; its id keeps local drafts per account.
   const user = useRouteLoaderData<typeof privateLoader>(
     "routes/private-layout",
@@ -77,6 +79,7 @@ export default function ScenarioRoute({
       scenario={scenario}
       graph={graph}
       templates={templates}
+      execution={execution}
       userId={user?.id}
     />
   );

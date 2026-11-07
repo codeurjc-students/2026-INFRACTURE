@@ -19,8 +19,8 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - An issues panel lists what the last save found: errors, such as a missing connection, a dependency cycle or an empty scenario, which will block running, and warnings, which do not. Picking one selects its component.
 - The scenario is saved as a whole. If another tab saved first, the editor warns without overwriting anything and lets you choose which version to keep.
 - Unsaved work is kept in the browser and can be recovered after a reload or after the session expires. Another account in the same browser cannot see it.
-- Real experiments through the API for scenarios whose nodes are HTTP Services in `STATELESS` mode. `POST …/scenarios/{id}/executions` starts the saved revision in Docker, and `POST …/executions/{id}/stop` stops it and removes everything it created.
-- One experiment runs at a time per installation, and its scenario is read-only until cleanup ends. `GET …/executions/current` shows the phase, the outcome and each node's status and real response; a node that falls over fails the experiment, and experiments stop after 30 minutes.
+- Run and Stop on the scenario canvas, for scenarios whose nodes are HTTP Services in `STATELESS` mode. Run starts the saved revision in Docker and Stop removes everything it created; the API offers the same under `…/scenarios/{id}/executions`.
+- While an experiment runs, the canvas shows its state, each node's health and the service's real response, and the scenario is read-only. One experiment runs at a time per installation; a node that falls over fails it, and it stops after 30 minutes.
 - Light or dark theme following the system preference.
 - REST API under `/api/v1` for all of the above. Requests that change data must send the `X-XSRF-TOKEN` header, obtained with `GET /api/v1/auth/csrf`, and errors arrive as `application/problem+json`. The OpenAPI contract and the Postman collection are in [`docs/api`](docs/api).
 - A single administrator created on first start. Before starting, copy `.env.example` to `.env` in the repository root and fill it in, or define the `INFRACTURE_ADMIN_*` variables.

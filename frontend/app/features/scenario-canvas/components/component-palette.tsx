@@ -34,13 +34,17 @@ function grouped(templates: ComponentTemplateDTO[]) {
 export default function ComponentPalette({
   templates,
   count,
+  readOnly = false,
   onAdd,
 }: Readonly<{
   templates: ComponentTemplateDTO[];
   count: number;
+  // An experiment holds the scenario, so nothing can be added.
+  readOnly?: boolean;
   onAdd: (template: ComponentTemplateDTO) => void;
 }>) {
   const full = count >= MAX_COMPONENTS;
+  const locked = full || readOnly;
 
   return (
     <section
@@ -70,8 +74,8 @@ export default function ComponentPalette({
                 <li key={template.key} className="shrink-0">
                   <button
                     type="button"
-                    draggable={!full}
-                    disabled={full}
+                    draggable={!locked}
+                    disabled={locked}
                     aria-label={`Add ${template.name}`}
                     onClick={() => onAdd(template)}
                     // The canvas reads this key when the template is dropped.
@@ -94,9 +98,11 @@ export default function ComponentPalette({
         ))}
       </div>
       <p className="mt-auto px-1 type-caption text-muted-foreground max-lg:hidden">
-        {full
-          ? `This scenario has reached its limit of ${MAX_COMPONENTS} components.`
-          : "Click to add, or drag onto the canvas."}
+        {readOnly && "Stop the experiment to add components."}
+        {!readOnly &&
+          (full
+            ? `This scenario has reached its limit of ${MAX_COMPONENTS} components.`
+            : "Click to add, or drag onto the canvas.")}
       </p>
     </section>
   );

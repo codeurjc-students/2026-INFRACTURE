@@ -17,10 +17,13 @@ import {
 } from "~/components/ui/select";
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
 import type { TemplateContractDTO } from "~/features/component-catalogue/model/TemplateContractDTO";
+import { cn } from "cn";
+import { toneText, type StatusView } from "../execution-status";
 import type { CanvasAction, ComponentNode } from "../graph-reducer";
 import type { ValidationIssueDTO } from "../model/ValidationIssueDTO";
 import ComponentIcon from "./component-icon";
 import IssueNote from "./issue-note";
+import { StatusIcon } from "./status-icon";
 
 // Same limit as the backend.
 const NAME_MAX_LENGTH = 30;
@@ -122,6 +125,9 @@ export default function NodeInspector({
   template,
   issues,
   connections,
+  runtime,
+  response,
+  readOnly,
   dispatch,
   onClose,
 }: Readonly<{
@@ -129,11 +135,17 @@ export default function NodeInspector({
   template: ComponentTemplateDTO | undefined;
   issues: ValidationIssueDTO[];
   connections: NodeConnection[];
+  // What Docker says about the node and what it answered, while an experiment runs.
+  runtime: StatusView | null;
+  response: string | null;
+  // An experiment holds the scenario: the form shows the values but changes nothing.
+  readOnly: boolean;
   dispatch: Dispatch<CanvasAction>;
   onClose: () => void;
 }>) {
   const nameId = useId();
   const profileId = useId();
+  const responseId = useId();
   const { data } = node;
   const profiles = template?.contract.profiles ?? [];
   const profile = profiles.find((candidate) => candidate.name === data.profile);
@@ -179,158 +191,208 @@ export default function NodeInspector({
         </Button>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <Field data-invalid={Boolean(nameError) || undefined}>
-          <FieldLabel htmlFor={nameId}>Name</FieldLabel>
-          <Input
-            id={nameId}
-            value={data.name}
-            maxLength={NAME_MAX_LENGTH}
-            aria-invalid={Boolean(nameError) || undefined}
-            onChange={(event) =>
-              dispatch({
-                type: "renamed",
-                key: node.id,
-                name: event.target.value,
-              })
-            }
-          />
-          {nameError && <FieldError>{nameError}</FieldError>}
-        </Field>
-
-        {profiles.length > 0 && (
-          <Field>
-            <FieldLabel htmlFor={profileId}>Profile</FieldLabel>
-            <Select
-              value={data.profile ?? null}
-              onValueChange={(value) => {
-                const next = profiles.find(
-                  (candidate) => candidate.name === value,
-                );
-                if (next)
-                  dispatch({
-                    type: "profileChanged",
-                    key: node.id,
-                    profile: next,
-                  });
-              }}
-            >
-              <SelectTrigger id={profileId} className="w-full font-mono">
-                <SelectValue placeholder="Choose a profile" />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false} align="start">
-                {profiles.map((candidate) => (
-                  <SelectItem
-                    key={candidate.name}
-                    value={candidate.name}
-                    className="font-mono"
-                  >
-                    {candidate.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {profileIssue && (
-              <IssueNote
-                severity={profileIssue.severity}
-                message={profileIssue.message}
-              />
-            )}
-          </Field>
-        )}
-
-        {profile?.parameters.map((parameter) => (
-          <ParameterField
-            key={`${node.id}-${data.profile}-${parameter.name}`}
-            parameter={parameter}
-            value={data.parameters[parameter.name]}
-            issue={fieldIssue(parameter.name)}
-            onChange={(value) =>
-              dispatch({
-                type: "parameterChanged",
-                key: node.id,
-                name: parameter.name,
-                value,
-              })
-            }
-          />
-        ))}
-        {profile?.parameters.length === 0 && (
-          <p className="type-small text-muted-foreground">
-            {`The ${profile.name} profile has no parameters to set.`}
-          </p>
-        )}
-      </div>
-
-      {/* Connections: the keyboard and touch way to see and remove arrows. */}
-      {(connections.length > 0 || (profile?.ports.length ?? 0) > 0) && (
+      {runtime && (
         <section
-          aria-labelledby="connections-heading"
+          aria-labelledby="runtime-heading"
           className="flex flex-col gap-2"
         >
-          <h3 id="connections-heading" className="text-sm font-medium">
-            Connections
+          <h3 id="runtime-heading" className="text-sm font-medium">
+            In the experiment
           </h3>
-          {connections.length === 0 ? (
-            <p className="type-small text-muted-foreground">
-              Drag from a port on the node to a component that it can use.
-            </p>
+          <p
+            className={cn(
+              "flex items-center gap-1.5 text-sm font-[520]",
+              toneText[runtime.tone],
+            )}
+          >
+            <StatusIcon tone={runtime.tone} />
+            {runtime.label}
+          </p>
+          {response ? (
+            <figure
+              aria-labelledby={responseId}
+              className="flex flex-col gap-1"
+            >
+              <figcaption
+                id={responseId}
+                className="type-caption text-muted-foreground"
+              >
+                Response
+              </figcaption>
+              <pre className="overflow-x-auto rounded-lg bg-background px-2.5 py-2 font-mono text-xs leading-4 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                {response}
+              </pre>
+            </figure>
           ) : (
-            <ul className="flex flex-col gap-1">
-              {connections.map((connection) => {
-                const text = connection.outgoing
-                  ? `${connection.label} → ${connection.other}`
-                  : `${connection.other} → ${connection.label}`;
-                return (
-                  <li key={connection.id} className="flex flex-col gap-1">
-                    <span className="flex min-w-0 items-center justify-between gap-2">
-                      <span className="truncate text-sm">{text}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Remove connection ${text}`}
-                        title="Remove connection"
-                        onClick={() =>
-                          dispatch({ type: "disconnected", id: connection.id })
-                        }
-                        className="shrink-0 text-muted-foreground"
-                      >
-                        <UnplugIcon />
-                      </Button>
-                    </span>
-                    {connection.issue && (
-                      <IssueNote severity="ERROR" message={connection.issue} />
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+            <p className="type-small text-muted-foreground">
+              No response yet. The backend asks the service once it is running,
+              and only when the backend itself runs in Docker.
+            </p>
           )}
         </section>
       )}
 
-      {otherIssues.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {otherIssues.map((issue) => (
-            <IssueNote
-              key={`${issue.code}-${issue.field}`}
-              severity={issue.severity}
-              message={issue.message}
+      {/* While an experiment runs, the disabled fieldset turns every field and button inside off. */}
+      <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-5">
+        <div className="flex flex-col gap-4">
+          <Field data-invalid={Boolean(nameError) || undefined}>
+            <FieldLabel htmlFor={nameId}>Name</FieldLabel>
+            <Input
+              id={nameId}
+              value={data.name}
+              maxLength={NAME_MAX_LENGTH}
+              aria-invalid={Boolean(nameError) || undefined}
+              onChange={(event) =>
+                dispatch({
+                  type: "renamed",
+                  key: node.id,
+                  name: event.target.value,
+                })
+              }
+            />
+            {nameError && <FieldError>{nameError}</FieldError>}
+          </Field>
+
+          {profiles.length > 0 && (
+            <Field>
+              <FieldLabel htmlFor={profileId}>Profile</FieldLabel>
+              <Select
+                value={data.profile ?? null}
+                onValueChange={(value) => {
+                  const next = profiles.find(
+                    (candidate) => candidate.name === value,
+                  );
+                  if (next)
+                    dispatch({
+                      type: "profileChanged",
+                      key: node.id,
+                      profile: next,
+                    });
+                }}
+              >
+                <SelectTrigger id={profileId} className="w-full font-mono">
+                  <SelectValue placeholder="Choose a profile" />
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false} align="start">
+                  {profiles.map((candidate) => (
+                    <SelectItem
+                      key={candidate.name}
+                      value={candidate.name}
+                      className="font-mono"
+                    >
+                      {candidate.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {profileIssue && (
+                <IssueNote
+                  severity={profileIssue.severity}
+                  message={profileIssue.message}
+                />
+              )}
+            </Field>
+          )}
+
+          {profile?.parameters.map((parameter) => (
+            <ParameterField
+              key={`${node.id}-${data.profile}-${parameter.name}`}
+              parameter={parameter}
+              value={data.parameters[parameter.name]}
+              issue={fieldIssue(parameter.name)}
+              onChange={(value) =>
+                dispatch({
+                  type: "parameterChanged",
+                  key: node.id,
+                  name: parameter.name,
+                  value,
+                })
+              }
             />
           ))}
+          {profile?.parameters.length === 0 && (
+            <p className="type-small text-muted-foreground">
+              {`The ${profile.name} profile has no parameters to set.`}
+            </p>
+          )}
         </div>
-      )}
 
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => dispatch({ type: "removed", key: node.id })}
-        className="self-start"
-      >
-        <Trash2Icon data-icon="inline-start" />
-        Delete component
-      </Button>
+        {/* Connections: the keyboard and touch way to see and remove arrows. */}
+        {(connections.length > 0 || (profile?.ports.length ?? 0) > 0) && (
+          <section
+            aria-labelledby="connections-heading"
+            className="flex flex-col gap-2"
+          >
+            <h3 id="connections-heading" className="text-sm font-medium">
+              Connections
+            </h3>
+            {connections.length === 0 ? (
+              <p className="type-small text-muted-foreground">
+                Drag from a port on the node to a component that it can use.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {connections.map((connection) => {
+                  const text = connection.outgoing
+                    ? `${connection.label} → ${connection.other}`
+                    : `${connection.other} → ${connection.label}`;
+                  return (
+                    <li key={connection.id} className="flex flex-col gap-1">
+                      <span className="flex min-w-0 items-center justify-between gap-2">
+                        <span className="truncate text-sm">{text}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remove connection ${text}`}
+                          title="Remove connection"
+                          onClick={() =>
+                            dispatch({
+                              type: "disconnected",
+                              id: connection.id,
+                            })
+                          }
+                          className="shrink-0 text-muted-foreground"
+                        >
+                          <UnplugIcon />
+                        </Button>
+                      </span>
+                      {connection.issue && (
+                        <IssueNote
+                          severity="ERROR"
+                          message={connection.issue}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {otherIssues.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {otherIssues.map((issue) => (
+              <IssueNote
+                key={`${issue.code}-${issue.field}`}
+                severity={issue.severity}
+                message={issue.message}
+              />
+            ))}
+          </div>
+        )}
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => dispatch({ type: "removed", key: node.id })}
+          className="self-start"
+        >
+          <Trash2Icon data-icon="inline-start" />
+          Delete component
+        </Button>
+      </fieldset>
     </section>
   );
 }
