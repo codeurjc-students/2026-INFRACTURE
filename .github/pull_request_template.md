@@ -17,6 +17,7 @@ Closes #ISSUE_NUMBER
 
 - [ ] The linked issue's acceptance criteria are satisfied.
 - [ ] The change stays within the documented scope.
+- [ ] `docs/CODE_MAP.md` describes every class or file this change adds, renames or gives a new role.
 
 ## Tests
 
