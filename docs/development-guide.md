@@ -276,6 +276,12 @@ npx playwright install chromium
 npm run test:system
 ```
 
+La prueba de un experimento real en el navegador usa la plataforma en contenedores, como se instala Infracture, porque solo así el backend ve la respuesta del servicio. [`scripts/test-execution-stack.sh`](../scripts/test-execution-stack.sh) construye la imagen de demostración y arranca PostgreSQL, `docker-proxy` y el backend en un proyecto Compose propio, `infracture-e2e`, con su propia base de datos e identificador de instancia. Playwright registra una cuenta, guarda un HTTP Service `STATELESS`, pulsa Run, espera a que esté sano y responda, pulsa Stop y comprueba que no queda nada en Docker. Al terminar se borra el proyecto entero. Usa los puertos 8080 y 5175, así que no puede correr a la vez que el backend de desarrollo:
+
+```bash
+npm run test:execution
+```
+
 Los informes HTML de cobertura quedan en `backend/target/site/jacoco/index.html` y `frontend/coverage/index.html`; los resultados de Playwright quedan en `frontend/playwright-report/`.
 
 ## Creación de una release
