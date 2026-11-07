@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>De Run a Stop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* Same tokens as "PlanCompiler paso a paso", so both pages read as one set. */
+  :root {
+    --bg: #f3f5f8; --surface: #ffffff; --head: #eef1f5; --ink: #131a24; --muted: #5a6577; --edge: #d3d9e2;
+    --accent: #c2650c; --new: #127a6a; --db: #2f62c9; --docker: #7a4fc0; --ok: #1f7a3a; --danger: #be3a2e;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1218; --surface: #151c25; --head: #1b2430; --ink: #e5e9f0; --muted: #9ea8b8; --edge: #2a3542;
+      --accent: #f2a04e; --new: #4fd1bd; --db: #7ea6ff; --docker: #b99bff; --ok: #6fd08c; --danger: #f2837a; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1218; --surface: #151c25; --head: #1b2430; --ink: #e5e9f0; --muted: #9ea8b8; --edge: #2a3542;
+    --accent: #f2a04e; --new: #4fd1bd; --db: #7ea6ff; --docker: #b99bff; --ok: #6fd08c; --danger: #f2837a; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
+  main {
+    max-width: 1280px; margin: 0 auto; padding-block: 28px 56px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 34px;
+  }
+  code, .mono { font-family: var(--mono); font-size: .9em; }
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  header { display: grid; gap: 8px; max-width: 78ch; }
+  .eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  h1 { font-size: clamp(25px, 3.6vw, 36px); line-height: 1.15; font-weight: 700; letter-spacing: -.01em; }
+  h2 { font-size: 21px; font-weight: 700; }
+  .lead, .muted { color: var(--muted); }
+  section { display: grid; gap: 14px; }
+  section > p { max-width: 80ch; }
+
+  .card { background: var(--surface); border: 1px solid var(--edge); border-radius: 14px; min-width: 0; }
+  .pad { padding: 16px 18px; }
+
+  /* Diagram */
+  figure { margin: 0; }
+  figcaption { font-size: 13px; color: var(--muted); padding: 10px 18px 14px; }
+  .scroll { overflow-x: auto; }
+  svg.arch { display: block; width: 100%; height: auto; color: var(--ink); }
+  @media (max-width: 700px) { svg.arch { min-width: 760px; } }
+  .box rect { fill: var(--surface); stroke: var(--edge); stroke-width: 1.5; transition: stroke .2s, fill .2s; }
+  .box.new rect { stroke: var(--new); stroke-dasharray: 0; }
+  .box text { fill: var(--ink); font: 600 13px var(--sans); }
+  .box text.sub { fill: var(--muted); font: 400 11px var(--mono); }
+  .box text.pill { fill: var(--new); font: 600 10px var(--mono); letter-spacing: .06em; }
+  .box.on rect { stroke: var(--accent); stroke-width: 2.5; fill: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+  .zone { fill: none; stroke: var(--edge); stroke-width: 1.2; stroke-dasharray: 5 4; }
+  .zone-t { fill: var(--muted); font: 600 11px var(--mono); letter-spacing: .06em; }
+  .wire { stroke: var(--muted); stroke-width: 1.4; fill: none; transition: stroke .2s; }
+  .wire.on { stroke: var(--accent); stroke-width: 2.4; }
+  .wl { fill: var(--muted); font: 500 10.5px var(--mono); }
+  .wl.on { fill: var(--accent); }
+  .ctr rect { transition: opacity .3s; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted); padding: 0 18px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .legend i { width: 14px; height: 10px; border-radius: 3px; border: 2px solid var(--c); display: inline-block; }
+
+  /* Stepper */
+  .walk { overflow: hidden; }
+  .walk figure { border-bottom: 1px solid var(--edge); padding-top: 6px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--edge); background: var(--head); }
+  .controls .nav { margin-left: auto; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--edge); border-radius: 9px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; padding: 6px 11px; font: 600 12px var(--sans); background: var(--surface); color: var(--muted); cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .nav { display: flex; gap: 8px; align-items: center; }
+  .nav button { font: 600 13px var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--edge); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .nav button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .nav button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .count { font: 500 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dots { display: flex; gap: 5px; flex-wrap: wrap; }
+  .dots button { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--edge); background: var(--surface); color: var(--muted); font: 600 11px var(--mono); cursor: pointer; padding: 0; }
+  .dots button.done { border-color: var(--accent); color: var(--accent); }
+  .dots button.cur { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step { padding: 16px 18px 20px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); gap: 14px 22px; align-items: start; }
+  .step .say { display: grid; gap: 12px; min-width: 0; }
+  @media (max-width: 860px) { .step { grid-template-columns: 1fr; } }
+  .who { display: inline-flex; align-items: center; gap: 8px; font: 600 11.5px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--c); }
+  .who::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .step h3 { font-size: 18px; line-height: 1.3; }
+  .step .txt { color: var(--muted); font-size: 14.5px; }
+  .step .txt code { color: var(--ink); }
+  pre.cmd { margin: 0; font: 12px/1.55 var(--mono); background: var(--bg); border: 1px solid var(--edge); border-radius: 9px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+  .state { display: grid; gap: 8px; }
+  .st { border: 1px solid var(--edge); border-radius: 10px; padding: 9px 11px; display: grid; gap: 4px; align-content: start; border-top: 3px solid var(--c); }
+  .st .h { font: 600 10.5px var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+  .st .v { font: 500 12.5px var(--mono); word-break: break-word; }
+  .st .v b { font-weight: 600; }
+  .st .v .chg { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 4px; padding: 0 3px; }
+  .ok { color: var(--ok); } .bad { color: var(--danger); }
+
+  /* Why cards */
+  .why { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .why .card { padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+  .why h3 { font-size: 15px; }
+  .why p { font-size: 14px; color: var(--muted); }
+
+  /* Tables */
+  .tbl { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+  th { font: 600 11.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--head); }
+  tr:last-child td { border-bottom: none; }
+  tr.hl td { background: color-mix(in srgb, var(--new) 9%, transparent); }
+  td .n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font: 600 12px var(--mono); border: 1.5px solid var(--muted); color: var(--muted); }
+  tr.hl td .n { border-color: var(--new); background: var(--new); color: var(--surface); }
+  td code { font-size: 12.5px; }
+  .files { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+  .files code { background: var(--bg); border: 1px solid var(--edge); border-radius: 5px; padding: 1px 6px; }
+
+  .next { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .next .card { padding: 14px 16px; display: grid; gap: 6px; }
+  .next .tag { font: 600 11px var(--mono); color: var(--accent); letter-spacing: .06em; text-transform: uppercase; }
+  .next p { font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="eyebrow">Infracture · #86 · backend completo (PR #149)</span>
+    <h1>Qué pasa entre Run y Stop</h1>
+    <p class="lead">Desde que pulsas Run hasta que la reserva se libera, cada pieza de Infracture hace una sola cosa. Esta página recorre las piezas una a una y muestra, en cada momento, qué cambia en la base de datos y en Docker.</p>
+  </header>
+
+  <section aria-labelledby="t-walk">
+    <h2 id="t-walk">El recorrido, paso a paso</h2>
+    <p>Elige un caso y avanza con <b>Siguiente</b> o con las flechas del teclado. En el diagrama se iluminan las piezas que actúan en ese paso.</p>
+    <div class="card walk" id="walker">
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Caso">
+          <button type="button" data-case="ok" aria-pressed="true">Todo bien</button>
+          <button type="button" data-case="start" aria-pressed="false">Falla el arranque</button>
+          <button type="button" data-case="node" aria-pressed="false">Un nodo cae</button>
+          <button type="button" data-case="time" aria-pressed="false">Se acaba el tiempo</button>
+          <button type="button" data-case="clean" aria-pressed="false">Falla la limpieza</button>
+        </div>
+        <div class="dots" id="dots"></div>
+        <div class="nav">
+          <button type="button" id="prev">Anterior</button>
+          <span class="count" id="count"></span>
+          <button type="button" id="next" class="primary">Siguiente</button>
+        </div>
+      </div>
+        <figure>
+          <div class="scroll"><svg class="arch" viewBox="0 0 1120 450" role="img" aria-label="Piezas del motor: el navegador llama a ExecutionController y ExecutionService, que guardan la reserva en PostgreSQL. ExecutionReconciler lee la fila y pide a ComposeRuntimeEngine que arranque o retire el plan, que llega a Docker a través del docker-proxy.">
+            <defs>
+              <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="context-stroke"/>
+              </marker>
+            </defs>
+
+            <rect class="zone" x="170" y="18" width="530" height="312" rx="14"/>
+            <text class="zone-t" x="186" y="40">INFRACTURE · BACKEND (SPRING BOOT)</text>
+            <rect class="zone" x="890" y="92" width="214" height="238" rx="14"/>
+            <text class="zone-t" x="906" y="114">DOCKER ENGINE</text>
+
+            <!-- wires -->
+            <path id="w-nav" class="wire" d="M150 85 H188" marker-end="url(#ar)"/>
+            <text id="l-nav" class="wl" x="152" y="76">HTTP</text>
+            <path id="w-svc" class="wire" d="M290 110 V158" marker-end="url(#ar)"/>
+            <text id="l-svc" class="wl" x="298" y="140">llama</text>
+            <path id="w-plan" class="wire" d="M270 210 V275 H338" marker-end="url(#ar)"/>
+            <text id="l-plan" class="wl" x="278" y="266">compile()</text>
+            <path id="w-db1" class="wire" d="M212 210 V378" marker-end="url(#ar)"/>
+            <text id="l-db1" class="wl" x="220" y="350">guarda</text>
+            <path id="w-db2" class="wire" d="M668 112 V378" marker-start="url(#ar)" marker-end="url(#ar)"/>
+            <text id="l-db2" class="wl" x="660" y="350" text-anchor="end">lee · cambia la fase</text>
+            <path id="w-eng" class="wire" d="M560 112 V158" marker-end="url(#ar)"/>
+            <text id="l-eng" class="wl" x="568" y="140">up() · down()</text>
+            <path id="w-proxy" class="wire" d="M640 185 H738" marker-end="url(#ar)"/>
+            <text id="l-proxy" class="wl" x="652" y="176">docker CLI</text>
+            <path id="w-dock" class="wire" d="M868 185 H918" marker-end="url(#ar)"/>
+            <path id="w-probe" class="wire" d="M680 80 H1040 V166" marker-end="url(#ar)" style="stroke-dasharray:5 4"/>
+            <text id="l-probe" class="wl" x="700" y="72">ServiceProbe · GET / por la red exec</text>
+            <text id="l-dock" class="wl" x="872" y="176">API</text>
+
+            <g id="b-nav" class="box"><rect x="20" y="60" width="130" height="50" rx="10"/>
+              <text x="85" y="82" text-anchor="middle">Navegador</text><text class="sub" x="85" y="99" text-anchor="middle">canvas (PR2)</text></g>
+            <g id="b-ctrl" class="box"><rect x="190" y="60" width="200" height="50" rx="10"/>
+              <text x="290" y="82" text-anchor="middle">ExecutionController</text><text class="sub" x="290" y="99" text-anchor="middle">/executions · /stop</text></g>
+            <g id="b-svc" class="box"><rect x="190" y="160" width="200" height="50" rx="10"/>
+              <text x="290" y="182" text-anchor="middle">ExecutionService</text><text class="sub" x="290" y="199" text-anchor="middle">run() · stop()</text></g>
+            <g id="b-plan" class="box"><rect x="340" y="250" width="200" height="50" rx="10"/>
+              <text x="440" y="272" text-anchor="middle">PlanCompiler</text><text class="sub" x="440" y="289" text-anchor="middle">ejecución → plan</text></g>
+            <g id="b-rec" class="box new"><rect x="460" y="60" width="220" height="52" rx="10"/>
+              <text x="570" y="82" text-anchor="middle">ExecutionReconciler</text><text class="sub" x="570" y="99" text-anchor="middle">bucle cada 2 s</text>
+              <text class="pill" x="680" y="54" text-anchor="end">NUEVO</text></g>
+            <g id="b-eng" class="box new"><rect x="460" y="160" width="180" height="52" rx="10"/>
+              <text x="550" y="182" text-anchor="middle">ComposeRuntimeEngine</text><text class="sub" x="550" y="199" text-anchor="middle">up · down · barrido</text>
+              <text class="pill" x="640" y="154" text-anchor="end">NUEVO</text></g>
+            <g id="b-db" class="box"><rect x="170" y="380" width="530" height="52" rx="10"/>
+              <text x="435" y="402" text-anchor="middle">PostgreSQL · tabla executions</text><text class="sub" x="435" y="419" text-anchor="middle">fase · causa · resultado · plan · fila bloqueada al cambiarla</text></g>
+            <g id="b-proxy" class="box"><rect x="740" y="160" width="128" height="52" rx="10"/>
+              <text x="804" y="182" text-anchor="middle">docker-proxy</text><text class="sub" x="804" y="199" text-anchor="middle">HAProxy :2375</text></g>
+
+            <g id="b-net" class="box"><rect x="910" y="130" width="176" height="150" rx="10" style="stroke-dasharray:5 4"/>
+              <text class="sub" x="924" y="150">red …exec-12_exec</text></g>
+            <g id="b-ctr" class="box"><rect x="928" y="168" width="140" height="58" rx="9"/>
+              <text x="998" y="191" text-anchor="middle">c-3f0c…</text><text class="sub" id="ctr-sub" x="998" y="209" text-anchor="middle">demo-app</text></g>
+            <text id="ctr-state" class="wl" x="998" y="252" text-anchor="middle"></text>
+          </svg></div>
+          <div class="legend">
+            <span style="--c: var(--new)"><i></i>añadido en el paso 6</span>
+            <span style="--c: var(--accent)"><i></i>actúa en este paso</span>
+          </div>
+          <figcaption>Solo el docker-proxy toca el socket de Docker. El backend nunca llama a Docker dentro de una transacción: primero guarda la fase, después ejecuta el comando.</figcaption>
+        </figure>
+      <div class="step" aria-live="polite">
+        <div class="say">
+          <span class="who" id="who"></span>
+          <h3 id="title"></h3>
+          <p class="txt" id="txt"></p>
+          <pre class="cmd" id="cmd"></pre>
+        </div>
+        <div class="state">
+          <div class="st" style="--c: var(--db)"><span class="h">Fila executions</span><span class="v" id="s-db"></span></div>
+          <div class="st" style="--c: var(--docker)"><span class="h">Docker</span><span class="v" id="s-docker"></span></div>
+          <div class="st" style="--c: var(--accent)"><span class="h">Escenario</span><span class="v" id="s-scn"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-why">
+    <h2 id="t-why">Las reglas que lo sostienen</h2>
+    <div class="why">
+      <div class="card"><h3>Docker, siempre fuera de una transacción</h3><p>El bucle guarda la nueva fase en una transacción corta, la confirma y solo después lanza <code>docker compose</code>. Un arranque de un minuto nunca deja la base de datos bloqueada.</p></div>
+      <div class="card"><h3>Stop solo apunta la causa</h3><p><code>POST …/stop</code> escribe <code>STOP_REQUESTED</code> y responde 202 al momento. Quien para y limpia es el bucle, en su siguiente vuelta. Pulsarlo dos veces no cambia nada.</p></div>
+      <div class="card"><h3>Fila bloqueada al cambiarla</h3><p>Stop y el bucle pueden tocar la misma ejecución a la vez. Los dos la leen con <code>SELECT … FOR UPDATE</code> (<code>findForUpdate…</code>), así que uno espera al otro y nadie borra lo que el otro acaba de escribir.</p></div>
+      <div class="card"><h3>Un solo hilo</h3><p>Spring ejecuta los métodos <code>@Scheduled</code> en un único hilo. Dos vueltas del bucle nunca se solapan, así que nunca hay dos <code>up</code> o dos <code>down</code> a la vez.</p></div>
+      <div class="card"><h3>Arrancar no es funcionar</h3><p>Mientras corre, cada vuelta lee el estado de cada nodo con <code>docker compose ps</code>. Si uno se pone <code>unhealthy</code> o desaparece, la ejecución falla con su nombre y se limpia. A los 30 minutos se para sola.</p></div>
+      <div class="card"><h3>Limpiar es comprobar que no queda nada</h3><p>Tras <code>down -v</code>, el motor busca contenedores, redes y volúmenes con las dos etiquetas, <code>instance</code> y <code>execution</code>, los borra y vuelve a mirar. Si algo queda, la reserva no se libera y lo reintenta.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-added">
+    <h2 id="t-added">Qué se ha añadido en cada paso</h2>
+    <div class="card tbl">
+      <table>
+        <thead><tr><th style="width:44px">Paso</th><th>Qué hace</th><th>Dónde está</th><th style="width:110px">Estado</th></tr></thead>
+        <tbody>
+          <tr><td><span class="n">1</span></td><td><b>La app de demostración.</b> La imagen que hace de HTTP Service: responde en <code>/</code> y tiene <code>/health</code>.</td><td class="files"><code>demo-app/</code><code>DemoController</code><code>Dockerfile</code></td><td>commit</td></tr>
+          <tr><td><span class="n">2</span></td><td><b>El proxy de Docker.</b> HAProxy deja pasar solo las llamadas de la API que el motor necesita; el resto, 403.</td><td class="files"><code>docker/docker-proxy/haproxy.cfg</code><code>compose.yaml</code></td><td>commit</td></tr>
+          <tr><td><span class="n">3</span></td><td><b>El modelo Execution.</b> Fase, causa de parada y resultado; la copia congelada de nodos y conexiones; una sola reserva activa.</td><td class="files"><code>Execution</code><code>ExecutedComponent</code><code>StopCause</code><code>V10__create_executions.sql</code></td><td>commit</td></tr>
+          <tr><td><span class="n">4</span></td><td><b>Run reserva.</b> Valida la revisión exacta, reserva la ejecución y deja el escenario en solo lectura.</td><td class="files"><code>ExecutionController</code><code>ExecutionService.run</code><code>ScenarioReservations</code></td><td>commit</td></tr>
+          <tr><td><span class="n">5</span></td><td><b>El plan.</b> Convierte la ejecución en un compose endurecido: sin puertos, solo lectura, sin capacidades y con límites.</td><td class="files"><code>PlanCompiler</code><code>HttpServiceDriver</code><code>stateless-plan.json</code></td><td>commit</td></tr>
+          <tr class="hl"><td><span class="n">6</span></td><td><b>El motor.</b> Arranca el plan con <code>docker compose</code>, lo vigila con un bucle, atiende Stop y limpia hasta que no queda nada.</td><td class="files"><code>RuntimeEngine</code><code>ComposeRuntimeEngine</code><code>ExecutionReconciler</code><code>ExecutionScheduling</code><code>ExecutionService.stop</code><code>POST …/{id}/stop</code><code>findForUpdate…</code></td><td>commit</td></tr>
+          <tr class="hl"><td><span class="n">6b</span></td><td><b>Mirar dentro.</b> Estado de cada nodo, fallo si uno cae, tiempo límite de 30 minutos y la respuesta real del servicio como evidencia.</td><td class="files"><code>ComponentStatus</code><code>ExecutionObservations</code><code>ServiceProbe</code><code>RuntimeEngine.status</code><code>components[]</code></td><td>commit</td></tr>
+          <tr class="hl"><td><span class="n">7</span></td><td><b>Infracture en un contenedor.</b> La imagen de la aplicación con el CLI de Docker y Compose, y el servicio <code>backend</code> detrás del proxy, que se une a la red de cada experimento.</td><td class="files"><code>docker/Dockerfile</code><code>docker/Dockerfile.dockerignore</code><code>compose.yaml</code><code>development-guide.md</code></td><td>commit</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-new">
+    <h2 id="t-new">Las piezas del paso 6b</h2>
+    <p>Cuatro clases nuevas y unos pocos cambios en las que ya había. Juntas hacen que el backend sepa qué pasa dentro del experimento mientras corre.</p>
+    <div class="why">
+      <div class="card"><h3><code>ComponentStatus</code></h3><p>Los cuatro estados de un nodo: <code>STARTING</code>, <code>HEALTHY</code>, <code>UNHEALTHY</code> y <code>EXITED</code>. Su método <code>of(state, health)</code> traduce lo que dice <code>docker compose ps</code>.</p></div>
+      <div class="card"><h3><code>ExecutionObservations</code></h3><p>Lo último que vio el bucle de cada nodo: estado y respuesta. Vive en memoria, por ejecución y por nodo. Escribe solo el bucle, desde su único hilo; lee la API. Se olvida al liberar.</p></div>
+      <div class="card"><h3><code>ServiceProbe</code></h3><p>Hace una sola petición <code>GET /</code> al servicio cuando llega a <code>RUNNING</code>, como evidencia de que responde con tu configuración. Tiempos cortos (2 s y 5 s) y <code>null</code> si no contesta: nunca hace fallar el experimento.</p></div>
+      <div class="card"><h3><code>ExecutedComponentDTO</code></h3><p>Cada nodo en la API, dentro de <code>components[]</code>: clave, nombre, tipo, estado y respuesta. Estado y respuesta valen <code>null</code> hasta que el bucle los ha visto.</p></div>
+    </div>
+    <div class="card tbl">
+      <table>
+        <thead><tr><th>Clase que ya existía</th><th>Qué cambia</th></tr></thead>
+        <tbody>
+          <tr><td><code>RuntimeEngine</code> · <code>ComposeRuntimeEngine</code></td><td><code>status(plan)</code> con <code>docker compose ps --all --format json</code>. Si <code>infracture.execution.backend-container</code> tiene valor, une el backend a la red <code>exec</code> tras <code>up</code> y lo saca antes de <code>down</code>.</td></tr>
+          <tr><td><code>ExecutionReconciler</code></td><td>En <code>RUNNING</code> llama a <code>watch()</code>: estado de cada nodo, fallo si uno cae y tiempo límite. Tras <code>up</code> pide la respuesta; al liberar, olvida lo observado.</td></tr>
+          <tr><td><code>ComponentDriver</code> · <code>HttpServiceDriver</code> · <code>PlanCompiler</code></td><td><code>evidence()</code>: la URL a la que preguntar, <code>http://c-&lt;clave&gt;:8080/</code>. Solo los HTTP Service tienen una.</td></tr>
+          <tr><td><code>ExecutionDTO</code> · <code>ExecutionMapper</code> · <code>ExecutionController</code></td><td>El campo <code>components[]</code>, que une cada nodo congelado con lo que se ha visto de él.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <pre class="cmd">GET …/executions/current
+{
+  "id": 12, "phase": "RUNNING", "stopCause": null, "outcome": null,
+  "components": [
+    { "key": "3f0c8a1e-…", "name": "orders-api", "type": "HTTP_SERVICE",
+      "status": "HEALTHY",
+      "response": "{\"component\":\"orders-api\",\"role\":\"http\",\"mode\":\"STATELESS\",\"responseDelayMs\":50}" }
+  ],
+  "plan": { … }
+}</pre>
+  </section>
+
+  <section aria-labelledby="t-short">
+    <h2 id="t-short">Atajos que se sustituirán</h2>
+    <p>Están marcados en el código con <code>// shortcut:</code>. Cada uno tiene ya su sitio previsto; el resto del código se queda.</p>
+    <div class="card tbl">
+      <table>
+        <thead><tr><th>Atajo</th><th>Dónde</th><th>Cuándo y por qué se sustituye</th></tr></thead>
+        <tbody>
+          <tr><td>Solo HTTP Service <code>STATELESS</code></td><td><code>ExecutionService</code></td><td><b>P07.</b> Con los drivers de Redis, PostgreSQL, Worker…, el bucle que rechaza otros tipos desaparece y la comprobación pasa al <code>PlanCompiler</code>.</td></tr>
+          <tr><td>Estado y respuesta en memoria</td><td><code>ExecutionObservations</code></td><td><b>P08.</b> Se guardan como eventos y muestras en la base de datos y llegan al navegador por SSE. La clase se borra.</td></tr>
+          <tr><td>Tiempo límite como Stop</td><td><code>ExecutionReconciler</code></td><td><b>Cuando la interfaz deba decir "se acabó el tiempo".</b> Se añade una causa propia; cambia una línea.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">Sin ser atajos: <code>ServiceProbe</code> probablemente se fusione en P08 con el recolector de métricas, que también pregunta a los servicios desde la red. Y un arranque cortado por un reinicio del backend espera a Stop; lo resolverá el #90.</p>
+  </section>
+
+  <section aria-labelledby="t-api">
+    <h2 id="t-api">La API de ejecuciones</h2>
+    <div class="card tbl">
+      <table>
+        <thead><tr><th>Petición</th><th>Responde</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          <tr><td><code>POST /api/v1/projects/{p}/scenarios/{s}/executions</code><br><code class="muted">{"revision": 2}</code></td><td>202 · 409 · 422</td><td>Reserva esa revisión y compila el plan. 409 si otra ejecución ocupa la instancia o la revisión no es la guardada; 422 si el escenario tiene errores.</td></tr>
+          <tr><td><code>GET …/executions/current</code></td><td>200 · 204</td><td>La última ejecución del escenario: fase, causa, resultado, plan y <code>components[]</code> con el estado y la respuesta de cada nodo.</td></tr>
+          <tr class="hl"><td><code>POST …/executions/{id}/stop</code></td><td>202 · 404</td><td><b>Nuevo.</b> Apunta Stop. Es idempotente; 404 si la ejecución no es de ese escenario o de ese usuario.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-tests">
+    <h2 id="t-tests">Cómo se ha probado</h2>
+    <p>El backend completo pasa <b>290 tests</b> con un <b>94,3 %</b> de líneas cubiertas (el mínimo es 70 %). Además, una prueba real de punta a punta con el backend en contenedor (abajo).</p>
+    <div class="card tbl">
+      <table>
+        <thead><tr><th>Test</th><th>Tipo</th><th>Qué demuestra</th></tr></thead>
+        <tbody>
+          <tr class="hl"><td><code>ExecutionReconcilerTests</code> · 13</td><td>unitario, Docker falso</td><td>Arranca, para, falla al arrancar, reintenta una limpieza fallida, no reanuda un arranque cortado, guarda estado y respuesta, falla si un nodo cae y se para al llegar al tiempo límite.</td></tr>
+          <tr class="hl"><td><code>ComposeRuntimeEngineIntegrationTests</code> · 6</td><td>Docker real</td><td>Un plan sano queda <i>healthy</i>; uno enfermo falla con el motivo; lee el estado de cada servicio; une el backend a la red y lo saca antes de limpiar; borra restos que Compose no conoce; no toca otras ejecuciones.</td></tr>
+          <tr class="hl"><td><code>ExecutionApiSystemTests</code> · 8</td><td>API real + PostgreSQL</td><td>Run → RUNNING (con estado y respuesta) → Stop → RELEASED; el escenario vuelve a ser editable; un fallo libera la instancia; otro usuario no puede parar.</td></tr>
+          <tr><td><code>ExecutionServiceTests</code> · 12</td><td>unitario</td><td>Reserva, idempotencia, revisión obsoleta, errores que bloquean y Stop.</td></tr>
+          <tr><td><code>PlanCompilerTests</code> · <code>ExecutionTests</code></td><td>unitario</td><td>El plan exacto (fichero de referencia) y las transiciones de fase, incluidos los dos caminos que encontró TLA+.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-box">
+    <h2 id="t-box">Infracture en un contenedor (paso 7)</h2>
+    <p>En la versión final todo corre en Docker. El backend es un contenedor más: habla con Docker solo a través del proxy y se une a la red de cada experimento para pedirle su respuesta. Por eso la respuesta real solo aparece con el backend en contenedor; con <code>./mvnw spring-boot:run</code> los experimentos arrancan y paran, pero la respuesta queda vacía.</p>
+    <div class="why">
+      <div class="card"><h3><code>docker/Dockerfile</code></h3><p>Dos etapas: compila el jar con <code>./mvnw package</code> y deja una imagen con el JRE, el jar y el CLI de Docker con Compose, que usa el motor. Corre como el usuario <code>infracture</code>, nunca root. Va en <code>docker/</code>, como pide la guía de la Fase 3; en P10 añadirá React y HTTPS.</p></div>
+      <div class="card"><h3>Servicio <code>backend</code></h3><p>Perfil <code>app</code> de <code>compose.yaml</code>. Espera a Postgres y al proxy, recibe <code>DOCKER_HOST=tcp://docker-proxy:2375</code>, se llama <code>infracture-backend</code> para que el motor lo una a cada red, publica <code>127.0.0.1:8080</code> y corre en solo lectura y sin capacidades.</p></div>
+      <div class="card"><h3>Cómo se arranca</h3><p><code>docker build -t infracture/demo-app:0.1.0 demo-app</code> una vez, y después <code>docker compose --profile app up -d --wait --build</code>. Se para con <code>docker compose --profile app down</code>. Los pasos están en la guía de desarrollo.</p></div>
+    </div>
+    <pre class="cmd">Prueba de punta a punta · macOS · 6 nov 2026 · proyecto Compose aparte (no toca tus datos)
+
+docker compose -p infracture-e2e --profile app up -d --wait --build
+  ✓ platform-postgres  ✓ docker-proxy  ✓ infracture-backend   (healthy)
+POST …/executions {"revision":2}        → 202 RESERVED   (repetido: la misma ejecución)
+… 18 s …                                → RUNNING
+  components[0].status   = HEALTHY
+  components[0].response = {"component":"orders-api","role":"http","mode":"STATELESS","responseDelayMs":50}
+PUT …/scenarios/{id} con el experimento → 409
+POST …/executions/1/stop                → 202 → STOPPING → RELEASED · COMPLETED
+recursos con su etiqueta                → 0 contenedores · 0 redes · 0 volúmenes
+llamadas rechazadas por el proxy        → 0</pre>
+  </section>
+
+  <section aria-labelledby="t-next">
+    <h2 id="t-next">Lo que falta</h2>
+    <div class="next">
+      <div class="card"><span class="tag">Revisión</span><h3>PR #149</h3><p>El backend completo del #86, abierto como <a href="https://github.com/codeurjc-students/2026-INFRACTURE/pull/149">Part of #86</a>, pendiente de tu revisión.</p></div>
+      <div class="card"><span class="tag">PR2</span><h3>El canvas</h3><p>Botones Run y Stop, los estados de cada nodo y su respuesta en pantalla, el editor bloqueado mientras corre y la prueba en el navegador. Cierra el #86.</p></div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const P = "infracture-local-exec-12";
+  const LBL = "--filter label=io.infracture.instance=local \\\n  --filter label=io.infracture.execution=12";
+  const row = (phase, cause, outcome, extra) =>
+    `id <b>12</b><br>phase <b>${phase}</b><br>stopCause <b>${cause ?? "—"}</b><br>outcome <b>${outcome ?? "—"}</b>${extra ? "<br>" + extra : ""}`;
+  const C = { user: "var(--accent)", api: "var(--db)", loop: "var(--new)", docker: "var(--docker)" };
+
+  const run = {
+    who: ["Tú", C.user], title: "Pulsas Run",
+    txt: "El navegador envía la revisión que guardó. <code>ExecutionService.run()</code> bloquea el escenario, comprueba que no hay otra ejecución, valida, inserta la reserva y le adjunta el plan. Docker todavía no se toca.",
+    cmd: "POST /api/v1/projects/5/scenarios/3/executions\n{\"revision\": 2}\n\n← 202 Accepted  {\"id\": 12, \"phase\": \"RESERVED\", …}",
+    db: row('<span class="chg">RESERVED</span>', null, null, "plan ✓"), docker: "nada", scn: '<span class="chg">solo lectura</span>',
+    on: ["b-nav", "b-ctrl", "b-svc", "b-plan", "b-db", "w-nav", "w-svc", "w-plan", "w-db1"], ctr: "off",
+  };
+  const before = {
+    who: ["Antes", "var(--muted)"], title: "Escenario guardado, nada en marcha",
+    txt: "El escenario tiene un HTTP Service <code>STATELESS</code> guardado en la revisión 2. No hay ninguna ejecución activa, así que la instancia está libre.",
+    cmd: "—", db: "sin fila activa", docker: "nada", scn: "editable", on: [], ctr: "off",
+  };
+  const tick1 = {
+    who: ["Bucle · vuelta 1", C.loop], title: "El bucle ve la reserva y empieza a arrancar",
+    txt: "En menos de 2 s, <code>reconcile()</code> lee la fila bloqueada, ve <code>RESERVED</code> sin causa y la pasa a <code>STARTING</code>. Confirma la transacción y, ya fuera de ella, le pide al motor que aplique el plan.",
+    cmd: `docker compose --ansi never -p ${P} -f - \\\n  up --wait --wait-timeout 300\n   ↑ el plan entra por stdin como JSON`,
+    db: row('<span class="chg">STARTING</span>', null, null), docker: "red creada<br>contenedor arrancando…", scn: "solo lectura",
+    on: ["b-rec", "b-db", "b-eng", "b-proxy", "b-net", "b-ctr", "w-db2", "w-eng", "w-proxy", "w-dock"], ctr: "starting",
+  };
+  const healthy = {
+    who: ["Bucle · vuelta 1", C.loop], title: "Todo está sano: en marcha, y le pide su respuesta",
+    txt: "<code>up --wait</code> termina cuando la comprobación de salud del contenedor (<code>wget /health</code>) responde. El motor une el backend a la red <code>exec</code>, el bucle llama a <code>markRunning()</code> en otra transacción corta y pide <code>GET /</code> al servicio. La respuesta queda como evidencia. Solo funciona con el backend en contenedor (paso 7); desde el Mac queda vacía.",
+    cmd: "✓ Container …-c-3f0c…-1  Healthy\ndocker network connect infracture-local-exec-12_exec <backend>\n\nexecution.markRunning()\n\nGET http://c-3f0c…:8080/\n← {\"component\":\"orders-api\",\"role\":\"http\",\"mode\":\"STATELESS\"}",
+    db: row('<span class="chg">RUNNING</span>', null, null), docker: '<span class="ok">c-3f0c… healthy</span><br>respuesta guardada', scn: "solo lectura",
+    on: ["b-rec", "b-db", "b-ctr", "b-net", "w-db2", "w-probe"], ctr: "healthy",
+  };
+  const idle = {
+    who: ["Bucle · vueltas 2, 3, …", C.loop], title: "Mientras no haya causa, vigila cada nodo",
+    txt: "Cada 2 s el bucle ve <code>RUNNING</code> sin causa y le pide a Docker el estado de cada contenedor. Lo guarda en memoria, y la API lo devuelve en <code>components[]</code>. Mientras todo esté sano y no pasen los 30 minutos del tiempo límite, no hace nada más. El experimento sigue vivo aunque cierres el navegador.",
+    cmd: `docker compose --ansi never -p ${P} -f - ps --all --format json\n← {"Service":"c-3f0c…","State":"running","Health":"healthy", …}\n\ncomponents[0].status = HEALTHY`,
+    db: row("RUNNING", null, null), docker: '<span class="ok">c-3f0c… healthy</span>', scn: "solo lectura",
+    on: ["b-rec", "b-db", "b-eng", "b-proxy", "b-ctr", "w-db2", "w-eng", "w-proxy", "w-dock"], ctr: "healthy",
+  };
+  const stop = {
+    who: ["Tú", C.user], title: "Pulsas Stop",
+    txt: "<code>ExecutionService.stop()</code> bloquea la fila y solo apunta la causa <code>STOP_REQUESTED</code>. Responde 202 al momento: la fase sigue siendo <code>RUNNING</code> y el contenedor sigue vivo.",
+    cmd: "POST …/executions/12/stop\n\n← 202 Accepted  {\"phase\": \"RUNNING\", \"stopCause\": \"STOP_REQUESTED\"}",
+    db: row("RUNNING", '<span class="chg">STOP_REQUESTED</span>', null), docker: '<span class="ok">c-3f0c… healthy</span>', scn: "solo lectura",
+    on: ["b-nav", "b-ctrl", "b-svc", "b-db", "w-nav", "w-svc", "w-db1"], ctr: "healthy",
+  };
+  const stopping = {
+    who: ["Bucle · siguiente vuelta", C.loop], title: "Hay una causa: a limpiar",
+    txt: "El bucle ve una causa de parada y pasa la fila a <code>STOPPING</code>. Después, fuera de la transacción, el motor retira el proyecto y barre por etiqueta todo lo que pudiera quedar.",
+    cmd: `docker network disconnect --force …exec-12_exec <backend>\ndocker compose --ansi never -p ${P} -f - down -v\n\ndocker container ls -aq ${LBL}\ndocker network ls -q   (mismas etiquetas)\ndocker volume ls -q    (mismas etiquetas)\n→ vacío`,
+    db: row('<span class="chg">STOPPING</span>', "STOP_REQUESTED", null), docker: "contenedor y red borrados", scn: "solo lectura",
+    on: ["b-rec", "b-db", "b-eng", "b-proxy", "b-net", "b-ctr", "w-db2", "w-eng", "w-proxy", "w-dock"], ctr: "gone",
+  };
+  const released = (outcome, extra) => ({
+    who: ["Bucle", C.loop], title: outcome === "COMPLETED" ? "No queda nada: reserva liberada" : "No queda nada: reserva liberada, con fallo",
+    txt: `Solo cuando el barrido confirma que no queda nada, <code>release()</code> cierra la ejecución. El resultado sale de la causa más grave registrada. El escenario vuelve a ser editable y Run queda libre para cualquiera.`,
+    cmd: "execution.release()\n\nGET …/executions/current\n← 200  {\"phase\": \"RELEASED\", \"outcome\": \"" + outcome + "\"" + (extra ? ", …" : "") + "}",
+    db: row('<span class="chg">RELEASED</span>', outcome === "COMPLETED" ? "STOP_REQUESTED" : "FAILURE",
+      `<span class="chg ${outcome === "COMPLETED" ? "ok" : "bad"}">${outcome}</span>`, "releasedAt ✓" + (extra ? "<br>" + extra : "")),
+    docker: "nada", scn: '<span class="chg">editable</span>',
+    on: ["b-rec", "b-db", "w-db2"], ctr: "off",
+  });
+
+  const CASES = {
+    ok: [before, run, tick1, healthy, idle, stop, stopping, released("COMPLETED")],
+    start: [before, run, tick1, {
+      who: ["Bucle · vuelta 1", C.loop], title: "El contenedor no llega a estar sano",
+      txt: "El healthcheck falla y <code>up --wait</code> termina con error. El motor lanza <code>RuntimeEngineException</code> con el final de la salida de Compose, y el bucle lo guarda con <code>fail()</code>. La fase no cambia: solo se apunta la causa.",
+      cmd: "✗ dependency failed to start:\n  container …-c-3f0c…-1 is unhealthy\n\nexecution.fail(\"docker compose up failed: …\")",
+      db: row("STARTING", '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), docker: '<span class="bad">c-3f0c… unhealthy</span>', scn: "solo lectura",
+      on: ["b-rec", "b-eng", "b-db", "b-ctr", "w-db2", "w-eng"], ctr: "unhealthy",
+    }, {
+      ...stopping, title: "La causa es un fallo: a limpiar igual",
+      txt: "En la siguiente vuelta el bucle ve la causa <code>FAILURE</code> y hace exactamente lo mismo que con Stop: <code>STOPPING</code>, <code>down -v</code> y barrido. Toda salida pasa por la limpieza.",
+      db: row('<span class="chg">STOPPING</span>', "FAILURE", null, "failureReason ✓"),
+    }, released("FAILED", "failureReason ✓")],
+    node: [before, run, tick1, healthy, idle, {
+      who: ["Bucle · una vuelta cualquiera", C.loop], title: "Un nodo deja de estar sano",
+      txt: "El contenedor sigue vivo, pero su comprobación de salud lleva 15 fallos seguidos y Docker lo marca <code>unhealthy</code>. El bucle lo ve en <code>docker compose ps</code> y guarda <code>fail(\"orders-api is unhealthy\")</code>. Si el contenedor hubiera desaparecido, el motivo sería <code>orders-api stopped</code>. Arrancar no es lo mismo que funcionar.",
+      cmd: `docker compose … ps --all --format json\n← {"Service":"c-3f0c…","State":"running","Health":"unhealthy"}\n\nexecution.fail("orders-api is unhealthy")`,
+      db: row("RUNNING", '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), docker: '<span class="bad">c-3f0c… unhealthy</span>', scn: "solo lectura",
+      on: ["b-rec", "b-eng", "b-proxy", "b-db", "b-ctr", "w-db2", "w-eng", "w-proxy", "w-dock"], ctr: "unhealthy",
+    }, {
+      ...stopping, title: "La causa es un fallo: a limpiar igual",
+      txt: "En la siguiente vuelta el bucle ve la causa <code>FAILURE</code> y limpia como con Stop: <code>STOPPING</code>, sale de la red, <code>down -v</code> y barrido por etiquetas.",
+      db: row('<span class="chg">STOPPING</span>', "FAILURE", null, "failureReason ✓"),
+    }, released("FAILED", "failureReason ✓")],
+    time: [before, run, tick1, healthy, idle, {
+      who: ["Bucle · a los 30 minutos", C.loop], title: "Se acaba el tiempo límite",
+      txt: "Han pasado 30 minutos (<code>infracture.execution.max-duration</code>) desde que pulsaste Run y todos los nodos siguen sanos. El bucle apunta la parada igual que si pulsaras Stop. <b>Atajo:</b> se guarda como <code>STOP_REQUESTED</code> y acaba <code>COMPLETED</code>, así que hoy no se distingue de un Stop manual. Cuando haga falta, tendrá una causa propia.",
+      cmd: "createdAt + 30 min ≤ ahora\n\nexecution.requestStop()   ← el mismo efecto que pulsar Stop",
+      db: row("RUNNING", '<span class="chg">STOP_REQUESTED</span>', null), docker: '<span class="ok">c-3f0c… healthy</span>', scn: "solo lectura",
+      on: ["b-rec", "b-db", "w-db2"], ctr: "healthy",
+    }, { ...stopping, title: "Se limpia como con Stop" }, released("COMPLETED")],
+    clean: [before, run, tick1, healthy, stop, {
+      ...stopping, title: "La limpieza falla",
+      txt: "Docker no responde a tiempo, o queda algo con las etiquetas. El motor lanza la excepción y el bucle la guarda con <code>fail()</code>. <code>FAILURE</code> es más grave que <code>STOP_REQUESTED</code>, así que sustituye a la causa. La fila se queda en <code>STOPPING</code>, la reserva sigue tomada y el escenario sigue en solo lectura.",
+      cmd: `docker compose … down -v\n✗ docker compose down did not finish within 120 seconds\n\nexecution.fail(…)   → la fase sigue en STOPPING`,
+      db: row('<span class="chg">STOPPING</span>', '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), docker: '<span class="bad">puede quedar algo</span>', scn: "solo lectura",
+      ctr: "healthy",
+    }, {
+      ...stopping, title: "La siguiente vuelta lo reintenta",
+      txt: "La fila sigue en <code>STOPPING</code>, así que el bucle vuelve a ejecutar la limpieza. Repetirla es seguro: <code>down -v</code> y el barrido no fallan si algo ya no existe.",
+      db: row("STOPPING", "FAILURE", null, "failureReason ✓"),
+    }, released("FAILED", "failureReason ✓")],
+  };
+
+  let current = "ok", index = 0;
+  const $ = id => document.getElementById(id);
+
+  function render() {
+    const steps = CASES[current], s = steps[index];
+    $("who").textContent = s.who[0];
+    $("who").style.setProperty("--c", s.who[1]);
+    $("title").textContent = s.title;
+    $("txt").innerHTML = s.txt;
+    $("cmd").textContent = s.cmd;
+    $("s-db").innerHTML = s.db;
+    $("s-docker").innerHTML = s.docker;
+    $("s-scn").innerHTML = s.scn;
+    $("count").textContent = `${index + 1} / ${steps.length}`;
+    $("prev").disabled = index === 0;
+    $("next").disabled = index === steps.length - 1;
+
+    document.querySelectorAll(".box, .wire, .wl").forEach(el => el.classList.remove("on"));
+    for (const id of s.on) {
+      const el = $(id);
+      if (!el) continue;
+      el.classList.add("on");
+      const label = $("l-" + id.slice(2));
+      if (id.startsWith("w-") && label) label.classList.add("on");
+    }
+    const ctr = $("b-ctr"), state = $("ctr-state");
+    ctr.style.opacity = s.ctr === "off" || s.ctr === "gone" ? "0.25" : "1";
+    $("b-net").style.opacity = s.ctr === "off" || s.ctr === "gone" ? "0.25" : "1";
+    state.textContent = { off: "", gone: "borrado", starting: "arrancando…", healthy: "healthy", unhealthy: "unhealthy" }[s.ctr];
+    state.style.fill = s.ctr === "healthy" ? "var(--ok)" : s.ctr === "unhealthy" ? "var(--danger)" : "var(--muted)";
+
+    const dots = $("dots");
+    dots.replaceChildren();
+    steps.forEach((_, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = i + 1;
+      b.className = i === index ? "cur" : i < index ? "done" : "";
+      b.setAttribute("aria-label", `Ir al paso ${i + 1}`);
+      b.addEventListener("click", () => { index = i; render(); });
+      dots.append(b);
+    });
+  }
+
+  document.querySelectorAll("[data-case]").forEach(b => b.addEventListener("click", () => {
+    current = b.dataset.case;
+    index = 0;
+    document.querySelectorAll("[data-case]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    render();
+  }));
+  $("prev").addEventListener("click", () => { if (index > 0) { index--; render(); } });
+  $("next").addEventListener("click", () => { if (index < CASES[current].length - 1) { index++; render(); } });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest("input, textarea")) return;
+    if (e.key === "ArrowRight") $("next").click();
+    if (e.key === "ArrowLeft") $("prev").click();
+  });
+  render();
+</script>
+</body>
+</html>

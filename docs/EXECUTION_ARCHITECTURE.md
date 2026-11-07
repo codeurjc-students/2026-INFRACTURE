@@ -704,16 +704,16 @@ El backend es un monolito modular. Cada módulo sigue las capas `api`, `applicat
 | Pieza | Módulo | Estado |
 | --- | --- | --- |
 | `ComponentTemplate`, lectura del catálogo | `catalog` | Implementado. |
-| `ContractCatalog`, `ProfileContract`, `ParameterContract` | `catalog` | En desarrollo (#79). |
-| Guardado del grafo con revisión esperada | `project` | En desarrollo (#79). |
-| `Connection`, puertos y capacidades | `project`, `catalog` | En desarrollo (#80). |
-| `ScenarioValidator`, `ValidationIssue` | `project` | Pendiente. |
-| `Workload` | `project` | Pendiente. |
-| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | En desarrollo (#86): HTTP Service `STATELESS` con `docker compose`. El resto de tipos, en P07. |
+| `ContractCatalog`, `ProfileContract`, `ParameterContract` | `catalog` | Implementado (#79). |
+| Guardado del grafo con revisión esperada | `project` | Implementado (#79). |
+| `Connection`, puertos y capacidades | `project`, `catalog` | Implementado (#80). |
+| `ScenarioValidator`, `ValidationIssue` | `project` | Implementado (#81). |
+| `Workload` | `project` | Pendiente (#87). |
+| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86). El resto de tipos, en P07. |
 | Observación e historial | `observation` | Pendiente (P08). |
 | Load Balancer | `catalog`, `execution` | Pendiente (P07). |
 
-Los nombres de clases son los previstos. Pueden ajustarse al implementar si se conserva la responsabilidad de cada pieza.
+Los nombres de las piezas pendientes son los previstos y pueden ajustarse al implementarlas. Lo que hace cada clase que ya existe, y quién la usa, está en el [mapa del código](CODE_MAP.md).
 
 ## 17. Decisiones y referencias
 
