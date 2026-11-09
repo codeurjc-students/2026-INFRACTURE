@@ -190,10 +190,11 @@ Como alternativa, tras `npm ci`, [`scripts/start-dev.sh`](../scripts/start-dev.s
 
 ### Experimentos con el backend en contenedor
 
-Para lanzar experimentos reales, el backend debe correr dentro de Docker: así se une a la red de cada ejecución y puede pedir la respuesta del servicio. Construye la imagen de demostración una vez y arranca la plataforma con el perfil `app`, que añade `docker-proxy` y `backend`. No arranques a la vez `./mvnw spring-boot:run`, porque los dos usan el puerto 8080.
+Para lanzar experimentos reales, el backend debe correr dentro de Docker: así se une a la red de cada ejecución y puede pedir la respuesta del servicio. Construye una vez la imagen de demostración y la de carga (k6 con sus scripts fijos) y arranca la plataforma con el perfil `app`, que añade `docker-proxy` y `backend`. No arranques a la vez `./mvnw spring-boot:run`, porque los dos usan el puerto 8080.
 
 ```bash
 docker build -t infracture/demo-app:0.1.0 demo-app
+docker build -t infracture/load-generator:0.1.0 load-generator
 docker compose --profile app up -d --wait --build
 ```
 
