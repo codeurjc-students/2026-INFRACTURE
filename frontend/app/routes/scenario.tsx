@@ -1,6 +1,7 @@
 import type { Route } from "./+types/scenario";
 import { useRouteLoaderData } from "react-router";
 import { getComponentTemplates } from "~/features/component-catalogue/api/component-template-service";
+import { getWorkloadProfiles } from "~/features/component-catalogue/api/workload-profile-service";
 import { getProject } from "~/features/projects/api/project-service";
 import {
   getScenario,
@@ -25,17 +26,26 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 // Loads everything the editor needs at once. A missing or foreign scenario becomes the 404 page.
 export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  const [project, scenario, graph, templates, execution] = await loadOrNotFound(
-    Promise.all([
-      getProject(params.projectId),
-      getScenario(params.projectId, params.scenarioId),
-      getGraph(params.projectId, params.scenarioId),
-      // The catalogue is small; one page of the maximum size holds every template.
-      getComponentTemplates(0, 100),
-      getCurrentExecution(params.projectId, params.scenarioId),
-    ]),
-  );
-  return { project, scenario, graph, templates: templates.content, execution };
+  const [project, scenario, graph, templates, workloadProfiles, execution] =
+    await loadOrNotFound(
+      Promise.all([
+        getProject(params.projectId),
+        getScenario(params.projectId, params.scenarioId),
+        getGraph(params.projectId, params.scenarioId),
+        // The catalogue is small; one page of the maximum size holds every template.
+        getComponentTemplates(0, 100),
+        getWorkloadProfiles(),
+        getCurrentExecution(params.projectId, params.scenarioId),
+      ]),
+    );
+  return {
+    project,
+    scenario,
+    graph,
+    templates: templates.content,
+    workloadProfiles,
+    execution,
+  };
 }
 
 // Saves the scenario name and description from the Details panel.
@@ -65,7 +75,8 @@ export function ErrorBoundary() {
 export default function ScenarioRoute({
   loaderData,
 }: Pick<Route.ComponentProps, "loaderData">) {
-  const { project, scenario, graph, templates, execution } = loaderData;
+  const { project, scenario, graph, templates, workloadProfiles, execution } =
+    loaderData;
   // The private layout already loaded the signed-in account; its id keeps local drafts per account.
   const user = useRouteLoaderData<typeof privateLoader>(
     "routes/private-layout",
@@ -79,6 +90,7 @@ export default function ScenarioRoute({
       scenario={scenario}
       graph={graph}
       templates={templates}
+      workloadProfiles={workloadProfiles}
       execution={execution}
       userId={user?.id}
     />

@@ -53,6 +53,37 @@ export function nodeView(status: NodeStatus): StatusView {
   }
 }
 
+// k6 is sending requests right now: the experiment runs, nothing stops it and the load has not ended.
+export function isSendingTraffic(execution: ExecutionDTO | null) {
+  return (
+    execution?.workload != null &&
+    execution.workload.summaryCollectedAt === null &&
+    execution.phase === "RUNNING" &&
+    execution.stopCause === null
+  );
+}
+
+// What the load of an execution is doing, or null when the execution had no load. Once k6 reported,
+// its summary says whether it ran its whole duration.
+export function loadView(execution: ExecutionDTO): StatusView | null {
+  const { workload } = execution;
+  if (!workload) return null;
+  if (workload.summaryCollectedAt !== null) {
+    return workload.completed
+      ? { label: "Finished", tone: "paused" }
+      : { label: "Stopped early", tone: "paused" };
+  }
+  if (execution.phase === "RELEASED") {
+    return { label: "No summary", tone: "degraded" };
+  }
+  if (execution.stopCause !== null)
+    return { label: "Stopping", tone: "paused" };
+  if (isSendingTraffic(execution)) {
+    return { label: "Sending traffic", tone: "healthy" };
+  }
+  return { label: "Waiting for healthy components", tone: "recovering" };
+}
+
 // Text colour of each tone, from the tokens in app.css.
 export const toneText: Record<Tone, string> = {
   healthy: "text-healthy-text",

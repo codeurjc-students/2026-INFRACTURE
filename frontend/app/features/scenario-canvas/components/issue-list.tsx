@@ -3,11 +3,13 @@ import { Button } from "~/components/ui/button";
 import type { ValidationIssueDTO } from "../model/ValidationIssueDTO";
 import IssueNote from "./issue-note";
 
-// An issue ready to list: where it is, in words, and the node that shows it (null for the scenario).
+// An issue ready to list: where it is, in words, and the node that shows it (null for the scenario),
+// or whether it belongs to the load, which has its own panel.
 export interface LocatedIssue {
   issue: ValidationIssueDTO;
   where: string;
   nodeKey: string | null;
+  load?: boolean;
 }
 
 // Errors first, then warnings, keeping the backend order inside each group.
@@ -17,17 +19,20 @@ function bySeverity(a: LocatedIssue, b: LocatedIssue) {
   );
 }
 
-// The scenario's issues from the last save, in the side panel. Picking one selects its node.
+// The scenario's issues from the last save, in the side panel. Picking one selects its node or opens
+// the load.
 export default function IssueList({
   issues,
   stale,
   onLocate,
+  onLocateLoad,
   onClose,
 }: Readonly<{
   issues: LocatedIssue[];
   // There are edits after the save these issues come from.
   stale: boolean;
   onLocate: (nodeKey: string) => void;
+  onLocateLoad: () => void;
   onClose: () => void;
 }>) {
   const errors = issues.filter(({ issue }) => issue.severity === "ERROR");
@@ -76,7 +81,7 @@ export default function IssueList({
         </p>
       )}
       <ul className="-mx-2 flex flex-col">
-        {[...issues].sort(bySeverity).map(({ issue, where, nodeKey }) => {
+        {[...issues].sort(bySeverity).map(({ issue, where, nodeKey, load }) => {
           const content = (
             <>
               <IssueNote severity={issue.severity} message={issue.message} />
@@ -87,10 +92,10 @@ export default function IssueList({
           );
           return (
             <li key={`${issue.code}-${issue.target.key}-${issue.field}`}>
-              {nodeKey ? (
+              {nodeKey || load ? (
                 <button
                   type="button"
-                  onClick={() => onLocate(nodeKey)}
+                  onClick={() => (nodeKey ? onLocate(nodeKey) : onLocateLoad())}
                   className="flex w-full flex-col gap-0.5 rounded-md px-2 py-2 text-left active:bg-accent pointer-fine:hover:bg-accent motion-safe:transition-colors"
                 >
                   {content}

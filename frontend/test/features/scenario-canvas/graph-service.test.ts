@@ -29,7 +29,12 @@ describe("graph service", () => {
     document.cookie = "XSRF-TOKEN=token";
     const fetch = vi.fn().mockResolvedValue(Response.json(graph));
     vi.stubGlobal("fetch", fetch);
-    const body = { revision: 1, components: [], connections: [] };
+    const body = {
+      revision: 1,
+      components: [],
+      connections: [],
+      workload: null,
+    };
 
     await expect(saveGraph("7", "3", body)).resolves.toEqual(graph);
     const [path, init] = fetch.mock.calls[0];
@@ -54,6 +59,7 @@ describe("graph service", () => {
       revision: 1,
       components: [],
       connections: [],
+      workload: null,
     }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(HttpError);
     expect(error).toMatchObject({ status: 409, message: "Reload it." });

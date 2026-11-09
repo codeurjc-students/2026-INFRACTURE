@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   executionView,
+  isSendingTraffic,
+  loadView,
   nodeView,
 } from "~/features/scenario-canvas/execution-status";
+import type { ExecutedWorkloadDTO } from "~/features/scenario-canvas/model/ExecutedWorkloadDTO";
 import type { ExecutionDTO } from "~/features/scenario-canvas/model/ExecutionDTO";
 
 function execution(overrides: Partial<ExecutionDTO>): ExecutionDTO {
@@ -18,6 +21,7 @@ function execution(overrides: Partial<ExecutionDTO>): ExecutionDTO {
     createdAt: "2026-11-07T10:00:00Z",
     releasedAt: null,
     components: [],
+    workload: null,
     ...overrides,
   };
 }
@@ -52,5 +56,72 @@ describe("execution status", () => {
     ["EXITED", "Stopped", "failed"],
   ] as const)("shows a %s node as %s", (status, label, tone) => {
     expect(nodeView(status)).toEqual({ label, tone });
+  });
+
+  const frozen: ExecutedWorkloadDTO = {
+    targetKey: "a",
+    profile: "CONSTANT_HTTP",
+    parameters: { requestsPerSecond: 5 },
+    seed: 7,
+    summaryCollectedAt: null,
+    completed: null,
+    summary: null,
+  };
+  const ended = { ...frozen, summaryCollectedAt: "2026-11-09T10:00:00Z" };
+
+  it.each([
+    [
+      { phase: "STARTING", workload: frozen },
+      "Waiting for healthy components",
+      "recovering",
+    ],
+    [{ phase: "RUNNING", workload: frozen }, "Sending traffic", "healthy"],
+    [
+      { phase: "RUNNING", stopCause: "STOP_REQUESTED", workload: frozen },
+      "Stopping",
+      "paused",
+    ],
+    [
+      { phase: "RUNNING", workload: { ...ended, completed: true } },
+      "Finished",
+      "paused",
+    ],
+    [
+      { phase: "RELEASED", workload: { ...ended, completed: false } },
+      "Stopped early",
+      "paused",
+    ],
+    [{ phase: "RELEASED", workload: frozen }, "No summary", "degraded"],
+  ] as const)("shows the load of %o as %s", (overrides, label, tone) => {
+    expect(loadView(execution(overrides as Partial<ExecutionDTO>))).toEqual({
+      label,
+      tone,
+    });
+  });
+
+  it("shows nothing for an execution without load", () => {
+    expect(loadView(execution({ phase: "RUNNING" }))).toBeNull();
+  });
+
+  it("says k6 sends traffic only while the experiment runs and the load has not ended", () => {
+    expect(
+      isSendingTraffic(execution({ phase: "RUNNING", workload: frozen })),
+    ).toBe(true);
+    expect(
+      isSendingTraffic(execution({ phase: "STARTING", workload: frozen })),
+    ).toBe(false);
+    expect(
+      isSendingTraffic(
+        execution({
+          phase: "RUNNING",
+          stopCause: "STOP_REQUESTED",
+          workload: frozen,
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isSendingTraffic(execution({ phase: "RUNNING", workload: ended })),
+    ).toBe(false);
+    expect(isSendingTraffic(null)).toBe(false);
   });
 });

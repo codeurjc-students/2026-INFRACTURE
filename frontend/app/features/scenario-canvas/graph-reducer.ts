@@ -7,6 +7,7 @@ import {
   type NodeChange,
 } from "@xyflow/react";
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
+import type { WorkloadProfileDTO } from "~/features/component-catalogue/model/WorkloadProfileDTO";
 import type { TemplateContractDTO } from "~/features/component-catalogue/model/TemplateContractDTO";
 import { connectionId, toConnection, toEdge } from "./connections";
 import type { ComponentDTO } from "./model/ComponentDTO";
@@ -16,6 +17,7 @@ import type { SaveScenarioGraphDTO } from "./model/SaveScenarioGraphDTO";
 import type { ScenarioGraphDTO } from "./model/ScenarioGraphDTO";
 import type { GraphDraft } from "./draft-storage";
 import type { ValidationIssueDTO } from "./model/ValidationIssueDTO";
+import type { WorkloadDTO } from "./model/WorkloadDTO";
 
 // Same limit as the backend.
 export const MAX_COMPONENTS = 50;
@@ -46,6 +48,8 @@ export interface CanvasState {
   nodes: ComponentNode[];
   // The connections, as React Flow edges: the source handle is the port.
   edges: Edge[];
+  // The scenario load, or null when it has none. It is not a node (ADR 0012).
+  workload: WorkloadDTO | null;
   // Contract issues from the last read or save.
   issues: ValidationIssueDTO[];
   // Local changes which have not been saved to the server yet.
@@ -78,6 +82,16 @@ export type CanvasAction =
       value: number | undefined;
     }
   | { type: "removed"; key: string }
+  | { type: "workloadAdded"; profile: WorkloadProfileDTO; seed: number }
+  | { type: "workloadProfileChanged"; profile: WorkloadProfileDTO }
+  | { type: "workloadTargetChanged"; targetKey: string | null }
+  | {
+      type: "workloadParameterChanged";
+      name: string;
+      value: number | undefined;
+    }
+  | { type: "workloadSeedChanged"; seed: number }
+  | { type: "workloadRemoved" }
   | { type: "edgesChanged"; changes: EdgeChange[] }
   | { type: "connected"; connection: ConnectionDTO }
   | { type: "disconnected"; id: string }
@@ -107,6 +121,7 @@ export function toCanvasState(graph: ScenarioGraphDTO): CanvasState {
     revision: graph.revision,
     nodes: graph.components.map((component) => toNode(component)),
     edges: graph.connections.map((connection) => toEdge(connection)),
+    workload: graph.workload,
     issues: graph.issues,
     dirty: false,
     status: "idle",
@@ -128,6 +143,7 @@ export function toSaveGraph(
   nodes: ComponentNode[],
   edges: Edge[],
   revision: number,
+  workload: WorkloadDTO | null,
 ): SaveScenarioGraphDTO {
   return {
     revision,
@@ -142,6 +158,7 @@ export function toSaveGraph(
       }),
     ),
     connections: edges.map(toConnection),
+    workload,
   };
 }
 
@@ -149,6 +166,30 @@ export function toSaveGraph(
 function withoutDangling(edges: Edge[], nodes: ComponentNode[]) {
   const keys = new Set(nodes.map((node) => node.id));
   return edges.filter((edge) => keys.has(edge.source) && keys.has(edge.target));
+}
+
+// A load whose target left the board keeps its settings without a target, as the backend does.
+function withoutMissingTarget(
+  workload: WorkloadDTO | null,
+  nodes: ComponentNode[],
+): WorkloadDTO | null {
+  if (
+    workload?.targetKey &&
+    !nodes.some((node) => node.id === workload.targetKey)
+  ) {
+    return { ...workload, targetKey: null };
+  }
+  return workload;
+}
+
+// Applies a change to the load and marks the graph as changed. Without a load there is nothing to change.
+function editWorkload(
+  state: CanvasState,
+  change: (workload: WorkloadDTO) => WorkloadDTO,
+): CanvasState {
+  return state.workload
+    ? { ...state, dirty: true, workload: change(state.workload) }
+    : state;
 }
 
 // Picks a free name: "HTTP Service", then "HTTP Service 2", "HTTP Service 3"...
@@ -212,6 +253,7 @@ export function graphReducer(
         dirty: state.dirty || edited,
         nodes,
         edges: withoutDangling(state.edges, nodes),
+        workload: withoutMissingTarget(state.workload, nodes),
       };
     }
     case "added": {
@@ -278,8 +320,58 @@ export function graphReducer(
         dirty: true,
         nodes,
         edges: withoutDangling(state.edges, nodes),
+        workload: withoutMissingTarget(state.workload, nodes),
       };
     }
+    case "workloadAdded":
+      // The user picks the target next; a copy of the initial values, so the profile never changes.
+      return {
+        ...state,
+        dirty: true,
+        workload: {
+          targetKey: null,
+          profile: action.profile.name,
+          parameters: { ...action.profile.initialParameters },
+          seed: action.seed,
+        },
+      };
+    case "workloadProfileChanged":
+      // Keeps the values the new profile shares; new parameters start at their initial value.
+      return editWorkload(state, (workload) => ({
+        ...workload,
+        profile: action.profile.name,
+        parameters: Object.fromEntries(
+          action.profile.parameters.map((parameter) => [
+            parameter.name,
+            workload.parameters[parameter.name] ??
+              action.profile.initialParameters[parameter.name] ??
+              parameter.min,
+          ]),
+        ),
+      }));
+    case "workloadTargetChanged":
+      return editWorkload(state, (workload) => ({
+        ...workload,
+        targetKey: action.targetKey,
+      }));
+    case "workloadParameterChanged":
+      // undefined means the field is empty while the user types.
+      return editWorkload(state, (workload) => {
+        const parameters = { ...workload.parameters };
+        if (action.value === undefined) {
+          delete parameters[action.name];
+        } else {
+          parameters[action.name] = action.value;
+        }
+        return { ...workload, parameters };
+      });
+    case "workloadSeedChanged":
+      return editWorkload(state, (workload) => ({
+        ...workload,
+        seed: action.seed,
+      }));
+    case "workloadRemoved":
+      return state.workload ? { ...state, dirty: true, workload: null } : state;
     case "edgesChanged":
       // React Flow reports selections and deletions of arrows. Selecting is not a change to save.
       return {
@@ -368,6 +460,11 @@ export function graphReducer(
         edges: (action.draft.connections ?? []).map((connection) =>
           toEdge(connection),
         ),
+        // Drafts saved before loads existed keep the load on screen.
+        workload:
+          action.draft.workload === undefined
+            ? state.workload
+            : action.draft.workload,
         dirty: true,
         status: "idle",
         error: null,

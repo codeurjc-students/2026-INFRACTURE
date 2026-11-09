@@ -196,6 +196,45 @@
   }
 }
 
+/* Requests travelling into the load's target. At rest they sit along the lane; they only move while k6
+   sends them, so the motion explains the execution (DESIGN.md). */
+.traffic-packet {
+  translate: var(--traffic-at) -50%;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .traffic-sending .traffic-packet {
+    animation: traffic-packet var(--traffic-trip) linear infinite;
+    box-shadow: 0 0 6px currentColor;
+  }
+
+  .traffic-sending .traffic-live {
+    animation: traffic-live 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes traffic-packet {
+  from {
+    translate: 0 -50%;
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 1;
+  }
+  to {
+    translate: var(--traffic-run) -50%;
+    opacity: 0;
+  }
+}
+
+@keyframes traffic-live {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -211,7 +250,9 @@
   .font-display,
   .type-hero,
   .type-headline {
-    font-variation-settings: "SHRP" 100, "CRSV" 1;
+    font-variation-settings:
+      "SHRP" 100,
+      "CRSV" 1;
   }
   code,
   kbd,
