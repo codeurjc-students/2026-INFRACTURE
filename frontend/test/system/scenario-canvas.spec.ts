@@ -324,7 +324,7 @@ test("finds errors in an invalid graph, corrects them and keeps only allowed war
       "Task queue",
     );
     await page.goto(`/projects/${project.id}/scenarios/${scenario.id}`);
-    await issues("2 issues").click();
+    await issues("1 issue").click();
     await expect(
       inspector(page).getByText(
         "Add at least one component to run the scenario",
