@@ -236,21 +236,31 @@ Hay como máximo un `Workload` por escenario. Se guarda en la tabla `scenario_wo
 
 ### 7.3 Cómo se genera
 
-La carga la produce **Grafana k6** dentro de una imagen controlada por Infracture. Esa imagen trae **un script fijo por perfil**. El backend no genera código: solo pasa números por variables de entorno.
+La carga la produce **Grafana k6** dentro de una imagen controlada por Infracture, [`load-generator/`](../load-generator). Esa imagen trae **un script fijo por perfil**, y su `run.sh` elige el script según `WORKLOAD_PROFILE`. El backend no genera código: solo pasa la dirección del objetivo y números por variables de entorno. Así queda el servicio de k6 en el plan de un `CONSTANT_HTTP`:
 
 ```text
-WORKLOAD_PROFILE=REPEATED_READ
-TARGET_URL=http://orders-api:8080
-REQUESTS_PER_SECOND=10
-VIRTUAL_USERS=5
-DATASET_SIZE=20
-RANDOM_SEED=48372
+WORKLOAD_PROFILE=CONSTANT_HTTP
+TARGET_URL=http://c-3f0c8a1e-…:8080/
+DURATION_SECONDS=60
+REQUESTS_PER_SECOND=5
+VIRTUAL_USERS=2
+RANDOM_SEED=7
 ```
 
-Cada usuario virtual de k6 repite un bucle: elige una operación permitida, genera sus datos con la semilla, envía la petición, anota el código y la latencia, y espera según la frecuencia configurada. k6 agrega los resultados y el backend los recoge por intervalos; Spring no envía las peticiones una a una.
+`CONSTANT_HTTP` usa el executor `constant-arrival-rate` de k6: empieza `REQUESTS_PER_SECOND` peticiones `GET` por segundo, con como mucho `VIRTUAL_USERS` en vuelo a la vez. Si no bastan, k6 no empieza las que faltan y las cuenta en `dropped_iterations`, que es evidencia de saturación. k6 no tiene opción de semilla, así que los scripts que eligen datos al azar usarán una propia; en `CONSTANT_HTTP` la petición es siempre la misma. Los límites de cada número y lo que fija Infracture están en el [ADR 0016](adr/0016-limites-de-la-carga-constant-http.md).
+
+k6 agrega los resultados; Spring no envía las peticiones una a una. Al terminar, el script imprime una sola línea con el resumen y el backend la guarda en el snapshot de la ejecución (tabla `executed_workloads`):
+
+```text
+INFRACTURE_SUMMARY {"requests":42,"failedRequests":0,"droppedIterations":0,"averageLatencyMs":28.4,"p95LatencyMs":32.7}
+```
+
+Lo que k6 no midió queda vacío, nunca como 0. Si k6 nunca arrancó o no se pudo parar, no se guarda ningún resumen.
 
 - **Sin carga se puede ejecutar.** Un escenario sin `Workload` muestra la advertencia «no habrá tráfico» y deja ejecutar, por ejemplo para observar solo el arranque y el consumo.
 - **La carga arranca la última.** Solo empieza cuando todos los servicios están sanos, para que los resultados se puedan interpretar.
+- **Que la carga termine no termina el experimento.** Cuando k6 cumple su duración, el backend guarda su resumen y el experimento sigue hasta `Stop` o el tiempo máximo, para observar el sistema después de la carga. Si k6 sale con un error, la ejecución falla.
+- **Estado de 0.1.0.** Solo existe `CONSTANT_HTTP`, contra un HTTP Service `STATELESS`. Los otros tres perfiles llegarán con su script y su contrato.
 
 ## 8. La validación
 
@@ -369,7 +379,7 @@ El orden lo deciden las dependencias del grafo, y Compose espera la salud real a
 ![Cronología del arranque](images/execution-architecture/12-cronologia-del-arranque.png)
 
 - **`--wait`** hace que `docker compose up` no termine hasta que todos los servicios estén sanos, o falle si alguno no lo consigue a tiempo.
-- **La carga arranca después.** Solo cuando `up --wait` termina bien, el motor lanza k6.
+- **La carga arranca después.** El servicio de k6 lleva el perfil de Compose `load`, así que `up --wait` no lo arranca. Solo cuando termina bien, el motor lanza `docker compose --profile load up -d --no-deps workload`.
 - **Cada espera tiene un límite.** Si una imagen no se descarga o un servicio no llega a estar sano, la ejecución pasa a fallida, se registra el motivo y se limpia.
 
 ### 9.5 Fase deseada y limpieza por etiqueta
@@ -387,9 +397,9 @@ El `ExecutionReconciler` funciona como un bucle de control: compara **lo que se 
 
 Todas las formas de terminar piden lo mismo. Para alcanzar `STOPPED`, el motor sigue siempre la misma secuencia:
 
-1. Detiene k6 para que no se genere más trabajo.
-2. Recoge las últimas métricas disponibles.
-3. Ejecuta `docker compose -p infracture-local-exec-12 down -v`, que retira contenedores, red y volúmenes temporales.
+1. Detiene k6 con `docker compose --profile load stop workload` para que no se genere más trabajo. k6 recibe SIGTERM, termina de forma ordenada y sale con el código 105.
+2. Recoge las últimas métricas disponibles: el código de salida de k6 (`ps`) y su línea de resumen (`logs`). Si k6 ya había terminado y su resumen está guardado, se salta este paso y el anterior.
+3. Ejecuta `docker compose -p infracture-local-exec-12 --profile load down -v`, que retira contenedores, también el de k6, red y volúmenes temporales.
 4. Busca por etiqueta (`io.infracture.instance=local` y `io.infracture.execution=12`, las dos a la vez) lo que haya quedado, lo retira y vuelve a comprobar que no queda nada.
 5. Registra el resultado y libera la reserva.
 
@@ -597,7 +607,7 @@ Cada `ComponentDriver` declara sus métricas y de dónde se leen. Un único `Tel
 | PostgreSQL | `pg_isready` | Conexiones activas | Docker y consulta de estado. |
 | Redis | `redis-cli ping` | Memoria y claves | Comando `INFO`. |
 | RabbitMQ | Diagnóstico del broker | Mensajes preparados, sin confirmar, publicados y consumidos | API de gestión de RabbitMQ. |
-| Workload (k6) | Progreso de k6 | Peticiones, errores, latencia media y p95, rendimiento | Resultados agregados de k6. |
+| Workload (k6) | Progreso de k6 | Peticiones, errores, latencia media y p95, rendimiento | Resultados agregados de k6. Hoy, solo el resumen final ([sección 7.3](#73-cómo-se-genera)); por intervalos en P08. |
 | Load Balancer | Comprobaciones de HAProxy | Tráfico y estado de cada backend | Endpoint Prometheus de HAProxy. |
 
 Para leer esas fuentes, el backend se une a la red de la ejecución. No hace falta publicar puertos en la máquina.
@@ -708,7 +718,7 @@ El backend es un monolito modular. Cada módulo sigue las capas `api`, `applicat
 | Guardado del grafo con revisión esperada | `project` | Implementado (#79). |
 | `Connection`, puertos y capacidades | `project`, `catalog` | Implementado (#80). |
 | `ScenarioValidator`, `ValidationIssue` | `project` | Implementado (#81). |
-| `Workload` | `project` | Pendiente (#87). |
+| `Workload`, `WorkloadContract`, `ExecutedWorkload` | `project`, `catalog`, `execution` | Implementado para `CONSTANT_HTTP` (#87). Los otros tres perfiles, pendientes. |
 | Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86). El resto de tipos, en P07. |
 | Observación e historial | `observation` | Pendiente (P08). |
 | Load Balancer | `catalog`, `execution` | Pendiente (P07). |
@@ -729,6 +739,7 @@ Los nombres de las piezas pendientes son los previstos y pueden ajustarse al imp
 | [0012](adr/0012-la-carga-es-un-workload-del-escenario.md) | La carga es un `Workload` del escenario. |
 | [0013](adr/0013-motor-de-ejecucion-con-docker-compose.md) | Motor de ejecución con Docker Compose. |
 | [0015](adr/0015-una-ejecucion-por-instancia-en-local.md) | Una ejecución por instancia en Infracture Local. |
+| [0016](adr/0016-limites-de-la-carga-constant-http.md) | Límites de la carga `CONSTANT_HTTP`. |
 
 ### Referencias para aprender
 

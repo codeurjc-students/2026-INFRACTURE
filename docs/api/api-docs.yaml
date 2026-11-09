@@ -1430,10 +1430,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ConnectionDTO"
+        workload:
+          $ref: "#/components/schemas/WorkloadDTO"
       required:
       - components
       - connections
       - revision
+    WorkloadDTO:
+      type: object
+      properties:
+        targetKey:
+          type: string
+          format: uuid
+        profile:
+          type: string
+        parameters:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+        seed:
+          type: integer
+          format: int32
+      required:
+      - parameters
+      - seed
     ComponentDTO:
       type: object
       properties:
@@ -1475,6 +1496,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ConnectionDTO"
+        workload:
+          $ref: "#/components/schemas/WorkloadDTO"
         issues:
           type: array
           items:
@@ -1601,6 +1624,29 @@ components:
           - EXITED
         response:
           type: string
+    ExecutedWorkloadDTO:
+      type: object
+      properties:
+        targetKey:
+          type: string
+          format: uuid
+        profile:
+          type: string
+        parameters:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+        seed:
+          type: integer
+          format: int32
+        summaryCollectedAt:
+          type: string
+          format: date-time
+        completed:
+          type: boolean
+        summary:
+          $ref: "#/components/schemas/LoadSummaryDTO"
     ExecutionDTO:
       type: object
       properties:
@@ -1645,9 +1691,29 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ExecutedComponentDTO"
+        workload:
+          $ref: "#/components/schemas/ExecutedWorkloadDTO"
         plan:
           type: object
           additionalProperties: {}
+    LoadSummaryDTO:
+      type: object
+      properties:
+        requests:
+          type: integer
+          format: int64
+        failedRequests:
+          type: integer
+          format: int64
+        droppedIterations:
+          type: integer
+          format: int64
+        averageLatencyMs:
+          type: number
+          format: double
+        p95LatencyMs:
+          type: number
+          format: double
     AuthResponse:
       type: object
       properties:
