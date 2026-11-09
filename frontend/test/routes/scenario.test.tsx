@@ -15,6 +15,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getComponentTemplates } from "~/features/component-catalogue/api/component-template-service";
+import { getWorkloadProfiles } from "~/features/component-catalogue/api/workload-profile-service";
 
 import { getProject } from "~/features/projects/api/project-service";
 import {
@@ -45,13 +46,18 @@ import ScenarioRoute, {
   ErrorBoundary,
 } from "~/routes/scenario";
 import { HttpError } from "~/shared/api/api-fetch";
-import { httpService, redis } from "../fixtures/component-templates";
+import {
+  constantHttp,
+  httpService,
+  redis,
+} from "../fixtures/component-templates";
 
 vi.mock("~/features/projects/api/project-service");
 vi.mock("~/features/projects/api/scenario-service");
 vi.mock("~/features/scenario-canvas/api/graph-service");
 vi.mock("~/features/scenario-canvas/api/execution-service");
 vi.mock("~/features/component-catalogue/api/component-template-service");
+vi.mock("~/features/component-catalogue/api/workload-profile-service");
 
 const project = { id: 7, name: "Cache lab" } as ProjectDTO;
 const scenario: ScenarioDTO = {
@@ -67,6 +73,7 @@ const emptyGraph: ScenarioGraphDTO = {
   revision: 1,
   components: [],
   connections: [],
+  workload: null,
   issues: [],
 };
 const savedGraph: ScenarioGraphDTO = {
@@ -83,6 +90,7 @@ const savedGraph: ScenarioGraphDTO = {
     },
   ],
   connections: [],
+  workload: null,
   issues: [
     {
       severity: "ERROR",
@@ -128,6 +136,7 @@ function connectedGraph(profile: string): ScenarioGraphDTO {
         targetKey: "22222222-2222-4222-8222-222222222222",
       },
     ],
+    workload: null,
     issues: [],
   };
 }
@@ -153,6 +162,7 @@ function execution(overrides: Partial<ExecutionDTO> = {}): ExecutionDTO {
     createdAt: "2026-11-07T10:00:00Z",
     releasedAt: null,
     components: [],
+    workload: null,
     ...overrides,
   };
 }
@@ -206,6 +216,7 @@ beforeEach(() => {
     content: [httpService, redis],
     page: { size: 100, number: 0, totalElements: 2, totalPages: 1 },
   });
+  vi.mocked(getWorkloadProfiles).mockResolvedValue([constantHttp]);
 });
 
 afterEach(() => {
@@ -241,6 +252,7 @@ describe("scenario route", () => {
     expect(getScenario).toHaveBeenCalledWith("7", "3");
     expect(getGraph).toHaveBeenCalledWith("7", "3");
     expect(getComponentTemplates).toHaveBeenCalledWith(0, 100);
+    expect(getWorkloadProfiles).toHaveBeenCalled();
   });
 
   it("adds a node from the palette, edits it and saves the graph", async () => {
@@ -254,6 +266,7 @@ describe("scenario route", () => {
           type: "HTTP_SERVICE",
         })),
         connections: graph.connections,
+        workload: graph.workload,
         issues: [],
       }),
     );
@@ -305,6 +318,256 @@ describe("scenario route", () => {
       ],
     });
     expect(sent[2].components[0].key).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("adds a load, aims it at a component and saves it with the graph", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue({ ...scenario, revision: 2 });
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(saveGraph).mockImplementation(
+      async (_project, _scenario, graph) => ({
+        ...runnableGraph,
+        revision: 3,
+        workload: graph.workload,
+      }),
+    );
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Load" }));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    expect(
+      within(inspector).getByText(/The scenario has no load/),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      within(inspector).getByRole("button", { name: "Add load" }),
+    );
+    expect(within(inspector).getByLabelText("requestsPerSecond")).toHaveValue(
+      5,
+    );
+    expect(within(inspector).getByLabelText("durationSeconds")).toHaveValue(60);
+    fireEvent.click(within(inspector).getByLabelText("Target"));
+    fireEvent.click(await screen.findByRole("option", { name: "Orders API" }));
+    fireEvent.change(within(inspector).getByLabelText("requestsPerSecond"), {
+      target: { value: "20" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Graph saved")).toBeInTheDocument();
+    const sent = vi.mocked(saveGraph).mock.calls[0][2];
+    expect(sent.workload).toMatchObject({
+      targetKey: "11111111-1111-4111-8111-111111111111",
+      profile: "CONSTANT_HTTP",
+      parameters: {
+        requestsPerSecond: 20,
+        virtualUsers: 2,
+        durationSeconds: 60,
+      },
+    });
+    expect(sent.workload?.seed).toBeGreaterThanOrEqual(0);
+
+    fireEvent.click(
+      within(inspector).getByRole("button", { name: "Remove load" }),
+    );
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    expect(
+      within(inspector).getByRole("button", { name: "Add load" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers as target only the components that accept the load", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue({ ...scenario, revision: 2 });
+    vi.mocked(getGraph).mockResolvedValue({
+      ...connectedGraph("STATELESS"),
+      connections: [],
+    });
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Load" }));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    fireEvent.click(
+      within(inspector).getByRole("button", { name: "Add load" }),
+    );
+    expect(
+      within(inspector).getByText(
+        "Only components that accept HTTP are listed.",
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(within(inspector).getByLabelText("Target"));
+
+    expect(
+      await screen.findByRole("option", { name: "Orders API" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "orders-cache" })).toBeNull();
+  });
+
+  it("opens the load from its issue, and keeps it read-only while an experiment runs", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue({ ...scenario, revision: 2 });
+    vi.mocked(getGraph).mockResolvedValue({
+      ...runnableGraph,
+      workload: {
+        targetKey: null,
+        profile: "CONSTANT_HTTP",
+        parameters: {
+          requestsPerSecond: 5,
+          virtualUsers: 2,
+          durationSeconds: 60,
+        },
+        seed: 7,
+      },
+      issues: [
+        {
+          severity: "ERROR",
+          code: "WORKLOAD_WITHOUT_TARGET",
+          message: "Choose the node that receives the load",
+          target: { kind: "WORKLOAD", key: null },
+          field: "targetKey",
+        },
+      ],
+    });
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "1 issue" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Choose the node that receives the load/,
+      }),
+    );
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    expect(
+      within(inspector).getByRole("heading", { name: "Load" }),
+    ).toBeInTheDocument();
+    expect(within(inspector).getByLabelText("seed")).toHaveValue(7);
+    expect(
+      within(inspector).getByText("Choose the node that receives the load"),
+    ).toBeInTheDocument();
+  });
+
+  it("draws the load as traffic entering its target, not as a connection", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue({ ...scenario, revision: 2 });
+    vi.mocked(getGraph).mockResolvedValue({
+      ...runnableGraph,
+      workload: {
+        targetKey: "11111111-1111-4111-8111-111111111111",
+        profile: "CONSTANT_HTTP",
+        parameters: {
+          requestsPerSecond: 5,
+          virtualUsers: 2,
+          durationSeconds: 60,
+        },
+        seed: 7,
+      },
+    });
+    renderScenario();
+
+    const node = await screen.findByLabelText(
+      "Orders API, HTTP Service, receives the load at 5 req/s",
+    );
+    expect(within(node).getByTestId("traffic")).toHaveTextContent("5 req/s");
+    expect(within(node).getByTestId("traffic")).not.toHaveAttribute(
+      "data-sending",
+    );
+    expect(document.querySelectorAll(".react-flow__edge")).toHaveLength(0);
+  });
+
+  it("shows what the load did in the last experiment, without turning missing values into 0", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue({ ...scenario, revision: 2 });
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({
+        phase: "RELEASED",
+        stopCause: "STOP_REQUESTED",
+        outcome: "COMPLETED",
+        releasedAt: "2026-11-09T10:01:00Z",
+        workload: {
+          targetKey: "11111111-1111-4111-8111-111111111111",
+          profile: "CONSTANT_HTTP",
+          parameters: {
+            requestsPerSecond: 5,
+            virtualUsers: 2,
+            durationSeconds: 60,
+          },
+          seed: 7,
+          summaryCollectedAt: "2026-11-09T10:00:50Z",
+          completed: false,
+          summary: {
+            requests: 42,
+            failedRequests: 0,
+            droppedIterations: 0,
+            averageLatencyMs: 28.36,
+            p95LatencyMs: null,
+          },
+        },
+      }),
+    );
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Load" }));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    expect(within(inspector).getByText("Last experiment")).toBeInTheDocument();
+    expect(within(inspector).getByText("Stopped early")).toBeInTheDocument();
+    const summary = within(inspector).getByLabelText("Load summary");
+    expect(summary).toHaveTextContent("requests42");
+    expect(summary).toHaveTextContent("failed0");
+    expect(summary).toHaveTextContent("average28.4 ms");
+    expect(summary).toHaveTextContent("p95—");
+    expect(
+      within(inspector).getByRole("button", { name: "Add load" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the load but changes nothing while the experiment holds the scenario", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue({ ...scenario, revision: 2 });
+    vi.mocked(getGraph).mockResolvedValue({
+      ...runnableGraph,
+      workload: {
+        targetKey: "11111111-1111-4111-8111-111111111111",
+        profile: "CONSTANT_HTTP",
+        parameters: {
+          requestsPerSecond: 5,
+          virtualUsers: 2,
+          durationSeconds: 60,
+        },
+        seed: 7,
+      },
+    });
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({
+        phase: "RUNNING",
+        workload: {
+          targetKey: "11111111-1111-4111-8111-111111111111",
+          profile: "CONSTANT_HTTP",
+          parameters: {
+            requestsPerSecond: 5,
+            virtualUsers: 2,
+            durationSeconds: 60,
+          },
+          seed: 7,
+          summaryCollectedAt: null,
+          completed: null,
+          summary: null,
+        },
+      }),
+    );
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Load" }));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    expect(
+      within(inspector).getByLabelText("requestsPerSecond"),
+    ).toBeDisabled();
+    expect(
+      within(inspector).getByRole("button", { name: "Remove load" }),
+    ).toBeDisabled();
+    expect(within(inspector).getByText("Sending traffic")).toBeInTheDocument();
+    expect(screen.getByTestId("traffic")).toHaveAttribute(
+      "data-sending",
+      "true",
+    );
   });
 
   it("shows saved nodes with their contract issues", async () => {

@@ -12,6 +12,7 @@ import { toneText, type StatusView } from "../execution-status";
 import type { ComponentNodeData } from "../graph-reducer";
 import ComponentIcon from "./component-icon";
 import { StatusIcon } from "./status-icon";
+import { TrafficLane, type Traffic } from "./traffic-lane";
 
 // A node ready to draw: its data plus the template name and its issues, added by the editor.
 export type DisplayedNode = Node<
@@ -26,6 +27,8 @@ export type DisplayedNode = Node<
     ports: { name: string; label: string; stale: boolean }[];
     // What Docker says about the node while an experiment runs, or null.
     runtime: StatusView | null;
+    // The load this node receives, or null when it is not the load's target.
+    traffic: Traffic | null;
   },
   "component"
 >;
@@ -46,12 +49,15 @@ function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
   return (
     <div
       className={cn(
-        "enter-soft flex w-56 flex-col gap-3 rounded-xl border border-input bg-card p-3 text-card-foreground motion-safe:transition-colors motion-safe:duration-400 motion-safe:ease-out",
+        "enter-soft relative flex w-56 flex-col gap-3 rounded-xl border border-input bg-card p-3 text-card-foreground motion-safe:transition-colors motion-safe:duration-400 motion-safe:ease-out",
         selected && "outline-2 outline-offset-3 outline-foreground",
         // DESIGN.md: a failed node is filled infrared, a starting one has a dashed border.
         failed && "border-transparent bg-failed-fill text-on-failed",
         data.runtime?.tone === "recovering" &&
           "border-[1.5px] border-dashed border-recovering-text",
+        // Requests arriving: a soft glow on the side the load enters from.
+        data.traffic?.sending &&
+          "shadow-[-10px_0_18px_-10px_var(--color-healthy-text)]",
       )}
     >
       <Handle
@@ -64,6 +70,7 @@ function ComponentNodeView({ data, selected }: NodeProps<DisplayedNode>) {
             "top-0! left-0! size-full! transform-none! rounded-xl! opacity-0!",
         )}
       />
+      {data.traffic && <TrafficLane traffic={data.traffic} />}
       {/* Header: type icon, template name and the node's own name. */}
       <div className="flex min-w-0 items-center gap-2.5">
         <ComponentIcon type={data.type} className="size-7.5" />

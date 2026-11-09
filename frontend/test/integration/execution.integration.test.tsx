@@ -140,6 +140,7 @@ describe("execution client against the real API", () => {
         },
       ],
       connections: [],
+      workload: null,
     };
     const saved = await saveGraph(projectId, scenarioId, graph);
     await expect(

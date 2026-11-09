@@ -9,12 +9,17 @@ import {
   type CanvasState,
 } from "~/features/scenario-canvas/graph-reducer";
 import type { ScenarioGraphDTO } from "~/features/scenario-canvas/model/ScenarioGraphDTO";
-import { httpService, redis } from "../../fixtures/component-templates";
+import {
+  constantHttp,
+  httpService,
+  redis,
+} from "../../fixtures/component-templates";
 
 const empty = toCanvasState({
   revision: 1,
   components: [],
   connections: [],
+  workload: null,
   issues: [],
 });
 
@@ -50,6 +55,7 @@ const savedGraph: ScenarioGraphDTO = {
     },
   ],
   connections: [{ sourceKey: "a", port: "cache", targetKey: "b" }],
+  workload: null,
   issues: [
     {
       severity: "ERROR",
@@ -156,7 +162,7 @@ describe("graph reducer", () => {
       key: "a",
       name: "Orders",
     });
-    expect(toSaveGraph(state.nodes, state.edges, 1)).toEqual({
+    expect(toSaveGraph(state.nodes, state.edges, 1, null)).toEqual({
       revision: 1,
       components: [
         {
@@ -169,6 +175,7 @@ describe("graph reducer", () => {
         },
       ],
       connections: [],
+      workload: null,
     });
   });
 
@@ -271,7 +278,7 @@ describe("graph reducer", () => {
 
     expect(state.dirty).toBe(true);
     expect(state.edges.map((edge) => edge.id)).toEqual(["a:cache:b"]);
-    expect(toSaveGraph(state.nodes, state.edges, 1).connections).toEqual([
+    expect(toSaveGraph(state.nodes, state.edges, 1, null).connections).toEqual([
       connection,
     ]);
   });
@@ -338,5 +345,126 @@ describe("graph reducer", () => {
       }).edges.map((edge) => edge.id),
     ).toEqual(["a:cache:b"]);
     expect(graphReducer(empty, { type: "restored", draft }).edges).toEqual([]);
+  });
+
+  it("adds a load without target from the profile's initial values and saves it with the graph", () => {
+    const state = graphReducer(add(empty, "a"), {
+      type: "workloadAdded",
+      profile: constantHttp,
+      seed: 42,
+    });
+
+    expect(state.dirty).toBe(true);
+    expect(state.workload).toEqual({
+      targetKey: null,
+      profile: "CONSTANT_HTTP",
+      parameters: {
+        requestsPerSecond: 5,
+        virtualUsers: 2,
+        durationSeconds: 60,
+      },
+      seed: 42,
+    });
+    expect(
+      toSaveGraph(state.nodes, state.edges, 1, state.workload).workload,
+    ).toEqual(state.workload);
+  });
+
+  it("changes the target, numbers and seed of the load, and removes it", () => {
+    let state = graphReducer(add(empty, "a"), {
+      type: "workloadAdded",
+      profile: constantHttp,
+      seed: 42,
+    });
+    state = graphReducer(state, {
+      type: "workloadTargetChanged",
+      targetKey: "a",
+    });
+    state = graphReducer(state, {
+      type: "workloadParameterChanged",
+      name: "requestsPerSecond",
+      value: 20,
+    });
+    state = graphReducer(state, {
+      type: "workloadParameterChanged",
+      name: "virtualUsers",
+      value: undefined,
+    });
+    state = graphReducer(state, { type: "workloadSeedChanged", seed: 7 });
+
+    expect(state.workload).toEqual({
+      targetKey: "a",
+      profile: "CONSTANT_HTTP",
+      parameters: { requestsPerSecond: 20, durationSeconds: 60 },
+      seed: 7,
+    });
+    expect(
+      graphReducer(state, { type: "workloadRemoved" }).workload,
+    ).toBeNull();
+  });
+
+  it("ignores load changes when there is no load", () => {
+    expect(
+      graphReducer(empty, { type: "workloadTargetChanged", targetKey: "a" }),
+    ).toBe(empty);
+    expect(graphReducer(empty, { type: "workloadRemoved" })).toBe(empty);
+  });
+
+  it("keeps the load without target when its target is removed, by the inspector or the keyboard", () => {
+    const loaded = toCanvasState({
+      ...savedGraph,
+      workload: {
+        targetKey: "a",
+        profile: "CONSTANT_HTTP",
+        parameters: {},
+        seed: 1,
+      },
+    });
+
+    expect(
+      graphReducer(loaded, { type: "removed", key: "a" }).workload,
+    ).toEqual({
+      targetKey: null,
+      profile: "CONSTANT_HTTP",
+      parameters: {},
+      seed: 1,
+    });
+    expect(
+      graphReducer(loaded, {
+        type: "nodesChanged",
+        changes: [{ type: "remove", id: "a" }],
+      }).workload?.targetKey,
+    ).toBeNull();
+    expect(
+      graphReducer(loaded, { type: "removed", key: "b" }).workload?.targetKey,
+    ).toBe("a");
+  });
+
+  it("restores the load of a draft, and keeps the current one for a draft saved before loads existed", () => {
+    const loaded = toCanvasState({
+      ...savedGraph,
+      workload: {
+        targetKey: "a",
+        profile: "CONSTANT_HTTP",
+        parameters: {},
+        seed: 1,
+      },
+    });
+    const draft = {
+      baseRevision: 1,
+      components: savedGraph.components,
+      connections: savedGraph.connections,
+      savedAt: "2026-11-09T10:00:00Z",
+    };
+
+    expect(
+      graphReducer(loaded, {
+        type: "restored",
+        draft: { ...draft, workload: null },
+      }).workload,
+    ).toBeNull();
+    expect(graphReducer(loaded, { type: "restored", draft }).workload).toEqual(
+      loaded.workload,
+    );
   });
 });

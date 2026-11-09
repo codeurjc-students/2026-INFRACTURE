@@ -3,15 +3,19 @@ import { toConnection } from "./connections";
 import { toComponents, type CanvasState } from "./graph-reducer";
 import type { ComponentDTO } from "./model/ComponentDTO";
 import type { ConnectionDTO } from "./model/ConnectionDTO";
+import type { WorkloadDTO } from "./model/WorkloadDTO";
 
 // Unsaved work kept in this browser so it survives a reload, a discarded conflict or an expired session.
-// It holds only what the user built on the canvas (names, positions, parameters and connections), nothing secret.
+// It holds only what the user built on the canvas (names, positions, parameters, connections and the load),
+// nothing secret.
 export interface GraphDraft {
   // The revision the work started from; restoring it keeps the conflict check.
   baseRevision: number;
   components: ComponentDTO[];
   // Missing in drafts saved before connections existed.
   connections?: ConnectionDTO[];
+  // Missing in drafts saved before loads existed; null when the user removed the load.
+  workload?: WorkloadDTO | null;
   savedAt: string;
 }
 
@@ -63,6 +67,7 @@ export function useGraphDraft(key: string | null, state: CanvasState) {
         baseRevision: state.revision,
         components: toComponents(state.nodes),
         connections: state.edges.map(toConnection),
+        workload: state.workload,
         savedAt: new Date().toISOString(),
       });
     } else if (state.status === "idle") {
@@ -76,6 +81,7 @@ export function useGraphDraft(key: string | null, state: CanvasState) {
     state.status,
     state.nodes,
     state.edges,
+    state.workload,
     state.revision,
   ]);
 

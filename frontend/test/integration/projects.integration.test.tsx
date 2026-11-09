@@ -233,11 +233,6 @@ describe("projects client against the real API", () => {
           code: "EMPTY_SCENARIO",
           target: { kind: "SCENARIO", key: null },
         }),
-        expect.objectContaining({
-          severity: "WARNING",
-          code: "NO_WORKLOAD",
-          target: { kind: "WORKLOAD", key: null },
-        }),
       ],
       workload: null,
     });
@@ -284,7 +279,7 @@ describe("projects client against the real API", () => {
     const saved = await saveGraph(
       projectId,
       scenarioId,
-      toSaveGraph(canvas.nodes, canvas.edges, 1),
+      toSaveGraph(canvas.nodes, canvas.edges, 1, null),
     );
     expect(saved.revision).toBe(2);
     expect(saved.issues).toEqual([
@@ -318,7 +313,7 @@ describe("projects client against the real API", () => {
     const changed = await saveGraph(
       projectId,
       scenarioId,
-      toSaveGraph(canvas.nodes, canvas.edges, 2),
+      toSaveGraph(canvas.nodes, canvas.edges, 2, null),
     );
     expect(changed.connections).toEqual([connection]);
     expect(changed.issues).toContainEqual(
@@ -329,7 +324,7 @@ describe("projects client against the real API", () => {
     );
 
     await expect(
-      saveGraph(projectId, scenarioId, toSaveGraph([], [], 1)),
+      saveGraph(projectId, scenarioId, toSaveGraph([], [], 1, null)),
     ).rejects.toMatchObject({ status: 409 });
     await expect(getGraph(projectId, scenarioId)).resolves.toMatchObject({
       revision: 3,
@@ -349,6 +344,7 @@ describe("projects client against the real API", () => {
         parameters: component.parameters,
       })),
       connections: latest.connections,
+      workload: null,
     };
 
     await logoutAction();
@@ -365,6 +361,53 @@ describe("projects client against the real API", () => {
     expect(saved.components.map((component) => component.name)).toEqual(
       latest.components.map(() => "Recovered"),
     );
+  });
+
+  it("saves a load on a component and reopens it with the limits the backend publishes", async () => {
+    const loaded = await scenarioLoader({
+      params: { projectId, scenarioId },
+    } as never);
+    const constantHttp = loaded.workloadProfiles.find(
+      (profile) => profile.name === "CONSTANT_HTTP",
+    )!;
+    expect(constantHttp.parameters).toContainEqual({
+      name: "requestsPerSecond",
+      min: 1,
+      max: 50,
+    });
+    const target = loaded.graph.components.find(
+      (component) => component.type === "HTTP_SERVICE",
+    )!;
+
+    let canvas = toCanvasState(loaded.graph);
+    canvas = graphReducer(canvas, {
+      type: "workloadAdded",
+      profile: constantHttp,
+      seed: 7,
+    });
+    canvas = graphReducer(canvas, {
+      type: "workloadTargetChanged",
+      targetKey: target.key,
+    });
+    const saved = await saveGraph(
+      projectId,
+      scenarioId,
+      toSaveGraph(canvas.nodes, canvas.edges, canvas.revision, canvas.workload),
+    );
+
+    expect(saved.workload).toEqual({
+      targetKey: target.key,
+      profile: "CONSTANT_HTTP",
+      parameters: constantHttp.initialParameters,
+      seed: 7,
+    });
+    expect(
+      saved.issues.filter((issue) => issue.target.kind === "WORKLOAD"),
+    ).toEqual([]);
+    const reopened = await scenarioLoader({
+      params: { projectId, scenarioId },
+    } as never);
+    expect(reopened.graph.workload).toEqual(saved.workload);
   });
 
   it("treats another account's project as not found", async () => {

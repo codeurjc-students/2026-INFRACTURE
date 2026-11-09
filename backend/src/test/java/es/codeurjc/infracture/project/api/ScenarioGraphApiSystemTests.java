@@ -210,7 +210,7 @@ class ScenarioGraphApiSystemTests {
         String broker = node(BROKER, "rabbitmq", "tasks", "DEFAULT", "{}");
 
         alice.read().get(scenario + "/graph").then().statusCode(200)
-            .body("issues.code", equalTo(List.of("EMPTY_SCENARIO", "NO_WORKLOAD")))
+            .body("issues.code", equalTo(List.of("EMPTY_SCENARIO")))
             .body("issues[0].target.kind", equalTo("SCENARIO"));
 
         alice.write().body(graph(1, List.of(gateway, producer, broker), connection(ORDERS, "downstream", ORDERS)))

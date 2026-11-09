@@ -20,6 +20,7 @@ import {
   CircleAlertIcon,
   CircleXIcon,
   HistoryIcon,
+  GaugeIcon,
   InfoIcon,
   LockIcon,
   MaximizeIcon,
@@ -42,13 +43,18 @@ import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Spinner } from "~/components/ui/spinner";
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
+import type { WorkloadProfileDTO } from "~/features/component-catalogue/model/WorkloadProfileDTO";
 import { formatDateTime } from "~/features/projects/details-form-data";
 import type { ProjectDTO } from "~/features/projects/model/ProjectDTO";
 import type { ScenarioDTO } from "~/features/projects/model/ScenarioDTO";
 import { HttpError } from "~/shared/api/api-fetch";
 import { getGraph, saveGraph } from "../api/graph-service";
 import type { ExecutionDTO } from "../model/ExecutionDTO";
-import { nodeView, type StatusView } from "../execution-status";
+import {
+  isSendingTraffic,
+  nodeView,
+  type StatusView,
+} from "../execution-status";
 import { useExecution } from "../use-execution";
 import { ExecutionBadge } from "./execution-badge";
 import { RunButton } from "./run-button";
@@ -71,11 +77,14 @@ import {
 } from "../graph-reducer";
 import type { ScenarioGraphDTO } from "../model/ScenarioGraphDTO";
 import type { ValidationIssueDTO } from "../model/ValidationIssueDTO";
+import type { WorkloadDTO } from "../model/WorkloadDTO";
 import ComponentNode, { type DisplayedNode } from "./component-node";
 import ComponentPalette, { TEMPLATE_MIME } from "./component-palette";
 import IssueList, { type LocatedIssue } from "./issue-list";
 import NodeInspector, { type NodeConnection } from "./node-inspector";
 import ScenarioDetails from "./scenario-details";
+import type { Traffic } from "./traffic-lane";
+import WorkloadInspector from "./workload-inspector";
 
 // Only to show "⌘S" or "Ctrl S" in the save button tooltip.
 const isMac =
@@ -134,6 +143,8 @@ interface ScenarioCanvasProps {
   scenario: ScenarioDTO;
   graph: ScenarioGraphDTO;
   templates: ComponentTemplateDTO[];
+  // The load profiles, with the limits the backend applies.
+  workloadProfiles: WorkloadProfileDTO[];
   // The scenario's latest execution, or null when it has never run.
   execution: ExecutionDTO | null;
   // The signed-in account; the local draft is kept per account. Without it there is no draft.
@@ -294,12 +305,21 @@ type Runtime = Map<
   { view: StatusView | null; response: string | null }
 >;
 
+// What the target node draws of the load: the request rate, when the profile has one, and whether
+// k6 is sending it right now.
+function toTraffic(workload: WorkloadDTO, sending: boolean): Traffic {
+  const rate = workload.parameters.requestsPerSecond ?? null;
+  return { label: rate === null ? "load" : `${rate} req/s`, rate, sending };
+}
+
 function toDisplayed(
   nodes: ComponentNodeModel[],
   edges: Edge[],
   issues: ValidationIssueDTO[],
   templatesByKey: Map<string, ComponentTemplateDTO>,
   runtime: Runtime,
+  workload: WorkloadDTO | null,
+  sending: boolean,
 ): DisplayedNode[] {
   const byNode = new Map<string, ValidationIssueDTO[]>();
   for (const issue of issues) {
@@ -327,9 +347,15 @@ function toDisplayed(
         ports.push({ name: port, label: port, stale: true });
       }
     }
+    const traffic =
+      workload && workload.targetKey === node.id
+        ? toTraffic(workload, sending)
+        : null;
     return {
       ...node,
-      ariaLabel: `${node.data.name}, ${templateName}`,
+      ariaLabel: `${node.data.name}, ${templateName}${
+        traffic ? `, receives the load at ${traffic.label}` : ""
+      }`,
       data: {
         ...node.data,
         templateName,
@@ -342,6 +368,7 @@ function toDisplayed(
         ),
         ports,
         runtime: runtime.get(node.id)?.view ?? null,
+        traffic,
       },
     };
   });
@@ -371,6 +398,9 @@ function locateIssues(
     if (kind === "COMPONENT" && key && names.has(key)) {
       return { issue, where: names.get(key) ?? "", nodeKey: key };
     }
+    if (kind === "WORKLOAD") {
+      return { issue, where: "Load", nodeKey: null, load: true };
+    }
     return { issue, where: "Scenario", nodeKey: null };
   });
 }
@@ -381,6 +411,7 @@ function Editor({
   scenario,
   graph,
   templates,
+  workloadProfiles,
   execution: initialExecution,
   userId,
 }: Readonly<ScenarioCanvasProps>) {
@@ -421,7 +452,9 @@ function Editor({
   const [resolving, setResolving] = useState(false);
   const [dragging, setDragging] = useState(false);
   // What the side panel shows when no node is selected.
-  const [panel, setPanel] = useState<"details" | "issues" | null>(null);
+  const [panel, setPanel] = useState<"details" | "issues" | "load" | null>(
+    null,
+  );
   // Templates by key, to find a node's template quickly.
   const templatesByKey = useMemo(
     () => new Map(templates.map((template) => [template.key, template])),
@@ -467,6 +500,7 @@ function Editor({
       ? experiment.execution
       : null;
 
+  const sending = isSendingTraffic(experiment.execution);
   const displayed = useMemo(
     () =>
       toDisplayed(
@@ -475,8 +509,18 @@ function Editor({
         state.issues,
         templatesByKey,
         runtime,
+        state.workload,
+        sending,
       ),
-    [state.nodes, state.edges, state.issues, templatesByKey, runtime],
+    [
+      state.nodes,
+      state.edges,
+      state.issues,
+      templatesByKey,
+      runtime,
+      state.workload,
+      sending,
+    ],
   );
   const displayedEdges = useMemo(
     () =>
@@ -502,7 +546,7 @@ function Editor({
     );
   }
 
-  // The side panel shows the selected node, the scenario details or the issues.
+  // The side panel shows the selected node, the scenario details, the issues or the load.
   const selected = state.nodes.find((node) => node.selected);
   const panelOpen = Boolean(selected) || panel !== null;
   const errorCount = state.issues.filter(
@@ -515,7 +559,7 @@ function Editor({
   }, [selected]);
 
   // Opens the details or the issues in the side panel, or closes them when already open.
-  function togglePanel(next: "details" | "issues") {
+  function togglePanel(next: "details" | "issues" | "load") {
     if (selected) select(null);
     setPanel(panel === next && !selected ? null : next);
   }
@@ -576,7 +620,7 @@ function Editor({
       const saved = await saveGraph(
         projectId,
         scenarioId,
-        toSaveGraph(state.nodes, state.edges, revision),
+        toSaveGraph(state.nodes, state.edges, revision, state.workload),
       );
       dispatch({ type: "saved", graph: saved });
     } catch (error) {
@@ -709,6 +753,18 @@ function Editor({
             {state.issues.length}
           </Button>
         )}
+        <Button
+          type="button"
+          variant="ghost"
+          aria-pressed={panel === "load" && !selected}
+          onClick={() => togglePanel("load")}
+          aria-label="Load"
+          title="Scenario load"
+          size="icon"
+          className="text-muted-foreground aria-pressed:bg-accent aria-pressed:text-foreground dark:aria-pressed:bg-accent"
+        >
+          <GaugeIcon />
+        </Button>
         <Button
           type="button"
           variant="ghost"
@@ -1045,7 +1101,7 @@ function Editor({
           </div>
         </div>
 
-        {/* Right: the selected node's configuration, the issues or the scenario details. */}
+        {/* Right: the selected node's configuration, the issues, the scenario details or the load. */}
         {panelOpen && (
           <aside
             aria-label="Inspector"
@@ -1080,6 +1136,22 @@ function Editor({
                 issues={locateIssues(state.issues, state.nodes, state.edges)}
                 stale={state.dirty}
                 onLocate={locate}
+                onLocateLoad={() => setPanel("load")}
+                onClose={() => setPanel(null)}
+              />
+            )}
+            {!selected && panel === "load" && (
+              <WorkloadInspector
+                workload={state.workload}
+                profiles={workloadProfiles}
+                nodes={state.nodes}
+                templatesByKey={templatesByKey}
+                issues={state.issues.filter(
+                  (issue) => issue.target.kind === "WORKLOAD",
+                )}
+                execution={experiment.execution}
+                readOnly={readOnly}
+                dispatch={dispatch}
                 onClose={() => setPanel(null)}
               />
             )}

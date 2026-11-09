@@ -1,5 +1,6 @@
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
 import type { TemplateContractDTO } from "~/features/component-catalogue/model/TemplateContractDTO";
+import type { WorkloadProfileDTO } from "~/features/component-catalogue/model/WorkloadProfileDTO";
 
 type Profile = TemplateContractDTO["profiles"][number];
 
@@ -90,3 +91,20 @@ export const postgresql = template(
   [],
   ["SQL_DATABASE"],
 );
+
+// The one load profile, as GET /workload-profiles returns it (ADR 0016).
+export const constantHttp: WorkloadProfileDTO = {
+  name: "CONSTANT_HTTP",
+  parameters: [
+    { name: "requestsPerSecond", min: 1, max: 50 },
+    { name: "virtualUsers", min: 1, max: 20 },
+    { name: "durationSeconds", min: 10, max: 600 },
+  ],
+  seed: { name: "seed", min: 0, max: 2147483647 },
+  requires: ["HTTP"],
+  initialParameters: {
+    requestsPerSecond: 5,
+    virtualUsers: 2,
+    durationSeconds: 60,
+  },
+};

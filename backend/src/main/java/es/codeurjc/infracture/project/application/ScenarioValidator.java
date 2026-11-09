@@ -202,10 +202,14 @@ public class ScenarioValidator {
         }
     }
 
-    // The load is optional: without one the scenario runs with no traffic
+    // The load is optional: without one the scenario runs with no traffic. An empty scenario already
+    // has its own error, so it gets no warning about the load.
     private void checkWorkload(Scenario scenario, Map<UUID, Component> nodes, List<ValidationIssue> issues) {
         Optional<Workload> found = scenario.getWorkload();
         if (found.isEmpty()) {
+            if (nodes.isEmpty()) {
+                return;
+            }
             issues.add(new ValidationIssue(Severity.WARNING, "NO_WORKLOAD",
                     "The scenario has no load, so the experiment receives no traffic", WORKLOAD, null));
             return;

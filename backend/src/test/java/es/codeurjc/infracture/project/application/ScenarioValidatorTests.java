@@ -228,6 +228,11 @@ class ScenarioValidatorTests {
     }
 
     @Test
+    void leavesTheLoadWarningOutOfAnEmptyScenario() {
+        assertThat(validator.validate(scenario)).extracting(ValidationIssue::code).containsExactly("EMPTY_SCENARIO");
+    }
+
+    @Test
     void acceptsAConstantHttpLoadOnANodeThatOffersHttp() {
         scenario.replaceGraph(1, List.of(stateless(ORDERS)), List.of(),
                 load(ORDERS, "CONSTANT_HTTP", constantHttp(10, 5, 60), 42), templates);

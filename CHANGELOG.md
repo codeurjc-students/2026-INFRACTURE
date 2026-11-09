@@ -20,7 +20,7 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - The scenario is saved as a whole. If another tab saved first, the editor warns without overwriting anything and lets you choose which version to keep.
 - Unsaved work is kept in the browser and can be recovered after a reload or after the session expires. Another account in the same browser cannot see it.
 - Run and Stop on the scenario canvas, for scenarios whose nodes are HTTP Services in `STATELESS` mode. Run starts the saved revision in Docker and Stop removes everything it created; the API offers the same under `…/scenarios/{id}/executions`.
-- A scenario can carry one constant HTTP load (requests per second, requests in flight, duration and seed), set through the API for now. Run starts it with k6 once every service is healthy; Stop halts it first and the execution keeps its summary.
+- A scenario can carry one constant HTTP load, set in the canvas Load panel and drawn as traffic entering its target. Run starts it with k6 once every service is healthy; Stop halts it first and the panel shows its summary.
 - While an experiment runs, the canvas shows its state, each node's health and the service's real response, and the scenario is read-only. One experiment runs at a time per installation; a node that falls over fails it, and it stops after 30 minutes.
 - Light or dark theme following the system preference.
 - REST API under `/api/v1` for all of the above. Requests that change data must send the `X-XSRF-TOKEN` header, obtained with `GET /api/v1/auth/csrf`, and errors arrive as `application/problem+json`. The OpenAPI contract and the Postman collection are in [`docs/api`](docs/api).

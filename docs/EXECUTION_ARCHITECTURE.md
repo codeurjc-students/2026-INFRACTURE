@@ -718,7 +718,7 @@ El backend es un monolito modular. Cada módulo sigue las capas `api`, `applicat
 | Guardado del grafo con revisión esperada | `project` | Implementado (#79). |
 | `Connection`, puertos y capacidades | `project`, `catalog` | Implementado (#80). |
 | `ScenarioValidator`, `ValidationIssue` | `project` | Implementado (#81). |
-| `Workload`, `WorkloadContract`, `ExecutedWorkload` | `project`, `catalog`, `execution` | Implementado para `CONSTANT_HTTP` (#87). Los otros tres perfiles, pendientes. |
+| `Workload`, `WorkloadContract`, `ExecutedWorkload` | `project`, `catalog`, `execution` | Implementado para `CONSTANT_HTTP` (#87), con su panel en el lienzo y `GET /api/v1/workload-profiles`. Los otros tres perfiles, pendientes. |
 | Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86). El resto de tipos, en P07. |
 | Observación e historial | `observation` | Pendiente (P08). |
 | Load Balancer | `catalog`, `execution` | Pendiente (P07). |
