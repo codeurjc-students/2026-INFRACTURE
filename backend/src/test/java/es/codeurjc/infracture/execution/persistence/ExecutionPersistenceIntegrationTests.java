@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
+import es.codeurjc.infracture.execution.domain.ExecutedWorkload;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.LoadSummary;
 import es.codeurjc.infracture.execution.domain.Outcome;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.domain.StopCause;
@@ -16,6 +18,7 @@ import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Connection;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
+import es.codeurjc.infracture.project.domain.Workload;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
@@ -72,7 +75,7 @@ class ExecutionPersistenceIntegrationTests {
                 new ComponentDraft(orders, "http-service", "orders-api", 0, 0,
                         new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 50))),
                 new ComponentDraft(redis, "redis", "cache", 0, 0, new ComponentConfiguration("DEFAULT", Map.of()))),
-                List.of(new Connection(orders, "cache", redis)), catalogue());
+                List.of(new Connection(orders, "cache", redis)), null, catalogue());
         entityManager.flush();
     }
 
@@ -95,6 +98,48 @@ class ExecutionPersistenceIntegrationTests {
         assertThat(reopened.getPlan()).containsEntry("name", "infracture-local-exec-" + execution.getId())
                 .containsKey("services");
         assertThat(repository.findByReleasedAtIsNull()).map(Execution::getId).contains(execution.getId());
+    }
+
+    @Test
+    void reopensTheFrozenLoadOnItsExecutedTarget() {
+        cache.replaceGraph(2, List.of(
+                new ComponentDraft(orders, "http-service", "orders-api", 0, 0,
+                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 50)))), List.of(),
+                new Workload(orders, "CONSTANT_HTTP",
+                        Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42),
+                catalogue());
+        entityManager.flush();
+        Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
+        entityManager.clear();
+
+        Execution reopened = repository.findById(execution.getId()).orElseThrow();
+        ExecutedWorkload load = reopened.getWorkload();
+        assertThat(load.getTargetKey()).isEqualTo(orders);
+        assertThat(load.getProfile()).isEqualTo("CONSTANT_HTTP");
+        assertThat(load.getParameters()).containsEntry("requestsPerSecond", 10).hasSize(3);
+        assertThat(load.getSeed()).isEqualTo(42);
+        assertThat(load.hasSummary()).isFalse();
+        assertThat(load.getSummary()).isNull();
+
+        reopened.recordLoadSummary(new LoadSummary(600L, 0L, 3L, 51.5, null), false);
+        repository.saveAndFlush(reopened);
+        entityManager.clear();
+
+        ExecutedWorkload ended = repository.findById(execution.getId()).orElseThrow().getWorkload();
+        assertThat(ended.getSummaryCollectedAt()).isNotNull();
+        assertThat(ended.getCompleted()).isFalse();
+        assertThat(ended.getSummary()).isEqualTo(new LoadSummary(600L, 0L, 3L, 51.5, null));
+    }
+
+    @Test
+    void rejectsAFrozenLoadOnANodeOutsideItsExecution() {
+        Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery("""
+                INSERT INTO executed_workloads (execution_id, target_key, profile, parameters, seed)
+                VALUES (:execution, gen_random_uuid(), 'CONSTANT_HTTP', '{}', 42)
+                """).setParameter("execution", execution.getId()).executeUpdate())
+                .hasMessageContaining("fk_executed_workloads_target");
     }
 
     @Test

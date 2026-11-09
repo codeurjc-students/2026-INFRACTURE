@@ -9,6 +9,7 @@ import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.application.ExecutionObservations.Observation;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.LoadSummary;
 import es.codeurjc.infracture.execution.domain.Outcome;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.domain.StopCause;
@@ -18,6 +19,7 @@ import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
+import es.codeurjc.infracture.project.domain.Workload;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,18 +39,29 @@ class ExecutionReconcilerTests {
     private static final String UP = "up infracture-local-exec-12";
     private static final String DOWN = "down infracture-local-exec-12 "
             + "{io.infracture.instance=local, io.infracture.execution=12}";
+    private static final String START_LOAD = "start-load";
+    private static final String STOP_LOAD = "stop-load";
+    private static final Workload LOAD = new Workload(ORDERS, "CONSTANT_HTTP",
+            Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42);
+    private static final LoadSummary SUMMARY = new LoadSummary(100L, 0L, 0L, 52.5, 61.0);
 
     private final ExecutionRepository repository = mock(ExecutionRepository.class);
     private final FakeEngine engine = new FakeEngine();
     private final PlanCompiler planCompiler =
-            new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local");
+            new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local",
+                    "infracture/load-generator:0.1.0");
     private final ExecutionObservations observations = new ExecutionObservations();
     private final ServiceProbe probe = mock(ServiceProbe.class);
     private final ExecutionReconciler reconciler = reconciler(Duration.ofMinutes(30));
-    private final Execution execution = new Execution(statelessScenario(), Map.of(ComponentType.HTTP_SERVICE, 1));
+    private Execution execution;
 
     @BeforeEach
-    void reserve() {
+    void reserveWithoutLoad() {
+        reserve(null);
+    }
+
+    private void reserve(Workload load) {
+        execution = new Execution(statelessScenario(load), Map.of(ComponentType.HTTP_SERVICE, 1));
         ReflectionTestUtils.setField(execution, "id", 12L);
         ReflectionTestUtils.setField(execution, "createdAt", Instant.now());
         execution.attachPlan(planCompiler.compile(execution));
@@ -200,6 +213,98 @@ class ExecutionReconcilerTests {
     }
 
     @Test
+    void startsTheLoadOnlyOnceTheNodesAreHealthy() {
+        reserve(LOAD);
+
+        reconciler.reconcile();
+        reconciler.reconcile();
+
+        assertThat(execution.getPhase()).isEqualTo(Phase.RUNNING);
+        assertThat(engine.calls).containsExactly(UP, START_LOAD);
+    }
+
+    @Test
+    void stopsTheLoadAndKeepsItsSummaryBeforeRemovingTheRest() {
+        reserve(LOAD);
+        reconciler.reconcile();
+        execution.requestStop();
+
+        reconciler.reconcile();
+
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN);
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
+        assertThat(execution.getWorkload().getCompleted()).isFalse();
+        assertThat(execution.getWorkload().getSummary()).isEqualTo(SUMMARY);
+        assertThat(execution.getWorkload().getSummaryCollectedAt()).isNotNull();
+    }
+
+    @Test
+    void keepsTheExperimentRunningWhenTheLoadEndsOnItsOwn() {
+        reserve(LOAD);
+        reconciler.reconcile();
+        engine.status = Map.of("c-" + ORDERS, ComponentStatus.HEALTHY, PlanCompiler.LOAD_SERVICE,
+                ComponentStatus.EXITED);
+        engine.loadReport = new LoadReport(0, SUMMARY);
+
+        reconciler.reconcile();
+        reconciler.reconcile();
+
+        assertThat(execution.getPhase()).isEqualTo(Phase.RUNNING);
+        assertThat(execution.getStopCause()).isNull();
+        assertThat(execution.getWorkload().getCompleted()).isTrue();
+        execution.requestStop();
+        reconciler.reconcile();
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN);
+    }
+
+    @Test
+    void failsWhenTheLoadEndsWithAnErrorAndKeepsWhatItReported() {
+        reserve(LOAD);
+        reconciler.reconcile();
+        engine.status = Map.of("c-" + ORDERS, ComponentStatus.HEALTHY, PlanCompiler.LOAD_SERVICE,
+                ComponentStatus.EXITED);
+        engine.loadReport = new LoadReport(107, null);
+
+        reconciler.reconcile();
+        reconciler.reconcile();
+
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.FAILED);
+        assertThat(execution.getFailureReason()).isEqualTo("The load stopped with exit code 107");
+        assertThat(execution.getWorkload().getCompleted()).isFalse();
+        assertThat(execution.getWorkload().getSummary()).isNull();
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN);
+    }
+
+    @Test
+    void failsAndCleansUpWhenTheLoadCannotStart() {
+        reserve(LOAD);
+        engine.startLoadFailure = new RuntimeEngineException("docker compose up failed: no such image");
+        engine.loadReport = new LoadReport(null, null);
+
+        reconciler.reconcile();
+        reconciler.reconcile();
+
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.FAILED);
+        assertThat(execution.getFailureReason()).isEqualTo("docker compose up failed: no such image");
+        assertThat(execution.getWorkload().hasSummary()).isFalse();
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN);
+    }
+
+    @Test
+    void cleansUpWithoutASummaryWhenTheLoadCannotBeStopped() {
+        reserve(LOAD);
+        reconciler.reconcile();
+        execution.requestStop();
+        engine.stopLoadFailure = new RuntimeEngineException("docker compose stop failed: Cannot connect");
+
+        reconciler.reconcile();
+
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
+        assertThat(execution.getWorkload().hasSummary()).isFalse();
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN);
+    }
+
+    @Test
     void doesNothingWithoutAnActiveExecution() {
         when(repository.findForUpdateByReleasedAtIsNull()).thenReturn(Optional.empty());
 
@@ -213,13 +318,13 @@ class ExecutionReconcilerTests {
                 mock(PlatformTransactionManager.class));
     }
 
-    private static Scenario statelessScenario() {
+    private static Scenario statelessScenario(Workload load) {
         ComponentTemplate http = new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE,
                 true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)));
         Scenario scenario = new Scenario(new Project(
                 new User("alice", "hash", "alice@example.com", "Alice", UserRole.USER), "Lab", null), "Run", null);
         scenario.replaceGraph(1, List.of(new ComponentDraft(ORDERS, "http-service", "orders-api", 0, 0,
-                new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)))), List.of(),
+                new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)))), List.of(), load,
                 Map.of("http-service", http));
         return scenario;
     }
@@ -230,7 +335,11 @@ class ExecutionReconcilerTests {
         private RuntimeEngineException upFailure;
         private RuntimeEngineException downFailure;
         private RuntimeEngineException statusFailure;
+        private RuntimeEngineException startLoadFailure;
+        private RuntimeEngineException stopLoadFailure;
         private Map<String, ComponentStatus> status = Map.of("c-" + ORDERS, ComponentStatus.HEALTHY);
+        // k6 exits with 105 when Stop interrupts it.
+        private LoadReport loadReport = new LoadReport(105, SUMMARY);
 
         @Override
         public void up(Map<String, Object> plan) {
@@ -238,6 +347,23 @@ class ExecutionReconcilerTests {
             if (upFailure != null) {
                 throw upFailure;
             }
+        }
+
+        @Override
+        public void startLoad(Map<String, Object> plan) {
+            calls.add("start-load");
+            if (startLoadFailure != null) {
+                throw startLoadFailure;
+            }
+        }
+
+        @Override
+        public LoadReport stopLoad(Map<String, Object> plan) {
+            calls.add("stop-load");
+            if (stopLoadFailure != null) {
+                throw stopLoadFailure;
+            }
+            return loadReport;
         }
 
         @Override

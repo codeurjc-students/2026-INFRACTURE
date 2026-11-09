@@ -44,7 +44,6 @@
   section > p { max-width: 80ch; }
 
   .card { background: var(--surface); border: 1px solid var(--edge); border-radius: 14px; min-width: 0; }
-  .pad { padding: 16px 18px; }
 
   /* Diagram */
   figure { margin: 0; }
@@ -52,19 +51,23 @@
   .scroll { overflow-x: auto; }
   svg.arch { display: block; width: 100%; height: auto; color: var(--ink); }
   @media (max-width: 700px) { svg.arch { min-width: 760px; } }
-  .box rect { fill: var(--surface); stroke: var(--edge); stroke-width: 1.5; transition: stroke .2s, fill .2s; }
-  .box.new rect { stroke: var(--new); stroke-dasharray: 0; }
+  .box rect { fill: var(--surface); stroke: var(--edge); stroke-width: 1.5; transition: stroke .2s, fill .2s, opacity .3s; }
+  .box.new rect { stroke: var(--new); }
   .box text { fill: var(--ink); font: 600 13px var(--sans); }
   .box text.sub { fill: var(--muted); font: 400 11px var(--mono); }
   .box text.pill { fill: var(--new); font: 600 10px var(--mono); letter-spacing: .06em; }
   .box.on rect { stroke: var(--accent); stroke-width: 2.5; fill: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+  .box { transition: opacity .3s; }
   .zone { fill: none; stroke: var(--edge); stroke-width: 1.2; stroke-dasharray: 5 4; }
   .zone-t { fill: var(--muted); font: 600 11px var(--mono); letter-spacing: .06em; }
-  .wire { stroke: var(--muted); stroke-width: 1.4; fill: none; transition: stroke .2s; }
+  .wire { stroke: var(--muted); stroke-width: 1.4; fill: none; transition: stroke .2s, opacity .3s; }
   .wire.on { stroke: var(--accent); stroke-width: 2.4; }
   .wl { fill: var(--muted); font: 500 10.5px var(--mono); }
   .wl.on { fill: var(--accent); }
-  .ctr rect { transition: opacity .3s; }
+  #w-traffic { stroke-dasharray: 6 5; }
+  #w-traffic.on { animation: flow 0.8s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -22; } }
+  @media (prefers-reduced-motion: reduce) { #w-traffic.on { animation: none; } }
   .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted); padding: 0 18px; }
   .legend span { display: inline-flex; align-items: center; gap: 7px; }
   .legend i { width: 14px; height: 10px; border-radius: 3px; border: 2px solid var(--c); display: inline-block; }
@@ -104,11 +107,12 @@
   .st .v .chg { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 4px; padding: 0 3px; }
   .ok { color: var(--ok); } .bad { color: var(--danger); }
 
-  /* Why cards */
+  /* Cards */
   .why { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
   .why .card { padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
   .why h3 { font-size: 15px; }
   .why p { font-size: 14px; color: var(--muted); }
+  .why .card.new { border-color: var(--new); }
 
   /* Tables */
   .tbl { overflow-x: auto; }
@@ -132,9 +136,9 @@
 <body>
 <main>
   <header>
-    <span class="eyebrow">Infracture · #86 · backend completo (PR #149)</span>
+    <span class="eyebrow">Infracture · #86 motor · #87 carga k6 (backend, sin commit)</span>
     <h1>Qué pasa entre Run y Stop</h1>
-    <p class="lead">Desde que pulsas Run hasta que la reserva se libera, cada pieza de Infracture hace una sola cosa. Esta página recorre las piezas una a una y muestra, en cada momento, qué cambia en la base de datos y en Docker.</p>
+    <p class="lead">Desde que pulsas Run hasta que la reserva se libera, cada pieza de Infracture hace una sola cosa. Con #87 aparece una pieza más: la <b>carga</b>, un contenedor de k6 que envía tráfico real al servicio solo cuando todo está sano y es lo primero que se para. Esta página recorre las piezas una a una y muestra, en cada momento, qué cambia en la base de datos, en Docker y en la carga.</p>
   </header>
 
   <section aria-labelledby="t-walk">
@@ -143,10 +147,12 @@
     <div class="card walk" id="walker">
       <div class="controls">
         <div class="seg" role="group" aria-label="Caso">
-          <button type="button" data-case="ok" aria-pressed="true">Todo bien</button>
-          <button type="button" data-case="start" aria-pressed="false">Falla el arranque</button>
+          <button type="button" data-case="ok" aria-pressed="true">Stop con carga</button>
+          <button type="button" data-case="ends" aria-pressed="false">La carga termina sola</button>
+          <button type="button" data-case="noload" aria-pressed="false">Sin carga</button>
+          <button type="button" data-case="loadstart" aria-pressed="false">k6 no arranca</button>
+          <button type="button" data-case="loadfail" aria-pressed="false">k6 falla</button>
           <button type="button" data-case="node" aria-pressed="false">Un nodo cae</button>
-          <button type="button" data-case="time" aria-pressed="false">Se acaba el tiempo</button>
           <button type="button" data-case="clean" aria-pressed="false">Falla la limpieza</button>
         </div>
         <div class="dots" id="dots"></div>
@@ -156,70 +162,79 @@
           <button type="button" id="next" class="primary">Siguiente</button>
         </div>
       </div>
-        <figure>
-          <div class="scroll"><svg class="arch" viewBox="0 0 1120 450" role="img" aria-label="Piezas del motor: el navegador llama a ExecutionController y ExecutionService, que guardan la reserva en PostgreSQL. ExecutionReconciler lee la fila y pide a ComposeRuntimeEngine que arranque o retire el plan, que llega a Docker a través del docker-proxy.">
-            <defs>
-              <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0 0 L10 5 L0 10 z" fill="context-stroke"/>
-              </marker>
-            </defs>
+      <figure>
+        <div class="scroll"><svg class="arch" viewBox="0 0 1120 450" role="img" aria-label="Piezas del motor: el navegador llama a ExecutionController y ExecutionService, que guardan la reserva y la carga congelada en PostgreSQL. ExecutionReconciler lee la fila y pide a ComposeRuntimeEngine que arranque los nodos, arranque y pare k6 y retire el plan, siempre a través del docker-proxy. Dentro de la red del experimento, k6 envía peticiones al servicio.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="context-stroke"/>
+            </marker>
+          </defs>
 
-            <rect class="zone" x="170" y="18" width="530" height="312" rx="14"/>
-            <text class="zone-t" x="186" y="40">INFRACTURE · BACKEND (SPRING BOOT)</text>
-            <rect class="zone" x="890" y="92" width="214" height="238" rx="14"/>
-            <text class="zone-t" x="906" y="114">DOCKER ENGINE</text>
+          <rect class="zone" x="170" y="18" width="530" height="312" rx="14"/>
+          <text class="zone-t" x="186" y="40">INFRACTURE · BACKEND (SPRING BOOT)</text>
+          <rect class="zone" x="890" y="92" width="214" height="268" rx="14"/>
+          <text class="zone-t" x="906" y="114">DOCKER ENGINE</text>
 
-            <!-- wires -->
-            <path id="w-nav" class="wire" d="M150 85 H188" marker-end="url(#ar)"/>
-            <text id="l-nav" class="wl" x="152" y="76">HTTP</text>
-            <path id="w-svc" class="wire" d="M290 110 V158" marker-end="url(#ar)"/>
-            <text id="l-svc" class="wl" x="298" y="140">llama</text>
-            <path id="w-plan" class="wire" d="M270 210 V275 H338" marker-end="url(#ar)"/>
-            <text id="l-plan" class="wl" x="278" y="266">compile()</text>
-            <path id="w-db1" class="wire" d="M212 210 V378" marker-end="url(#ar)"/>
-            <text id="l-db1" class="wl" x="220" y="350">guarda</text>
-            <path id="w-db2" class="wire" d="M668 112 V378" marker-start="url(#ar)" marker-end="url(#ar)"/>
-            <text id="l-db2" class="wl" x="660" y="350" text-anchor="end">lee · cambia la fase</text>
-            <path id="w-eng" class="wire" d="M560 112 V158" marker-end="url(#ar)"/>
-            <text id="l-eng" class="wl" x="568" y="140">up() · down()</text>
-            <path id="w-proxy" class="wire" d="M640 185 H738" marker-end="url(#ar)"/>
-            <text id="l-proxy" class="wl" x="652" y="176">docker CLI</text>
-            <path id="w-dock" class="wire" d="M868 185 H918" marker-end="url(#ar)"/>
-            <path id="w-probe" class="wire" d="M680 80 H1040 V166" marker-end="url(#ar)" style="stroke-dasharray:5 4"/>
-            <text id="l-probe" class="wl" x="700" y="72">ServiceProbe · GET / por la red exec</text>
-            <text id="l-dock" class="wl" x="872" y="176">API</text>
+          <!-- wires -->
+          <path id="w-nav" class="wire" d="M150 85 H188" marker-end="url(#ar)"/>
+          <text id="l-nav" class="wl" x="152" y="76">HTTP</text>
+          <path id="w-svc" class="wire" d="M290 110 V158" marker-end="url(#ar)"/>
+          <text id="l-svc" class="wl" x="298" y="140">llama</text>
+          <path id="w-plan" class="wire" d="M270 210 V275 H338" marker-end="url(#ar)"/>
+          <text id="l-plan" class="wl" x="278" y="266">compile()</text>
+          <path id="w-db1" class="wire" d="M212 210 V378" marker-end="url(#ar)"/>
+          <text id="l-db1" class="wl" x="220" y="350">guarda</text>
+          <path id="w-db2" class="wire" d="M668 112 V378" marker-start="url(#ar)" marker-end="url(#ar)"/>
+          <text id="l-db2" class="wl" x="660" y="350" text-anchor="end">lee · fase · resumen</text>
+          <path id="w-eng" class="wire" d="M560 112 V158" marker-end="url(#ar)"/>
+          <text id="l-eng" class="wl" x="552" y="130" text-anchor="end">up · startLoad</text>
+          <text id="l-eng2" class="wl" x="552" y="146" text-anchor="end">stopLoad · down</text>
+          <path id="w-proxy" class="wire" d="M640 185 H738" marker-end="url(#ar)"/>
+          <text id="l-proxy" class="wl" x="676" y="176">docker CLI</text>
+          <path id="w-dock" class="wire" d="M868 185 H918" marker-end="url(#ar)"/>
+          <text id="l-dock" class="wl" x="872" y="176">API</text>
+          <path id="w-probe" class="wire" d="M680 80 H1040 V148" marker-end="url(#ar)" style="stroke-dasharray:5 4"/>
+          <text id="l-probe" class="wl" x="700" y="72">ServiceProbe · GET / por la red exec</text>
 
-            <g id="b-nav" class="box"><rect x="20" y="60" width="130" height="50" rx="10"/>
-              <text x="85" y="82" text-anchor="middle">Navegador</text><text class="sub" x="85" y="99" text-anchor="middle">canvas (PR2)</text></g>
-            <g id="b-ctrl" class="box"><rect x="190" y="60" width="200" height="50" rx="10"/>
-              <text x="290" y="82" text-anchor="middle">ExecutionController</text><text class="sub" x="290" y="99" text-anchor="middle">/executions · /stop</text></g>
-            <g id="b-svc" class="box"><rect x="190" y="160" width="200" height="50" rx="10"/>
-              <text x="290" y="182" text-anchor="middle">ExecutionService</text><text class="sub" x="290" y="199" text-anchor="middle">run() · stop()</text></g>
-            <g id="b-plan" class="box"><rect x="340" y="250" width="200" height="50" rx="10"/>
-              <text x="440" y="272" text-anchor="middle">PlanCompiler</text><text class="sub" x="440" y="289" text-anchor="middle">ejecución → plan</text></g>
-            <g id="b-rec" class="box new"><rect x="460" y="60" width="220" height="52" rx="10"/>
-              <text x="570" y="82" text-anchor="middle">ExecutionReconciler</text><text class="sub" x="570" y="99" text-anchor="middle">bucle cada 2 s</text>
-              <text class="pill" x="680" y="54" text-anchor="end">NUEVO</text></g>
-            <g id="b-eng" class="box new"><rect x="460" y="160" width="180" height="52" rx="10"/>
-              <text x="550" y="182" text-anchor="middle">ComposeRuntimeEngine</text><text class="sub" x="550" y="199" text-anchor="middle">up · down · barrido</text>
-              <text class="pill" x="640" y="154" text-anchor="end">NUEVO</text></g>
-            <g id="b-db" class="box"><rect x="170" y="380" width="530" height="52" rx="10"/>
-              <text x="435" y="402" text-anchor="middle">PostgreSQL · tabla executions</text><text class="sub" x="435" y="419" text-anchor="middle">fase · causa · resultado · plan · fila bloqueada al cambiarla</text></g>
-            <g id="b-proxy" class="box"><rect x="740" y="160" width="128" height="52" rx="10"/>
-              <text x="804" y="182" text-anchor="middle">docker-proxy</text><text class="sub" x="804" y="199" text-anchor="middle">HAProxy :2375</text></g>
+          <g id="b-nav" class="box"><rect x="20" y="60" width="130" height="50" rx="10"/>
+            <text x="85" y="82" text-anchor="middle">Navegador</text><text class="sub" x="85" y="99" text-anchor="middle">canvas</text></g>
+          <g id="b-ctrl" class="box"><rect x="190" y="60" width="200" height="50" rx="10"/>
+            <text x="290" y="82" text-anchor="middle">ExecutionController</text><text class="sub" x="290" y="99" text-anchor="middle">/executions · /stop</text></g>
+          <g id="b-svc" class="box"><rect x="190" y="160" width="200" height="50" rx="10"/>
+            <text x="290" y="182" text-anchor="middle">ExecutionService</text><text class="sub" x="290" y="199" text-anchor="middle">run() · stop()</text></g>
+          <g id="b-plan" class="box new"><rect x="340" y="250" width="200" height="50" rx="10"/>
+            <text x="440" y="272" text-anchor="middle">PlanCompiler</text><text class="sub" x="440" y="289" text-anchor="middle">nodos + servicio workload</text>
+            <text class="pill" x="540" y="244" text-anchor="end">#87</text></g>
+          <g id="b-rec" class="box new"><rect x="460" y="60" width="220" height="52" rx="10"/>
+            <text x="570" y="82" text-anchor="middle">ExecutionReconciler</text><text class="sub" x="570" y="99" text-anchor="middle">bucle cada 2 s</text>
+            <text class="pill" x="680" y="54" text-anchor="end">#87</text></g>
+          <g id="b-eng" class="box new"><rect x="460" y="160" width="180" height="52" rx="10"/>
+            <text x="550" y="182" text-anchor="middle">ComposeRuntimeEngine</text><text class="sub" x="550" y="199" text-anchor="middle">--profile load</text>
+            <text class="pill" x="640" y="154" text-anchor="end">#87</text></g>
+          <g id="b-db" class="box new"><rect x="170" y="380" width="530" height="52" rx="10"/>
+            <text x="435" y="402" text-anchor="middle">PostgreSQL · executions + executed_workloads</text><text class="sub" x="435" y="419" text-anchor="middle">fase · causa · resultado · plan · carga congelada · resumen de k6</text></g>
+          <g id="b-proxy" class="box new"><rect x="740" y="160" width="128" height="52" rx="10"/>
+            <text x="804" y="182" text-anchor="middle">docker-proxy</text><text class="sub" x="804" y="199" text-anchor="middle">+ GET …/logs</text>
+            <text class="pill" x="868" y="154" text-anchor="end">#87</text></g>
 
-            <g id="b-net" class="box"><rect x="910" y="130" width="176" height="150" rx="10" style="stroke-dasharray:5 4"/>
-              <text class="sub" x="924" y="150">red …exec-12_exec</text></g>
-            <g id="b-ctr" class="box"><rect x="928" y="168" width="140" height="58" rx="9"/>
-              <text x="998" y="191" text-anchor="middle">c-3f0c…</text><text class="sub" id="ctr-sub" x="998" y="209" text-anchor="middle">demo-app</text></g>
-            <text id="ctr-state" class="wl" x="998" y="252" text-anchor="middle"></text>
-          </svg></div>
-          <div class="legend">
-            <span style="--c: var(--new)"><i></i>añadido en el paso 6</span>
-            <span style="--c: var(--accent)"><i></i>actúa en este paso</span>
-          </div>
-          <figcaption>Solo el docker-proxy toca el socket de Docker. El backend nunca llama a Docker dentro de una transacción: primero guarda la fase, después ejecuta el comando.</figcaption>
-        </figure>
+          <g id="b-net" class="box"><rect x="910" y="128" width="176" height="214" rx="10" style="stroke-dasharray:5 4"/>
+            <text class="sub" x="924" y="146">red …exec-12_exec</text></g>
+          <g id="b-ctr" class="box"><rect x="928" y="152" width="140" height="52" rx="9"/>
+            <text x="998" y="174" text-anchor="middle">c-3f0c…</text><text class="sub" id="svc-state" x="998" y="192" text-anchor="middle">demo-app</text></g>
+          <g id="b-k6" class="box new"><rect x="928" y="264" width="140" height="52" rx="9"/>
+            <text x="998" y="286" text-anchor="middle">workload</text><text class="sub" id="k6-state" x="998" y="304" text-anchor="middle">k6</text>
+            <text class="pill" x="1068" y="331" text-anchor="end">#87</text></g>
+
+          <!-- Drawn after the network box, which would otherwise cover it. -->
+          <path id="w-traffic" class="wire" d="M998 262 V206" marker-end="url(#ar)"/>
+          <text id="l-traffic" class="wl" x="1006" y="240">GET / · 5/s</text>
+        </svg></div>
+        <div class="legend">
+          <span style="--c: var(--new)"><i></i>nuevo o cambiado en #87</span>
+          <span style="--c: var(--accent)"><i></i>actúa en este paso</span>
+        </div>
+        <figcaption>Solo el docker-proxy toca el socket de Docker. El backend nunca llama a Docker dentro de una transacción: primero guarda la fase, después ejecuta el comando. k6 vive en la misma red que el servicio y nunca publica puertos.</figcaption>
+      </figure>
       <div class="step" aria-live="polite">
         <div class="say">
           <span class="who" id="who"></span>
@@ -229,6 +244,7 @@
         </div>
         <div class="state">
           <div class="st" style="--c: var(--db)"><span class="h">Fila executions</span><span class="v" id="s-db"></span></div>
+          <div class="st" style="--c: var(--new)"><span class="h">Carga · executed_workloads</span><span class="v" id="s-load"></span></div>
           <div class="st" style="--c: var(--docker)"><span class="h">Docker</span><span class="v" id="s-docker"></span></div>
           <div class="st" style="--c: var(--accent)"><span class="h">Escenario</span><span class="v" id="s-scn"></span></div>
         </div>
@@ -239,63 +255,62 @@
   <section aria-labelledby="t-why">
     <h2 id="t-why">Las reglas que lo sostienen</h2>
     <div class="why">
-      <div class="card"><h3>Docker, siempre fuera de una transacción</h3><p>El bucle guarda la nueva fase en una transacción corta, la confirma y solo después lanza <code>docker compose</code>. Un arranque de un minuto nunca deja la base de datos bloqueada.</p></div>
-      <div class="card"><h3>Stop solo apunta la causa</h3><p><code>POST …/stop</code> escribe <code>STOP_REQUESTED</code> y responde 202 al momento. Quien para y limpia es el bucle, en su siguiente vuelta. Pulsarlo dos veces no cambia nada.</p></div>
-      <div class="card"><h3>Fila bloqueada al cambiarla</h3><p>Stop y el bucle pueden tocar la misma ejecución a la vez. Los dos la leen con <code>SELECT … FOR UPDATE</code> (<code>findForUpdate…</code>), así que uno espera al otro y nadie borra lo que el otro acaba de escribir.</p></div>
-      <div class="card"><h3>Un solo hilo</h3><p>Spring ejecuta los métodos <code>@Scheduled</code> en un único hilo. Dos vueltas del bucle nunca se solapan, así que nunca hay dos <code>up</code> o dos <code>down</code> a la vez.</p></div>
-      <div class="card"><h3>Arrancar no es funcionar</h3><p>Mientras corre, cada vuelta lee el estado de cada nodo con <code>docker compose ps</code>. Si uno se pone <code>unhealthy</code> o desaparece, la ejecución falla con su nombre y se limpia. A los 30 minutos se para sola.</p></div>
-      <div class="card"><h3>Limpiar es comprobar que no queda nada</h3><p>Tras <code>down -v</code>, el motor busca contenedores, redes y volúmenes con las dos etiquetas, <code>instance</code> y <code>execution</code>, los borra y vuelve a mirar. Si algo queda, la reserva no se libera y lo reintenta.</p></div>
+      <div class="card new"><h3>La carga, la última en arrancar…</h3><p>El servicio <code>workload</code> lleva el perfil de Compose <code>load</code>, así que <code>up --wait</code> no lo arranca. Solo cuando todos los nodos están sanos, <code>startLoad</code> lanza <code>--profile load up -d --no-deps workload</code>. Los resultados se pueden interpretar porque nunca hay tráfico contra un servicio que aún arranca.</p></div>
+      <div class="card new"><h3>…y la primera en parar</h3><p>Al limpiar, <code>stopLoad</code> manda SIGTERM a k6, que deja de generar peticiones, escribe su resumen y sale con 105. Después se lee la línea <code>INFRACTURE_SUMMARY</code> de <code>compose logs</code>, se guarda y solo entonces llega <code>down -v</code>.</p></div>
+      <div class="card new"><h3>Ausente no es cero</h3><p>El resumen guarda peticiones, fallidas, <code>dropped_iterations</code>, latencia media y p95. Lo que k6 no midió queda <code>null</code>. Si k6 nunca arrancó o no se pudo parar, no se guarda nada: un resumen inventado sería peor que ninguno.</p></div>
+      <div class="card new"><h3>Que k6 termine no es un fallo</h3><p>Con código 0, k6 cumplió su duración: se guarda el resumen con <code>completed = true</code> y el experimento sigue hasta Stop o el tiempo límite, para observar el sistema después de la carga. Cualquier otro código falla la ejecución.</p></div>
+      <div class="card"><h3>Docker, siempre fuera de una transacción</h3><p>El bucle guarda la nueva fase en una transacción corta, la confirma y solo después lanza <code>docker compose</code>. El resumen de k6 se guarda en otra transacción corta.</p></div>
+      <div class="card"><h3>Stop solo apunta la causa</h3><p><code>POST …/stop</code> escribe <code>STOP_REQUESTED</code> y responde 202 al momento. Quien para k6 y limpia es el bucle, en su siguiente vuelta. Pulsarlo dos veces no cambia nada.</p></div>
+      <div class="card"><h3>Fila bloqueada al cambiarla</h3><p>Stop y el bucle leen la ejecución con <code>SELECT … FOR UPDATE</code>. La carga congelada se lee aparte, como colección perezosa, porque PostgreSQL no puede bloquear una fila unida por <code>JOIN</code> a otra tabla opcional.</p></div>
+      <div class="card"><h3>Limpiar es comprobar que no queda nada</h3><p>Tras <code>down -v</code> (con <code>--profile load</code>, para incluir k6), el motor busca contenedores, redes y volúmenes con las dos etiquetas, los borra y vuelve a mirar. Si algo queda, la reserva no se libera y lo reintenta.</p></div>
     </div>
   </section>
 
   <section aria-labelledby="t-added">
-    <h2 id="t-added">Qué se ha añadido en cada paso</h2>
+    <h2 id="t-added">Qué añade #87, paso a paso</h2>
     <div class="card tbl">
       <table>
-        <thead><tr><th style="width:44px">Paso</th><th>Qué hace</th><th>Dónde está</th><th style="width:110px">Estado</th></tr></thead>
+        <thead><tr><th style="width:44px">Paso</th><th>Qué hace</th><th>Dónde está</th></tr></thead>
         <tbody>
-          <tr><td><span class="n">1</span></td><td><b>La app de demostración.</b> La imagen que hace de HTTP Service: responde en <code>/</code> y tiene <code>/health</code>.</td><td class="files"><code>demo-app/</code><code>DemoController</code><code>Dockerfile</code></td><td>commit</td></tr>
-          <tr><td><span class="n">2</span></td><td><b>El proxy de Docker.</b> HAProxy deja pasar solo las llamadas de la API que el motor necesita; el resto, 403.</td><td class="files"><code>docker/docker-proxy/haproxy.cfg</code><code>compose.yaml</code></td><td>commit</td></tr>
-          <tr><td><span class="n">3</span></td><td><b>El modelo Execution.</b> Fase, causa de parada y resultado; la copia congelada de nodos y conexiones; una sola reserva activa.</td><td class="files"><code>Execution</code><code>ExecutedComponent</code><code>StopCause</code><code>V10__create_executions.sql</code></td><td>commit</td></tr>
-          <tr><td><span class="n">4</span></td><td><b>Run reserva.</b> Valida la revisión exacta, reserva la ejecución y deja el escenario en solo lectura.</td><td class="files"><code>ExecutionController</code><code>ExecutionService.run</code><code>ScenarioReservations</code></td><td>commit</td></tr>
-          <tr><td><span class="n">5</span></td><td><b>El plan.</b> Convierte la ejecución en un compose endurecido: sin puertos, solo lectura, sin capacidades y con límites.</td><td class="files"><code>PlanCompiler</code><code>HttpServiceDriver</code><code>stateless-plan.json</code></td><td>commit</td></tr>
-          <tr class="hl"><td><span class="n">6</span></td><td><b>El motor.</b> Arranca el plan con <code>docker compose</code>, lo vigila con un bucle, atiende Stop y limpia hasta que no queda nada.</td><td class="files"><code>RuntimeEngine</code><code>ComposeRuntimeEngine</code><code>ExecutionReconciler</code><code>ExecutionScheduling</code><code>ExecutionService.stop</code><code>POST …/{id}/stop</code><code>findForUpdate…</code></td><td>commit</td></tr>
-          <tr class="hl"><td><span class="n">6b</span></td><td><b>Mirar dentro.</b> Estado de cada nodo, fallo si uno cae, tiempo límite de 30 minutos y la respuesta real del servicio como evidencia.</td><td class="files"><code>ComponentStatus</code><code>ExecutionObservations</code><code>ServiceProbe</code><code>RuntimeEngine.status</code><code>components[]</code></td><td>commit</td></tr>
-          <tr class="hl"><td><span class="n">7</span></td><td><b>Infracture en un contenedor.</b> La imagen de la aplicación con el CLI de Docker y Compose, y el servicio <code>backend</code> detrás del proxy, que se une a la red de cada experimento.</td><td class="files"><code>docker/Dockerfile</code><code>docker/Dockerfile.dockerignore</code><code>compose.yaml</code><code>development-guide.md</code></td><td>commit</td></tr>
+          <tr><td><span class="n">0</span></td><td><b>El motor de #86.</b> Reserva, plan, arranque con <code>up --wait</code>, vigilancia de cada nodo, Stop, tiempo límite y limpieza por etiquetas. Ya está en <code>main</code> (PR #149 y #150).</td><td class="files"><code>Execution</code><code>PlanCompiler</code><code>ComposeRuntimeEngine</code><code>ExecutionReconciler</code></td></tr>
+          <tr class="hl"><td><span class="n">1</span></td><td><b>El Workload del escenario.</b> Objetivo, perfil, tres números y semilla, guardados con el grafo y su revisión. Validaciones en la carga: sin carga (aviso), sin objetivo, objetivo sin <code>HTTP</code>, perfil desconocido y límites del ADR 0016.</td><td class="files"><code>Workload</code><code>WorkloadContract</code><code>ScenarioValidator</code><code>V11__create_scenario_workload.sql</code><code>ADR 0016</code></td></tr>
+          <tr class="hl"><td><span class="n">2</span></td><td><b>La imagen de carga.</b> <code>grafana/k6:2.3.0</code> con un script fijo por perfil. <code>run.sh</code> elige el script según <code>WORKLOAD_PROFILE</code> y le pasa las señales a k6 con <code>exec</code>.</td><td class="files"><code>load-generator/Dockerfile</code><code>run.sh</code><code>constant-http.js</code></td></tr>
+          <tr class="hl"><td><span class="n">3</span></td><td><b>Snapshot y plan.</b> La carga se congela al reservar. El plan añade el servicio <code>workload</code> con el perfil <code>load</code>, <code>depends_on</code> sano y solo números en el entorno.</td><td class="files"><code>ExecutedWorkload</code><code>V12__create_executed_workloads.sql</code><code>PlanCompiler.load</code><code>ComponentDriver.httpUrl</code><code>constant-http-plan.json</code></td></tr>
+          <tr class="hl"><td><span class="n">4</span></td><td><b>Motor y bucle.</b> <code>startLoad</code> tras la salud, la carga que termina sola o falla, <code>stopLoad</code> antes de <code>down</code> y el resumen guardado. El proxy deja leer logs.</td><td class="files"><code>RuntimeEngine.startLoad</code><code>RuntimeEngine.stopLoad</code><code>LoadReport</code><code>LoadSummary</code><code>haproxy.cfg</code></td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
   <section aria-labelledby="t-new">
-    <h2 id="t-new">Las piezas del paso 6b</h2>
-    <p>Cuatro clases nuevas y unos pocos cambios en las que ya había. Juntas hacen que el backend sepa qué pasa dentro del experimento mientras corre.</p>
+    <h2 id="t-new">Las piezas nuevas de la carga</h2>
     <div class="why">
-      <div class="card"><h3><code>ComponentStatus</code></h3><p>Los cuatro estados de un nodo: <code>STARTING</code>, <code>HEALTHY</code>, <code>UNHEALTHY</code> y <code>EXITED</code>. Su método <code>of(state, health)</code> traduce lo que dice <code>docker compose ps</code>.</p></div>
-      <div class="card"><h3><code>ExecutionObservations</code></h3><p>Lo último que vio el bucle de cada nodo: estado y respuesta. Vive en memoria, por ejecución y por nodo. Escribe solo el bucle, desde su único hilo; lee la API. Se olvida al liberar.</p></div>
-      <div class="card"><h3><code>ServiceProbe</code></h3><p>Hace una sola petición <code>GET /</code> al servicio cuando llega a <code>RUNNING</code>, como evidencia de que responde con tu configuración. Tiempos cortos (2 s y 5 s) y <code>null</code> si no contesta: nunca hace fallar el experimento.</p></div>
-      <div class="card"><h3><code>ExecutedComponentDTO</code></h3><p>Cada nodo en la API, dentro de <code>components[]</code>: clave, nombre, tipo, estado y respuesta. Estado y respuesta valen <code>null</code> hasta que el bucle los ha visto.</p></div>
+      <div class="card new"><h3><code>Workload</code> · <code>WorkloadContract</code></h3><p>La carga editable: <code>targetKey</code>, <code>profile</code>, <code>parameters</code> y <code>seed</code>. El contrato dice qué perfil existe (por ahora solo <code>CONSTANT_HTTP</code>), sus límites y qué capacidad pide al objetivo.</p></div>
+      <div class="card new"><h3><code>ExecutedWorkload</code> · <code>LoadSummary</code></h3><p>La copia congelada de la carga, apuntando al nodo ejecutado, y lo que k6 reportó al acabar. <code>recordSummary</code> se queda con el primero: una limpieza repetida no lo cambia.</p></div>
+      <div class="card new"><h3><code>LoadReport</code></h3><p>Lo que dejó el contenedor de k6: su código de salida y su resumen. 0 significa que cumplió su duración; 105, que lo paró Stop; <code>null</code>, que nunca arrancó.</p></div>
+      <div class="card new"><h3><code>constant-http.js</code></h3><p><code>constant-arrival-rate</code> con <code>rate</code>, <code>maxVUs</code> y <code>duration</code> sacados del entorno; parada ordenada de 5 s; cuerpos descartados. Su <code>handleSummary</code> imprime una sola línea JSON.</p></div>
     </div>
     <div class="card tbl">
       <table>
         <thead><tr><th>Clase que ya existía</th><th>Qué cambia</th></tr></thead>
         <tbody>
-          <tr><td><code>RuntimeEngine</code> · <code>ComposeRuntimeEngine</code></td><td><code>status(plan)</code> con <code>docker compose ps --all --format json</code>. Si <code>infracture.execution.backend-container</code> tiene valor, une el backend a la red <code>exec</code> tras <code>up</code> y lo saca antes de <code>down</code>.</td></tr>
-          <tr><td><code>ExecutionReconciler</code></td><td>En <code>RUNNING</code> llama a <code>watch()</code>: estado de cada nodo, fallo si uno cae y tiempo límite. Tras <code>up</code> pide la respuesta; al liberar, olvida lo observado.</td></tr>
-          <tr><td><code>ComponentDriver</code> · <code>HttpServiceDriver</code> · <code>PlanCompiler</code></td><td><code>evidence()</code>: la URL a la que preguntar, <code>http://c-&lt;clave&gt;:8080/</code>. Solo los HTTP Service tienen una.</td></tr>
-          <tr><td><code>ExecutionDTO</code> · <code>ExecutionMapper</code> · <code>ExecutionController</code></td><td>El campo <code>components[]</code>, que une cada nodo congelado con lo que se ha visto de él.</td></tr>
+          <tr><td><code>RuntimeEngine</code> · <code>ComposeRuntimeEngine</code></td><td><code>startLoad</code> y <code>stopLoad</code>. Todos los comandos llevan <code>--profile load</code> menos el primer <code>up --wait</code>. <code>stopLoad</code> hace <code>stop --timeout 15</code>, lee el <code>ExitCode</code> con <code>ps</code> y el resumen con <code>logs</code>.</td></tr>
+          <tr><td><code>ExecutionReconciler</code></td><td>Arranque: <code>up</code> y después <code>startLoad</code>. Vigilancia: si <code>workload</code> está <code>EXITED</code> recoge su resumen. Limpieza: <code>stopLoad</code> antes de <code>down</code>; si falla, la limpieza sigue y el resumen queda vacío.</td></tr>
+          <tr><td><code>Execution</code></td><td>Congela la carga al reservar y añade <code>recordLoadSummary</code>.</td></tr>
+          <tr><td><code>ExecutionDTO</code></td><td>El campo <code>workload</code>: configuración congelada, <code>summaryCollectedAt</code>, <code>completed</code> y <code>summary</code>.</td></tr>
         </tbody>
       </table>
     </div>
-    <pre class="cmd">GET …/executions/current
+    <pre class="cmd">GET …/executions/current   (prueba real, tras Stop)
 {
-  "id": 12, "phase": "RUNNING", "stopCause": null, "outcome": null,
-  "components": [
-    { "key": "3f0c8a1e-…", "name": "orders-api", "type": "HTTP_SERVICE",
-      "status": "HEALTHY",
-      "response": "{\"component\":\"orders-api\",\"role\":\"http\",\"mode\":\"STATELESS\",\"responseDelayMs\":50}" }
-  ],
-  "plan": { … }
+  "phase": "RELEASED", "outcome": "COMPLETED",
+  "workload": {
+    "targetKey": "3f0c8a1e-…", "profile": "CONSTANT_HTTP", "seed": 7,
+    "parameters": { "requestsPerSecond": 5, "virtualUsers": 2, "durationSeconds": 60 },
+    "summaryCollectedAt": "2026-11-08T23:44:46Z", "completed": false,
+    "summary": { "requests": 42, "failedRequests": 0, "droppedIterations": 0,
+                 "averageLatencyMs": 28.4, "p95LatencyMs": 32.7 }
+  }
 }</pre>
   </section>
 
@@ -306,24 +321,25 @@
       <table>
         <thead><tr><th>Atajo</th><th>Dónde</th><th>Cuándo y por qué se sustituye</th></tr></thead>
         <tbody>
-          <tr><td>Solo HTTP Service <code>STATELESS</code></td><td><code>ExecutionService</code></td><td><b>P07.</b> Con los drivers de Redis, PostgreSQL, Worker…, el bucle que rechaza otros tipos desaparece y la comprobación pasa al <code>PlanCompiler</code>.</td></tr>
-          <tr><td>Estado y respuesta en memoria</td><td><code>ExecutionObservations</code></td><td><b>P08.</b> Se guardan como eventos y muestras en la base de datos y llegan al navegador por SSE. La clase se borra.</td></tr>
-          <tr><td>Tiempo límite como Stop</td><td><code>ExecutionReconciler</code></td><td><b>Cuando la interfaz deba decir "se acabó el tiempo".</b> Se añade una causa propia; cambia una línea.</td></tr>
+          <tr class="hl"><td>Solo el perfil de carga <code>CONSTANT_HTTP</code></td><td><code>WorkloadContract</code></td><td><b>Con los otros tres perfiles.</b> Cada uno añade su contrato, su script en <code>load-generator/scripts</code> y una línea en <code>run.sh</code>.</td></tr>
+          <tr><td>Solo HTTP Service <code>STATELESS</code></td><td><code>ExecutionService</code></td><td><b>P07.</b> Con los drivers del resto de tipos, la comprobación pasa al <code>PlanCompiler</code>.</td></tr>
+          <tr><td>Estado y respuesta en memoria; resumen de k6 solo al final</td><td><code>ExecutionObservations</code></td><td><b>P08.</b> Eventos y muestras por intervalo en la base de datos y SSE al navegador. Ahí entrarán también los contadores de k6 en directo.</td></tr>
+          <tr><td>Tiempo límite como Stop</td><td><code>ExecutionReconciler</code></td><td><b>Cuando la interfaz deba decir "se acabó el tiempo".</b> Se añade una causa propia.</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="muted">Sin ser atajos: <code>ServiceProbe</code> probablemente se fusione en P08 con el recolector de métricas, que también pregunta a los servicios desde la red. Y un arranque cortado por un reinicio del backend espera a Stop; lo resolverá el #90.</p>
   </section>
 
   <section aria-labelledby="t-api">
-    <h2 id="t-api">La API de ejecuciones</h2>
+    <h2 id="t-api">La API</h2>
     <div class="card tbl">
       <table>
         <thead><tr><th>Petición</th><th>Responde</th><th>Qué hace</th></tr></thead>
         <tbody>
-          <tr><td><code>POST /api/v1/projects/{p}/scenarios/{s}/executions</code><br><code class="muted">{"revision": 2}</code></td><td>202 · 409 · 422</td><td>Reserva esa revisión y compila el plan. 409 si otra ejecución ocupa la instancia o la revisión no es la guardada; 422 si el escenario tiene errores.</td></tr>
-          <tr><td><code>GET …/executions/current</code></td><td>200 · 204</td><td>La última ejecución del escenario: fase, causa, resultado, plan y <code>components[]</code> con el estado y la respuesta de cada nodo.</td></tr>
-          <tr class="hl"><td><code>POST …/executions/{id}/stop</code></td><td>202 · 404</td><td><b>Nuevo.</b> Apunta Stop. Es idempotente; 404 si la ejecución no es de ese escenario o de ese usuario.</td></tr>
+          <tr class="hl"><td><code>PUT …/scenarios/{s}/graph</code><br><code class="muted">{…, "workload": {"targetKey", "profile", "parameters", "seed"}}</code></td><td>200 · 400 · 409</td><td><b>Cambia.</b> La carga va con nodos y conexiones, en la misma revisión. Sin <code>workload</code>, el escenario se queda sin carga. 400 si el objetivo no es un nodo del grafo o hay un campo desconocido; los límites se informan como <code>issues</code> sobre <code>WORKLOAD</code>.</td></tr>
+          <tr><td><code>POST …/executions</code><br><code class="muted">{"revision": 2}</code></td><td>202 · 409 · 422</td><td>Reserva esa revisión, congela nodos, conexiones y carga y compila el plan. 422 si hay errores, también los de la carga.</td></tr>
+          <tr class="hl"><td><code>GET …/executions/current</code></td><td>200 · 204</td><td><b>Cambia.</b> Añade <code>workload</code> con la carga congelada y, cuando termina, su resumen.</td></tr>
+          <tr><td><code>POST …/executions/{id}/stop</code></td><td>202 · 404</td><td>Apunta Stop. El bucle para k6 primero y después limpia.</td></tr>
         </tbody>
       </table>
     </div>
@@ -331,190 +347,243 @@
 
   <section aria-labelledby="t-tests">
     <h2 id="t-tests">Cómo se ha probado</h2>
-    <p>El backend completo pasa <b>290 tests</b> con un <b>94,3 %</b> de líneas cubiertas (el mínimo es 70 %). Además, una prueba real de punta a punta con el backend en contenedor (abajo).</p>
+    <p>El backend completo pasa <b>319 tests</b> con un <b>94,9 %</b> de líneas cubiertas (el mínimo es 70 %). Además, dos pruebas reales con el backend en contenedor y k6 de verdad (abajo).</p>
     <div class="card tbl">
       <table>
-        <thead><tr><th>Test</th><th>Tipo</th><th>Qué demuestra</th></tr></thead>
+        <thead><tr><th>Test</th><th>Tipo</th><th>Qué demuestra de la carga</th></tr></thead>
         <tbody>
-          <tr class="hl"><td><code>ExecutionReconcilerTests</code> · 13</td><td>unitario, Docker falso</td><td>Arranca, para, falla al arrancar, reintenta una limpieza fallida, no reanuda un arranque cortado, guarda estado y respuesta, falla si un nodo cae y se para al llegar al tiempo límite.</td></tr>
-          <tr class="hl"><td><code>ComposeRuntimeEngineIntegrationTests</code> · 6</td><td>Docker real</td><td>Un plan sano queda <i>healthy</i>; uno enfermo falla con el motivo; lee el estado de cada servicio; une el backend a la red y lo saca antes de limpiar; borra restos que Compose no conoce; no toca otras ejecuciones.</td></tr>
-          <tr class="hl"><td><code>ExecutionApiSystemTests</code> · 8</td><td>API real + PostgreSQL</td><td>Run → RUNNING (con estado y respuesta) → Stop → RELEASED; el escenario vuelve a ser editable; un fallo libera la instancia; otro usuario no puede parar.</td></tr>
-          <tr><td><code>ExecutionServiceTests</code> · 12</td><td>unitario</td><td>Reserva, idempotencia, revisión obsoleta, errores que bloquean y Stop.</td></tr>
-          <tr><td><code>PlanCompilerTests</code> · <code>ExecutionTests</code></td><td>unitario</td><td>El plan exacto (fichero de referencia) y las transiciones de fase, incluidos los dos caminos que encontró TLA+.</td></tr>
+          <tr class="hl"><td><code>ExecutionReconcilerTests</code> · 19</td><td>unitario, Docker falso</td><td>Orden <code>up → startLoad</code> y <code>stopLoad → down</code>; carga que termina sola (sigue <code>RUNNING</code>), que sale con error (falla), que no arranca y que no se puede parar.</td></tr>
+          <tr class="hl"><td><code>ComposeRuntimeEngineIntegrationTests</code> · 8</td><td>Docker real</td><td><code>up --wait</code> no arranca la carga; <code>startLoad</code> sí; <code>stopLoad</code> devuelve 105 y el resumen, y repetirlo da lo mismo; una carga que acaba sola devuelve 0. Un busybox hace de k6.</td></tr>
+          <tr class="hl"><td><code>ExecutionApiSystemTests</code> · 10</td><td>API real + PostgreSQL</td><td>El plan lleva <code>workload</code> con <code>profiles: [load]</code>; tras Stop, <code>InOrder</code> comprueba <code>up, startLoad, stopLoad, down</code> y la API devuelve el resumen con <code>p95LatencyMs: null</code>.</td></tr>
+          <tr class="hl"><td><code>ScenarioGraphApiSystemTests</code> · <code>ScenarioValidatorTests</code></td><td>API real · unitario</td><td>Guardar y releer la carga, límites como <code>issues</code>, objetivo fuera del grafo (400), campo <code>script</code> rechazado.</td></tr>
+          <tr><td><code>…PersistenceIntegrationTests</code></td><td>PostgreSQL real</td><td>Borrar el objetivo deja la carga sin objetivo; la carga congelada no puede apuntar fuera de su ejecución; el resumen se guarda y se relee.</td></tr>
+          <tr><td><code>PlanCompilerTests</code> · <code>ExecutionTests</code></td><td>unitario</td><td>El plan exacto con k6 (<code>constant-http-plan.json</code>), sin <code>command</code> ni puertos; la carga congelada y el primer resumen gana.</td></tr>
         </tbody>
       </table>
     </div>
-  </section>
+    <pre class="cmd">Prueba real · macOS · 8 nov 2026 · backend en contenedor tras docker-proxy · k6 2.3.0 contra demo-app (20 ms)
+Carga: CONSTANT_HTTP · 5 peticiones/s · 2 usuarios virtuales · semilla 7
 
-  <section aria-labelledby="t-box">
-    <h2 id="t-box">Infracture en un contenedor (paso 7)</h2>
-    <p>En la versión final todo corre en Docker. El backend es un contenedor más: habla con Docker solo a través del proxy y se une a la red de cada experimento para pedirle su respuesta. Por eso la respuesta real solo aparece con el backend en contenedor; con <code>./mvnw spring-boot:run</code> los experimentos arrancan y paran, pero la respuesta queda vacía.</p>
-    <div class="why">
-      <div class="card"><h3><code>docker/Dockerfile</code></h3><p>Dos etapas: compila el jar con <code>./mvnw package</code> y deja una imagen con el JRE, el jar y el CLI de Docker con Compose, que usa el motor. Corre como el usuario <code>infracture</code>, nunca root. Va en <code>docker/</code>, como pide la guía de la Fase 3; en P10 añadirá React y HTTPS.</p></div>
-      <div class="card"><h3>Servicio <code>backend</code></h3><p>Perfil <code>app</code> de <code>compose.yaml</code>. Espera a Postgres y al proxy, recibe <code>DOCKER_HOST=tcp://docker-proxy:2375</code>, se llama <code>infracture-backend</code> para que el motor lo una a cada red, publica <code>127.0.0.1:8080</code> y corre en solo lectura y sin capacidades.</p></div>
-      <div class="card"><h3>Cómo se arranca</h3><p><code>docker build -t infracture/demo-app:0.1.0 demo-app</code> una vez, y después <code>docker compose --profile app up -d --wait --build</code>. Se para con <code>docker compose --profile app down</code>. Los pasos están en la guía de desarrollo.</p></div>
-    </div>
-    <pre class="cmd">Prueba de punta a punta · macOS · 6 nov 2026 · proyecto Compose aparte (no toca tus datos)
+1) Duración 60 s, Stop a los ~8 s
+   c-3f0c…   Up 16 seconds (healthy)      ← k6 arranca después: "workload Up Less than a second"
+   RELEASED · COMPLETED · completed=false · 42 peticiones · 0 fallidas · media 28 ms · p95 33 ms
+   contenedores del experimento que quedan: ninguno
 
-docker compose -p infracture-e2e --profile app up -d --wait --build
-  ✓ platform-postgres  ✓ docker-proxy  ✓ infracture-backend   (healthy)
-POST …/executions {"revision":2}        → 202 RESERVED   (repetido: la misma ejecución)
-… 18 s …                                → RUNNING
-  components[0].status   = HEALTHY
-  components[0].response = {"component":"orders-api","role":"http","mode":"STATELESS","responseDelayMs":50}
-PUT …/scenarios/{id} con el experimento → 409
-POST …/executions/1/stop                → 202 → STOPPING → RELEASED · COMPLETED
-recursos con su etiqueta                → 0 contenedores · 0 redes · 0 volúmenes
-llamadas rechazadas por el proxy        → 0</pre>
+2) Duración 10 s, termina sola, Stop después
+   RELEASED · COMPLETED · completed=true · 50 peticiones · 0 fallidas · p95 32 ms
+   contenedores del experimento que quedan: ninguno</pre>
   </section>
 
   <section aria-labelledby="t-next">
-    <h2 id="t-next">Lo que falta</h2>
+    <h2 id="t-next">Lo que falta en #87</h2>
     <div class="next">
-      <div class="card"><span class="tag">Revisión</span><h3>PR #149</h3><p>El backend completo del #86, abierto como <a href="https://github.com/codeurjc-students/2026-INFRACTURE/pull/149">Part of #86</a>, pendiente de tu revisión.</p></div>
-      <div class="card"><span class="tag">PR2</span><h3>El canvas</h3><p>Botones Run y Stop, los estados de cada nodo y su respuesta en pantalla, el editor bloqueado mientras corre y la prueba en el navegador. Cierra el #86.</p></div>
+      <div class="card"><span class="tag">Paso 5</span><h3>El canvas</h3><p>Inspector de la carga (objetivo, perfil, números y semilla con sus errores), la flecha de tráfico que entra en el objetivo y el resumen de k6 en el panel de ejecución.</p></div>
+      <div class="card"><span class="tag">Paso 6</span><h3>E2E y documentación</h3><p>Prueba en el navegador con tráfico real y sin k6 tras Stop; sección 7 de EXECUTION_ARCHITECTURE, OpenAPI, CHANGELOG y AI_USAGE.</p></div>
+      <div class="card"><span class="tag">Revisión</span><h3>Las PR</h3><p>Backend (pasos 1–4) y canvas (pasos 5–6), cuando des el visto bueno al commit.</p></div>
     </div>
   </section>
 </main>
 
 <script>
   const P = "infracture-local-exec-12";
-  const LBL = "--filter label=io.infracture.instance=local \\\n  --filter label=io.infracture.execution=12";
+  const C = { user: "var(--accent)", loop: "var(--new)", none: "var(--muted)" };
   const row = (phase, cause, outcome, extra) =>
     `id <b>12</b><br>phase <b>${phase}</b><br>stopCause <b>${cause ?? "—"}</b><br>outcome <b>${outcome ?? "—"}</b>${extra ? "<br>" + extra : ""}`;
-  const C = { user: "var(--accent)", api: "var(--db)", loop: "var(--new)", docker: "var(--docker)" };
+  const SUMMARY = 'requests <b>42</b> · failed <b>0</b><br>dropped <b>0</b> · avg <b>28 ms</b> · p95 <b>33 ms</b>';
+  const LOAD_FROZEN = "CONSTANT_HTTP · 5/s · 2 VUs · 60 s · seed 7<br>resumen <b>—</b>";
+  const ENGINE = ["b-rec", "b-db", "b-eng", "b-proxy", "w-db2", "w-eng", "w-proxy", "w-dock"];
 
-  const run = {
-    who: ["Tú", C.user], title: "Pulsas Run",
-    txt: "El navegador envía la revisión que guardó. <code>ExecutionService.run()</code> bloquea el escenario, comprueba que no hay otra ejecución, valida, inserta la reserva y le adjunta el plan. Docker todavía no se toca.",
-    cmd: "POST /api/v1/projects/5/scenarios/3/executions\n{\"revision\": 2}\n\n← 202 Accepted  {\"id\": 12, \"phase\": \"RESERVED\", …}",
-    db: row('<span class="chg">RESERVED</span>', null, null, "plan ✓"), docker: "nada", scn: '<span class="chg">solo lectura</span>',
-    on: ["b-nav", "b-ctrl", "b-svc", "b-plan", "b-db", "w-nav", "w-svc", "w-plan", "w-db1"], ctr: "off",
-  };
-  const before = {
-    who: ["Antes", "var(--muted)"], title: "Escenario guardado, nada en marcha",
-    txt: "El escenario tiene un HTTP Service <code>STATELESS</code> guardado en la revisión 2. No hay ninguna ejecución activa, así que la instancia está libre.",
-    cmd: "—", db: "sin fila activa", docker: "nada", scn: "editable", on: [], ctr: "off",
-  };
-  const tick1 = {
-    who: ["Bucle · vuelta 1", C.loop], title: "El bucle ve la reserva y empieza a arrancar",
-    txt: "En menos de 2 s, <code>reconcile()</code> lee la fila bloqueada, ve <code>RESERVED</code> sin causa y la pasa a <code>STARTING</code>. Confirma la transacción y, ya fuera de ella, le pide al motor que aplique el plan.",
-    cmd: `docker compose --ansi never -p ${P} -f - \\\n  up --wait --wait-timeout 300\n   ↑ el plan entra por stdin como JSON`,
-    db: row('<span class="chg">STARTING</span>', null, null), docker: "red creada<br>contenedor arrancando…", scn: "solo lectura",
-    on: ["b-rec", "b-db", "b-eng", "b-proxy", "b-net", "b-ctr", "w-db2", "w-eng", "w-proxy", "w-dock"], ctr: "starting",
-  };
-  const healthy = {
-    who: ["Bucle · vuelta 1", C.loop], title: "Todo está sano: en marcha, y le pide su respuesta",
-    txt: "<code>up --wait</code> termina cuando la comprobación de salud del contenedor (<code>wget /health</code>) responde. El motor une el backend a la red <code>exec</code>, el bucle llama a <code>markRunning()</code> en otra transacción corta y pide <code>GET /</code> al servicio. La respuesta queda como evidencia. Solo funciona con el backend en contenedor (paso 7); desde el Mac queda vacía.",
-    cmd: "✓ Container …-c-3f0c…-1  Healthy\ndocker network connect infracture-local-exec-12_exec <backend>\n\nexecution.markRunning()\n\nGET http://c-3f0c…:8080/\n← {\"component\":\"orders-api\",\"role\":\"http\",\"mode\":\"STATELESS\"}",
-    db: row('<span class="chg">RUNNING</span>', null, null), docker: '<span class="ok">c-3f0c… healthy</span><br>respuesta guardada', scn: "solo lectura",
-    on: ["b-rec", "b-db", "b-ctr", "b-net", "w-db2", "w-probe"], ctr: "healthy",
-  };
-  const idle = {
-    who: ["Bucle · vueltas 2, 3, …", C.loop], title: "Mientras no haya causa, vigila cada nodo",
-    txt: "Cada 2 s el bucle ve <code>RUNNING</code> sin causa y le pide a Docker el estado de cada contenedor. Lo guarda en memoria, y la API lo devuelve en <code>components[]</code>. Mientras todo esté sano y no pasen los 30 minutos del tiempo límite, no hace nada más. El experimento sigue vivo aunque cierres el navegador.",
-    cmd: `docker compose --ansi never -p ${P} -f - ps --all --format json\n← {"Service":"c-3f0c…","State":"running","Health":"healthy", …}\n\ncomponents[0].status = HEALTHY`,
-    db: row("RUNNING", null, null), docker: '<span class="ok">c-3f0c… healthy</span>', scn: "solo lectura",
-    on: ["b-rec", "b-db", "b-eng", "b-proxy", "b-ctr", "w-db2", "w-eng", "w-proxy", "w-dock"], ctr: "healthy",
-  };
-  const stop = {
+  // svc / k6: off · starting · healthy · unhealthy · running · done · failed · gone
+  const s = (o) => ({ svc: "off", k6: "off", on: [], ...o });
+
+  const before = s({
+    who: ["Antes", C.none], title: "Escenario guardado con su carga",
+    txt: "El escenario tiene un HTTP Service <code>STATELESS</code> y un <code>Workload</code> <code>CONSTANT_HTTP</code> que apunta a él, guardados juntos en la revisión 2 (<code>scenario_workload</code>). No hay ninguna ejecución activa.",
+    cmd: "PUT …/scenarios/3/graph\n{ \"revision\": 1, \"components\": [ …orders-api… ], \"connections\": [],\n  \"workload\": { \"targetKey\": \"3f0c…\", \"profile\": \"CONSTANT_HTTP\",\n    \"parameters\": { \"requestsPerSecond\": 5, \"virtualUsers\": 2, \"durationSeconds\": 60 },\n    \"seed\": 7 } }\n← 200  { \"revision\": 2, \"issues\": [] }",
+    db: "sin fila activa", load: "en el escenario: CONSTANT_HTTP · 5/s · 2 VUs · 60 s · seed 7", docker: "nada", scn: "editable",
+  });
+  const run = s({
+    who: ["Tú", C.user], title: "Pulsas Run: se congela también la carga",
+    txt: "<code>ExecutionService.run()</code> bloquea el escenario, valida (también la carga), inserta la reserva con sus nodos, conexiones y la fila de <code>executed_workloads</code>, y le adjunta el plan. El plan ya incluye a k6, pero con el perfil <code>load</code>. Docker todavía no se toca.",
+    cmd: "POST …/executions  {\"revision\": 2}\n← 202  {\"id\": 12, \"phase\": \"RESERVED\", \"workload\": {…, \"summary\": null}}\n\nplan.services.workload:\n  image: infracture/load-generator:0.1.0\n  profiles: [load]\n  depends_on: { c-3f0c…: { condition: service_healthy } }\n  environment: WORKLOAD_PROFILE=CONSTANT_HTTP  TARGET_URL=http://c-3f0c…:8080/\n               REQUESTS_PER_SECOND=5  VIRTUAL_USERS=2  DURATION_SECONDS=60  RANDOM_SEED=7",
+    db: row('<span class="chg">RESERVED</span>', null, null, "plan ✓"), load: '<span class="chg">congelada</span>: ' + LOAD_FROZEN,
+    docker: "nada", scn: '<span class="chg">solo lectura</span>',
+    on: ["b-nav", "b-ctrl", "b-svc", "b-plan", "b-db", "w-nav", "w-svc", "w-plan", "w-db1"],
+  });
+  const tick1 = s({
+    who: ["Bucle · vuelta 1", C.loop], title: "Arrancan los nodos, k6 todavía no",
+    txt: "<code>reconcile()</code> pasa la fila a <code>STARTING</code>, confirma y le pide al motor que aplique el plan. Este es el único comando sin <code>--profile load</code>: Compose deja fuera el servicio <code>workload</code> y espera solo a los nodos.",
+    cmd: `docker compose --ansi never -p ${P} -f - \\\n  up --wait --wait-timeout 300\n   ↑ sin --profile load: k6 no se crea`,
+    db: row('<span class="chg">STARTING</span>', null, null), load: LOAD_FROZEN, docker: "red creada<br>c-3f0c… arrancando…<br>workload: no existe", scn: "solo lectura",
+    on: [...ENGINE, "b-net", "b-ctr"], svc: "starting",
+  });
+  const startLoad = s({
+    who: ["Bucle · vuelta 1", C.loop], title: "Todo está sano: ahora sí, arranca k6",
+    txt: "<code>up --wait</code> termina cuando <code>wget /health</code> responde. Justo después el motor lanza la carga con <code>--no-deps</code>, porque los nodos ya están sanos. Si k6 no pudiera arrancar (por ejemplo, falta la imagen), la ejecución fallaría aquí y se limpiaría como siempre.",
+    cmd: `✓ Container …-c-3f0c…-1  Healthy\n\ndocker compose --ansi never -p ${P} -f - --profile load \\\n  up -d --no-deps workload\n✓ Container …-workload-1  Started`,
+    db: row("STARTING", null, null), load: LOAD_FROZEN, docker: '<span class="ok">c-3f0c… healthy</span><br><span class="chg">workload running</span>', scn: "solo lectura",
+    on: [...ENGINE, "b-net", "b-ctr", "b-k6"], svc: "healthy", k6: "running",
+  });
+  const running = s({
+    who: ["Bucle · vuelta 1", C.loop], title: "En marcha, y le pide su respuesta",
+    txt: "El bucle llama a <code>markRunning()</code> en una transacción corta y pide <code>GET /</code> al servicio como evidencia. Mientras, k6 empieza una petición cada 200 ms, con como mucho 2 en vuelo.",
+    cmd: "execution.markRunning()\n\nGET http://c-3f0c…:8080/\n← {\"component\":\"orders-api\",\"role\":\"http\",\"mode\":\"STATELESS\",\"responseDelayMs\":20}",
+    db: row('<span class="chg">RUNNING</span>', null, null), load: LOAD_FROZEN, docker: '<span class="ok">c-3f0c… healthy</span><br>workload running', scn: "solo lectura",
+    on: ["b-rec", "b-db", "b-net", "b-ctr", "b-k6", "w-db2", "w-probe", "w-traffic"], svc: "healthy", k6: "running",
+  });
+  const idle = s({
+    who: ["Bucle · vueltas 2, 3, …", C.loop], title: "Vigila los nodos mientras k6 envía tráfico",
+    txt: "Cada 2 s el bucle lee el estado de cada contenedor con <code>ps</code> (ya con <code>--profile load</code>, así que también ve a k6). Los nodos sanos y k6 en marcha: no hace nada más. Spring no envía ni una petición; las envía k6 dentro de la red del experimento.",
+    cmd: `docker compose … --profile load ps --all --format json\n← {"Service":"c-3f0c…","State":"running","Health":"healthy"}\n← {"Service":"workload","State":"running"}`,
+    db: row("RUNNING", null, null), load: LOAD_FROZEN, docker: '<span class="ok">c-3f0c… healthy</span><br>workload running · 5 peticiones/s', scn: "solo lectura",
+    on: [...ENGINE, "b-ctr", "b-k6", "w-traffic"], svc: "healthy", k6: "running",
+  });
+  const stop = (k6 = "running", load = LOAD_FROZEN) => s({
     who: ["Tú", C.user], title: "Pulsas Stop",
-    txt: "<code>ExecutionService.stop()</code> bloquea la fila y solo apunta la causa <code>STOP_REQUESTED</code>. Responde 202 al momento: la fase sigue siendo <code>RUNNING</code> y el contenedor sigue vivo.",
+    txt: "<code>ExecutionService.stop()</code> bloquea la fila y solo apunta <code>STOP_REQUESTED</code>. Responde 202 al momento: la fase sigue en <code>RUNNING</code>" + (k6 === "running" ? " y k6 sigue enviando peticiones." : "."),
     cmd: "POST …/executions/12/stop\n\n← 202 Accepted  {\"phase\": \"RUNNING\", \"stopCause\": \"STOP_REQUESTED\"}",
-    db: row("RUNNING", '<span class="chg">STOP_REQUESTED</span>', null), docker: '<span class="ok">c-3f0c… healthy</span>', scn: "solo lectura",
-    on: ["b-nav", "b-ctrl", "b-svc", "b-db", "w-nav", "w-svc", "w-db1"], ctr: "healthy",
-  };
-  const stopping = {
-    who: ["Bucle · siguiente vuelta", C.loop], title: "Hay una causa: a limpiar",
-    txt: "El bucle ve una causa de parada y pasa la fila a <code>STOPPING</code>. Después, fuera de la transacción, el motor retira el proyecto y barre por etiqueta todo lo que pudiera quedar.",
-    cmd: `docker network disconnect --force …exec-12_exec <backend>\ndocker compose --ansi never -p ${P} -f - down -v\n\ndocker container ls -aq ${LBL}\ndocker network ls -q   (mismas etiquetas)\ndocker volume ls -q    (mismas etiquetas)\n→ vacío`,
-    db: row('<span class="chg">STOPPING</span>', "STOP_REQUESTED", null), docker: "contenedor y red borrados", scn: "solo lectura",
-    on: ["b-rec", "b-db", "b-eng", "b-proxy", "b-net", "b-ctr", "w-db2", "w-eng", "w-proxy", "w-dock"], ctr: "gone",
-  };
-  const released = (outcome, extra) => ({
+    db: row("RUNNING", '<span class="chg">STOP_REQUESTED</span>', null), load,
+    docker: '<span class="ok">c-3f0c… healthy</span>' + (k6 === "running" ? "<br>workload running" : "<br>workload exited (0)"), scn: "solo lectura",
+    on: ["b-nav", "b-ctrl", "b-svc", "b-db", "w-nav", "w-svc", "w-db1"].concat(k6 === "running" ? ["w-traffic"] : []), svc: "healthy", k6,
+  });
+  const stopLoad = (cause = "STOP_REQUESTED", extra) => s({
+    who: ["Bucle · siguiente vuelta", C.loop], title: "STOPPING: primero se para la carga",
+    txt: "El bucle ve la causa y pasa la fila a <code>STOPPING</code>. Fuera de la transacción, <code>stopLoad</code> manda SIGTERM a k6: deja de generar peticiones en unos 0,2 s, imprime su resumen y sale con 105. El motor lee el código con <code>ps</code> y la línea <code>INFRACTURE_SUMMARY</code> con <code>logs</code>, y el bucle la guarda con <code>completed = false</code>.",
+    cmd: `docker compose … --profile load stop --timeout 15 workload\ndocker compose … --profile load ps --all --format json workload\n← {"Service":"workload","State":"exited","ExitCode":105}\ndocker compose … --profile load logs --no-color --no-log-prefix workload\n← INFRACTURE_SUMMARY {"requests":42,"failedRequests":0,"droppedIterations":0,\n                      "averageLatencyMs":28.4,"p95LatencyMs":32.7}\n\nexecution.recordLoadSummary(summary, false)`,
+    db: row('<span class="chg">STOPPING</span>', cause, null, extra), load: '<span class="chg">completed false</span><br>' + SUMMARY,
+    docker: '<span class="ok">c-3f0c… healthy</span><br><span class="chg">workload exited (105)</span>', scn: "solo lectura",
+    on: [...ENGINE, "b-k6"], svc: "healthy", k6: "done",
+  });
+  const down = (cause = "STOP_REQUESTED", load = 'completed false<br>' + SUMMARY, extra) => s({
+    who: ["Bucle · misma vuelta", C.loop], title: "Después, se retira todo lo demás",
+    txt: "Con el resumen ya guardado, el motor saca al backend de la red, ejecuta <code>down -v</code> con <code>--profile load</code> (así también borra el contenedor de k6) y barre por etiquetas todo lo que pudiera quedar.",
+    cmd: `docker network disconnect --force …exec-12_exec <backend>\ndocker compose … --profile load down -v\n\ndocker container ls -aq --filter label=io.infracture.instance=local \\\n  --filter label=io.infracture.execution=12\n→ vacío (y lo mismo con redes y volúmenes)`,
+    db: row("STOPPING", cause, null, extra), load, docker: "nodos, k6 y red borrados", scn: "solo lectura",
+    on: [...ENGINE, "b-net", "b-ctr", "b-k6"], svc: "gone", k6: "gone",
+  });
+  const released = (outcome, load = 'completed false<br>' + SUMMARY, extra, cause) => s({
     who: ["Bucle", C.loop], title: outcome === "COMPLETED" ? "No queda nada: reserva liberada" : "No queda nada: reserva liberada, con fallo",
-    txt: `Solo cuando el barrido confirma que no queda nada, <code>release()</code> cierra la ejecución. El resultado sale de la causa más grave registrada. El escenario vuelve a ser editable y Run queda libre para cualquiera.`,
-    cmd: "execution.release()\n\nGET …/executions/current\n← 200  {\"phase\": \"RELEASED\", \"outcome\": \"" + outcome + "\"" + (extra ? ", …" : "") + "}",
-    db: row('<span class="chg">RELEASED</span>', outcome === "COMPLETED" ? "STOP_REQUESTED" : "FAILURE",
+    txt: "Solo cuando el barrido confirma que no queda nada, <code>release()</code> cierra la ejecución. El resultado sale de la causa más grave. El resumen de k6 se queda en el historial de la ejecución, ligado a su carga congelada.",
+    cmd: `execution.release()\n\nGET …/executions/current\n← 200  {"phase": "RELEASED", "outcome": "${outcome}",\n        "workload": { …, "completed": …, "summary": {…} } }`,
+    db: row('<span class="chg">RELEASED</span>', cause ?? (outcome === "COMPLETED" ? "STOP_REQUESTED" : "FAILURE"),
       `<span class="chg ${outcome === "COMPLETED" ? "ok" : "bad"}">${outcome}</span>`, "releasedAt ✓" + (extra ? "<br>" + extra : "")),
-    docker: "nada", scn: '<span class="chg">editable</span>',
-    on: ["b-rec", "b-db", "w-db2"], ctr: "off",
+    load, docker: "nada", scn: '<span class="chg">editable</span>', on: ["b-rec", "b-db", "w-db2"],
   });
 
+  const ENDED = '<span class="chg">completed true</span><br>requests <b>50</b> · failed <b>0</b><br>dropped <b>0</b> · p95 <b>32 ms</b>';
+  const NO_LOAD = "sin fila: el escenario no tiene carga";
+
   const CASES = {
-    ok: [before, run, tick1, healthy, idle, stop, stopping, released("COMPLETED")],
-    start: [before, run, tick1, {
-      who: ["Bucle · vuelta 1", C.loop], title: "El contenedor no llega a estar sano",
-      txt: "El healthcheck falla y <code>up --wait</code> termina con error. El motor lanza <code>RuntimeEngineException</code> con el final de la salida de Compose, y el bucle lo guarda con <code>fail()</code>. La fase no cambia: solo se apunta la causa.",
-      cmd: "✗ dependency failed to start:\n  container …-c-3f0c…-1 is unhealthy\n\nexecution.fail(\"docker compose up failed: …\")",
-      db: row("STARTING", '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), docker: '<span class="bad">c-3f0c… unhealthy</span>', scn: "solo lectura",
-      on: ["b-rec", "b-eng", "b-db", "b-ctr", "w-db2", "w-eng"], ctr: "unhealthy",
-    }, {
-      ...stopping, title: "La causa es un fallo: a limpiar igual",
-      txt: "En la siguiente vuelta el bucle ve la causa <code>FAILURE</code> y hace exactamente lo mismo que con Stop: <code>STOPPING</code>, <code>down -v</code> y barrido. Toda salida pasa por la limpieza.",
+    ok: [before, run, tick1, startLoad, running, idle, stop(), stopLoad(), down(), released("COMPLETED")],
+    ends: [before, run, tick1, startLoad, running, idle, s({
+      who: ["Bucle · a los 60 s", C.loop], title: "k6 cumple su duración y sale con 0",
+      txt: "El <code>ps</code> de la vigilancia ve <code>workload</code> como <code>EXITED</code> y todavía no hay resumen. El bucle llama a <code>stopLoad</code> (no hay nada que parar), lee el código 0 y el resumen, y lo guarda con <code>completed = true</code>. No es un fallo: el experimento sigue en <code>RUNNING</code>, ahora sin tráfico.",
+      cmd: `docker compose … ps --all --format json\n← {"Service":"workload","State":"exited"}\n\ndocker compose … stop / ps / logs workload\n← ExitCode 0 · INFRACTURE_SUMMARY {"requests":50, …}\n\nexecution.recordLoadSummary(summary, true)   → la fase no cambia`,
+      db: row("RUNNING", null, null), load: ENDED, docker: '<span class="ok">c-3f0c… healthy</span><br><span class="chg">workload exited (0)</span>', scn: "solo lectura",
+      on: [...ENGINE, "b-k6"], svc: "healthy", k6: "done",
+    }), stop("done", ENDED), s({
+      ...down("STOP_REQUESTED", ENDED), title: "STOPPING: la carga ya tiene resumen, así que se retira todo",
+      txt: "El bucle pasa a <code>STOPPING</code>. Como la carga ya tiene resumen, no vuelve a llamar a <code>stopLoad</code>: va directo a <code>down -v</code> y al barrido. El primer resumen es el que vale.",
+      db: row('<span class="chg">STOPPING</span>', "STOP_REQUESTED", null),
+    }), released("COMPLETED", ENDED)],
+    noload: [s({
+      ...before, title: "Escenario sin carga: solo un aviso",
+      txt: "Sin <code>Workload</code>, la validación devuelve el aviso <code>NO_WORKLOAD</code> («no habrá tráfico»). Es un <code>WARNING</code>, así que Run sigue permitido: sirve, por ejemplo, para observar solo el arranque.",
+      cmd: "GET …/scenarios/3/graph\n← { \"revision\": 2, \"workload\": null,\n    \"issues\": [ { \"severity\": \"WARNING\", \"code\": \"NO_WORKLOAD\",\n      \"message\": \"The scenario has no load, so the experiment receives no traffic\",\n      \"target\": { \"kind\": \"WORKLOAD\" } } ] }",
+      load: "sin carga en el escenario",
+    }), s({
+      ...run, title: "Pulsas Run: sin carga, sin k6",
+      txt: "La reserva no tiene fila en <code>executed_workloads</code> y el plan no tiene servicio <code>workload</code>. Todo lo demás es igual que en #86.",
+      cmd: "POST …/executions  {\"revision\": 2}\n← 202  {\"id\": 12, \"phase\": \"RESERVED\", \"workload\": null}",
+      load: NO_LOAD,
+    }), s({
+      ...tick1, title: "Arrancan los nodos; no hay carga que lanzar",
+      txt: "<code>up --wait</code> arranca y espera a los nodos. Como la ejecución no tiene carga, el bucle no llama a <code>startLoad</code> y pasa directamente a <code>RUNNING</code>.",
+      db: row('<span class="chg">RUNNING</span>', null, null), load: NO_LOAD, docker: '<span class="ok">c-3f0c… healthy</span>', svc: "healthy",
+    }), s({ ...stop(), load: NO_LOAD, docker: '<span class="ok">c-3f0c… healthy</span>', k6: "off", on: ["b-nav", "b-ctrl", "b-svc", "b-db", "w-nav", "w-svc", "w-db1"] }),
+      s({ ...down("STOP_REQUESTED", NO_LOAD), title: "STOPPING: se retira todo", txt: "Sin carga no hay <code>stopLoad</code>: el bucle pasa a <code>STOPPING</code> y va directo a <code>down -v</code> y al barrido, como en #86.", db: row('<span class="chg">STOPPING</span>', "STOP_REQUESTED", null), k6: "off" }),
+      released("COMPLETED", NO_LOAD)],
+    loadstart: [before, run, tick1, s({
+      ...startLoad, title: "Los nodos están sanos, pero k6 no arranca",
+      txt: "<code>startLoad</code> falla, por ejemplo porque la imagen <code>infracture/load-generator</code> no está construida. El motor lanza <code>RuntimeEngineException</code> y el bucle la guarda con <code>fail()</code>. La fila sigue en <code>STARTING</code>: nunca llega a <code>RUNNING</code>.",
+      cmd: `docker compose … --profile load up -d --no-deps workload\n✗ pull access denied for infracture/load-generator\n\nexecution.fail("docker compose up failed: …")`,
+      db: row("STARTING", '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), docker: '<span class="ok">c-3f0c… healthy</span><br><span class="bad">workload: no existe</span>', k6: "failed",
+    }), s({
+      ...stopLoad("FAILURE", "failureReason ✓"), title: "STOPPING: se intenta parar la carga, que nunca existió",
+      txt: "La limpieza es la misma de siempre. <code>stopLoad</code> no encuentra contenedor: devuelve código <code>null</code> y ningún resumen. El bucle no guarda nada, porque un resumen vacío diría «0 peticiones», y eso no es lo que pasó.",
+      cmd: "docker compose … --profile load stop / ps / logs workload\n← sin contenedor: LoadReport(exitCode=null, summary=null)\n\n(no se registra ningún resumen)",
+      load: LOAD_FROZEN, docker: '<span class="ok">c-3f0c… healthy</span>', k6: "off",
+    }), down("FAILURE", LOAD_FROZEN, "failureReason ✓"), released("FAILED", LOAD_FROZEN, "failureReason ✓")],
+    loadfail: [before, run, tick1, startLoad, running, idle, s({
+      who: ["Bucle · una vuelta cualquiera", C.loop], title: "k6 sale con un error",
+      txt: "k6 termina con un código distinto de 0 y de 105, por ejemplo 107 (excepción en el script). El bucle lee su salida, guarda lo que haya reportado con <code>completed = false</code> (aquí, nada: los valores quedan <code>null</code>) y falla la ejecución con el código.",
+      cmd: `← {"Service":"workload","State":"exited"}\ndocker compose … stop / ps / logs workload\n← ExitCode 107 · sin línea INFRACTURE_SUMMARY\n\nexecution.recordLoadSummary(null, false)\nexecution.fail("The load stopped with exit code 107")`,
+      db: row("RUNNING", '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), load: '<span class="chg">completed false</span><br>summary <b>null</b> (k6 no reportó nada)',
+      docker: '<span class="ok">c-3f0c… healthy</span><br><span class="bad">workload exited (107)</span>', scn: "solo lectura",
+      on: [...ENGINE, "b-k6"], svc: "healthy", k6: "failed",
+    }), s({
+      ...down("FAILURE", 'completed false<br>summary <b>null</b>', "failureReason ✓"), title: "STOPPING: la carga ya tiene resultado, se retira todo",
       db: row('<span class="chg">STOPPING</span>', "FAILURE", null, "failureReason ✓"),
-    }, released("FAILED", "failureReason ✓")],
-    node: [before, run, tick1, healthy, idle, {
+    }), released("FAILED", 'completed false<br>summary <b>null</b>', "failureReason ✓")],
+    node: [before, run, tick1, startLoad, running, idle, s({
       who: ["Bucle · una vuelta cualquiera", C.loop], title: "Un nodo deja de estar sano",
-      txt: "El contenedor sigue vivo, pero su comprobación de salud lleva 15 fallos seguidos y Docker lo marca <code>unhealthy</code>. El bucle lo ve en <code>docker compose ps</code> y guarda <code>fail(\"orders-api is unhealthy\")</code>. Si el contenedor hubiera desaparecido, el motivo sería <code>orders-api stopped</code>. Arrancar no es lo mismo que funcionar.",
-      cmd: `docker compose … ps --all --format json\n← {"Service":"c-3f0c…","State":"running","Health":"unhealthy"}\n\nexecution.fail("orders-api is unhealthy")`,
-      db: row("RUNNING", '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), docker: '<span class="bad">c-3f0c… unhealthy</span>', scn: "solo lectura",
-      on: ["b-rec", "b-eng", "b-proxy", "b-db", "b-ctr", "w-db2", "w-eng", "w-proxy", "w-dock"], ctr: "unhealthy",
-    }, {
-      ...stopping, title: "La causa es un fallo: a limpiar igual",
-      txt: "En la siguiente vuelta el bucle ve la causa <code>FAILURE</code> y limpia como con Stop: <code>STOPPING</code>, sale de la red, <code>down -v</code> y barrido por etiquetas.",
-      db: row('<span class="chg">STOPPING</span>', "FAILURE", null, "failureReason ✓"),
-    }, released("FAILED", "failureReason ✓")],
-    time: [before, run, tick1, healthy, idle, {
-      who: ["Bucle · a los 30 minutos", C.loop], title: "Se acaba el tiempo límite",
-      txt: "Han pasado 30 minutos (<code>infracture.execution.max-duration</code>) desde que pulsaste Run y todos los nodos siguen sanos. El bucle apunta la parada igual que si pulsaras Stop. <b>Atajo:</b> se guarda como <code>STOP_REQUESTED</code> y acaba <code>COMPLETED</code>, así que hoy no se distingue de un Stop manual. Cuando haga falta, tendrá una causa propia.",
-      cmd: "createdAt + 30 min ≤ ahora\n\nexecution.requestStop()   ← el mismo efecto que pulsar Stop",
-      db: row("RUNNING", '<span class="chg">STOP_REQUESTED</span>', null), docker: '<span class="ok">c-3f0c… healthy</span>', scn: "solo lectura",
-      on: ["b-rec", "b-db", "w-db2"], ctr: "healthy",
-    }, { ...stopping, title: "Se limpia como con Stop" }, released("COMPLETED")],
-    clean: [before, run, tick1, healthy, stop, {
-      ...stopping, title: "La limpieza falla",
-      txt: "Docker no responde a tiempo, o queda algo con las etiquetas. El motor lanza la excepción y el bucle la guarda con <code>fail()</code>. <code>FAILURE</code> es más grave que <code>STOP_REQUESTED</code>, así que sustituye a la causa. La fila se queda en <code>STOPPING</code>, la reserva sigue tomada y el escenario sigue en solo lectura.",
-      cmd: `docker compose … down -v\n✗ docker compose down did not finish within 120 seconds\n\nexecution.fail(…)   → la fase sigue en STOPPING`,
-      db: row('<span class="chg">STOPPING</span>', '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), docker: '<span class="bad">puede quedar algo</span>', scn: "solo lectura",
-      ctr: "healthy",
-    }, {
-      ...stopping, title: "La siguiente vuelta lo reintenta",
-      txt: "La fila sigue en <code>STOPPING</code>, así que el bucle vuelve a ejecutar la limpieza. Repetirla es seguro: <code>down -v</code> y el barrido no fallan si algo ya no existe.",
-      db: row("STOPPING", "FAILURE", null, "failureReason ✓"),
-    }, released("FAILED", "failureReason ✓")],
+      txt: "El servicio lleva 15 comprobaciones de salud fallidas y Docker lo marca <code>unhealthy</code>. El bucle guarda <code>fail(\"orders-api is unhealthy\")</code>. k6 sigue corriendo hasta la limpieza, y sus peticiones fallidas también acabarán en el resumen.",
+      cmd: `← {"Service":"c-3f0c…","State":"running","Health":"unhealthy"}\n← {"Service":"workload","State":"running"}\n\nexecution.fail("orders-api is unhealthy")`,
+      db: row("RUNNING", '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), load: LOAD_FROZEN,
+      docker: '<span class="bad">c-3f0c… unhealthy</span><br>workload running', scn: "solo lectura",
+      on: [...ENGINE, "b-ctr", "w-traffic"], svc: "unhealthy", k6: "running",
+    }), s({ ...stopLoad("FAILURE", "failureReason ✓"), title: "STOPPING: también aquí, primero la carga", svc: "unhealthy", docker: '<span class="bad">c-3f0c… unhealthy</span><br><span class="chg">workload exited (105)</span>' }),
+      down("FAILURE", 'completed false<br>' + SUMMARY, "failureReason ✓"), released("FAILED", 'completed false<br>' + SUMMARY, "failureReason ✓")],
+    clean: [before, run, tick1, startLoad, running, stop(), stopLoad(), s({
+      ...down(), title: "La limpieza falla",
+      txt: "Docker no responde a tiempo, o queda algo con las etiquetas. El bucle lo guarda con <code>fail()</code>, que sustituye a <code>STOP_REQUESTED</code> por ser más grave. La fila se queda en <code>STOPPING</code> y la reserva sigue tomada. El resumen de k6 ya está guardado.",
+      cmd: `docker compose … --profile load down -v\n✗ docker compose down did not finish within 120 seconds\n\nexecution.fail(…)   → la fase sigue en STOPPING`,
+      db: row("STOPPING", '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), docker: '<span class="bad">puede quedar algo</span>', svc: "healthy", k6: "done",
+    }), s({
+      ...down("FAILURE", 'completed false<br>' + SUMMARY, "failureReason ✓"), title: "La siguiente vuelta lo reintenta",
+      txt: "La fila sigue en <code>STOPPING</code>, así que el bucle repite la limpieza. Como la carga ya tiene resumen, no vuelve a llamar a <code>stopLoad</code>. Repetir <code>down -v</code> y el barrido es seguro.",
+    }), released("FAILED", 'completed false<br>' + SUMMARY, "failureReason ✓")],
   };
 
+  const SVC = { off: "demo-app", starting: "arrancando…", healthy: "healthy", unhealthy: "unhealthy", gone: "borrado" };
+  const K6 = { off: "k6 · no existe", running: "k6 · enviando", done: "k6 · terminado", failed: "k6 · error", gone: "borrado" };
   let current = "ok", index = 0;
   const $ = id => document.getElementById(id);
 
   function render() {
-    const steps = CASES[current], s = steps[index];
-    $("who").textContent = s.who[0];
-    $("who").style.setProperty("--c", s.who[1]);
-    $("title").textContent = s.title;
-    $("txt").innerHTML = s.txt;
-    $("cmd").textContent = s.cmd;
-    $("s-db").innerHTML = s.db;
-    $("s-docker").innerHTML = s.docker;
-    $("s-scn").innerHTML = s.scn;
+    const steps = CASES[current], st = steps[index];
+    $("who").textContent = st.who[0];
+    $("who").style.setProperty("--c", st.who[1]);
+    $("title").textContent = st.title;
+    $("txt").innerHTML = st.txt;
+    $("cmd").textContent = st.cmd;
+    $("s-db").innerHTML = st.db;
+    $("s-load").innerHTML = st.load;
+    $("s-docker").innerHTML = st.docker;
+    $("s-scn").innerHTML = st.scn;
     $("count").textContent = `${index + 1} / ${steps.length}`;
     $("prev").disabled = index === 0;
     $("next").disabled = index === steps.length - 1;
 
     document.querySelectorAll(".box, .wire, .wl").forEach(el => el.classList.remove("on"));
-    for (const id of s.on) {
+    for (const id of st.on) {
       const el = $(id);
       if (!el) continue;
       el.classList.add("on");
-      const label = $("l-" + id.slice(2));
-      if (id.startsWith("w-") && label) label.classList.add("on");
+      if (id.startsWith("w-")) {
+        for (const suffix of ["", "2"]) $("l-" + id.slice(2) + suffix)?.classList.add("on");
+      }
     }
-    const ctr = $("b-ctr"), state = $("ctr-state");
-    ctr.style.opacity = s.ctr === "off" || s.ctr === "gone" ? "0.25" : "1";
-    $("b-net").style.opacity = s.ctr === "off" || s.ctr === "gone" ? "0.25" : "1";
-    state.textContent = { off: "", gone: "borrado", starting: "arrancando…", healthy: "healthy", unhealthy: "unhealthy" }[s.ctr];
-    state.style.fill = s.ctr === "healthy" ? "var(--ok)" : s.ctr === "unhealthy" ? "var(--danger)" : "var(--muted)";
+    const faded = v => v === "off" || v === "gone";
+    $("b-ctr").style.opacity = faded(st.svc) ? "0.25" : "1";
+    $("b-net").style.opacity = faded(st.svc) ? "0.25" : "1";
+    $("b-k6").style.opacity = faded(st.k6) ? "0.25" : "1";
+    $("w-traffic").style.opacity = st.k6 === "running" ? "1" : "0.15";
+    $("l-traffic").style.opacity = st.k6 === "running" ? "1" : "0.15";
+    $("svc-state").textContent = SVC[st.svc];
+    $("svc-state").style.fill = st.svc === "healthy" ? "var(--ok)" : st.svc === "unhealthy" ? "var(--danger)" : "var(--muted)";
+    $("k6-state").textContent = K6[st.k6];
+    $("k6-state").style.fill = st.k6 === "running" ? "var(--ok)" : st.k6 === "failed" ? "var(--danger)" : "var(--muted)";
 
     const dots = $("dots");
     dots.replaceChildren();

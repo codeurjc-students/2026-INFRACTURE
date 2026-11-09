@@ -5,8 +5,15 @@ import java.util.Map;
 // Applies a plan to Docker and removes it. The reconciler calls it outside any database transaction.
 public interface RuntimeEngine {
 
-    // Returns once every service of the plan is healthy; throws if any of them cannot get there.
+    // Returns once every node of the plan is healthy; throws if any of them cannot get there. The load
+    // waits for startLoad.
     void up(Map<String, Object> plan);
+
+    // Starts the plan's load. Call it once the nodes are healthy; throws if k6 cannot start.
+    void startLoad(Map<String, Object> plan);
+
+    // Stops the load if it still runs, so k6 prints its summary, and returns what it left. Safe to repeat.
+    LoadReport stopLoad(Map<String, Object> plan);
 
     // The status of each service of the plan, by service name. A service whose
     // container no longer exists is missing from the result.

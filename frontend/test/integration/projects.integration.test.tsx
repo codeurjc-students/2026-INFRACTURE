@@ -233,7 +233,13 @@ describe("projects client against the real API", () => {
           code: "EMPTY_SCENARIO",
           target: { kind: "SCENARIO", key: null },
         }),
+        expect.objectContaining({
+          severity: "WARNING",
+          code: "NO_WORKLOAD",
+          target: { kind: "WORKLOAD", key: null },
+        }),
       ],
+      workload: null,
     });
     const http = loaded.templates.find(
       (template) => template.key === "http-service",
@@ -293,6 +299,7 @@ describe("projects client against the real API", () => {
         target: { kind: "COMPONENT", key: api },
         field: "database",
       }),
+      expect.objectContaining({ severity: "WARNING", code: "NO_WORKLOAD" }),
     ]);
 
     const reopened = await scenarioLoader({

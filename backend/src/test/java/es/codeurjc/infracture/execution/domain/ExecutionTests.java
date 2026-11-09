@@ -11,6 +11,7 @@ import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
+import es.codeurjc.infracture.project.domain.Workload;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,10 +38,42 @@ class ExecutionTests {
             assertThat(component.getParameters()).containsEntry("responseDelayMs", 50);
         });
 
-        scenario.replaceGraph(2, List.of(), List.of(), Map.of());
+        scenario.replaceGraph(2, List.of(), List.of(), null, Map.of());
 
         assertThat(execution.getComponents()).hasSize(1);
         assertThat(execution.getScenarioRevision()).isEqualTo(2);
+    }
+
+    @Test
+    void freezesTheLoadWhenReservedAndRunsWithoutOneWhenTheScenarioHasNone() {
+        assertThat(execution.getWorkload()).isNull();
+        Workload load = new Workload(ORDERS, "CONSTANT_HTTP",
+                Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42);
+        scenario.replaceGraph(2, List.of(orders()), List.of(), load, templates());
+
+        Execution loaded = new Execution(scenario, CONTRACTS);
+        scenario.replaceGraph(3, List.of(orders()), List.of(), null, templates());
+
+        assertThat(loaded.getWorkload().getTargetKey()).isEqualTo(ORDERS);
+        assertThat(loaded.getWorkload().getProfile()).isEqualTo("CONSTANT_HTTP");
+        assertThat(loaded.getWorkload().getParameters())
+                .isEqualTo(Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60));
+        assertThat(loaded.getWorkload().getSeed()).isEqualTo(42);
+    }
+
+    @Test
+    void keepsTheFirstLoadSummaryAndRefusesOneWithoutLoad() {
+        scenario.replaceGraph(2, List.of(orders()), List.of(), new Workload(ORDERS, "CONSTANT_HTTP",
+                Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42), templates());
+        Execution loaded = new Execution(scenario, CONTRACTS);
+        LoadSummary first = new LoadSummary(600L, 2L, 0L, 51.0, 60.0);
+
+        loaded.recordLoadSummary(first, true);
+        loaded.recordLoadSummary(new LoadSummary(1L, null, null, null, null), false);
+
+        assertThat(loaded.getWorkload().getSummary()).isEqualTo(first);
+        assertThat(loaded.getWorkload().getCompleted()).isTrue();
+        assertThatIllegalStateException().isThrownBy(() -> execution.recordLoadSummary(first, true));
     }
 
     @Test
@@ -135,13 +168,19 @@ class ExecutionTests {
     }
 
     private static Scenario statelessScenario() {
-        ComponentTemplate http = new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE,
-                true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)));
         Scenario scenario = new Scenario(new Project(
                 new User("alice", "hash", "alice@example.com", "Alice", UserRole.USER), "Lab", null), "Run", null);
-        scenario.replaceGraph(1, List.of(new ComponentDraft(ORDERS, "http-service", "orders-api", 0, 0,
-                new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 50)))), List.of(),
-                Map.of("http-service", http));
+        scenario.replaceGraph(1, List.of(orders()), List.of(), null, templates());
         return scenario;
+    }
+
+    private static ComponentDraft orders() {
+        return new ComponentDraft(ORDERS, "http-service", "orders-api", 0, 0,
+                new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 50)));
+    }
+
+    private static Map<String, ComponentTemplate> templates() {
+        return Map.of("http-service", new ComponentTemplate("http-service", "HTTP Service",
+                ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))));
     }
 }

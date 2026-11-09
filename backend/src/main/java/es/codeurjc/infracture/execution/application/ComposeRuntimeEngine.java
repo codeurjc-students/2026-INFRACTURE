@@ -2,6 +2,7 @@ package es.codeurjc.infracture.execution.application;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import es.codeurjc.infracture.execution.domain.LoadSummary;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +29,12 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     private static final List<String> RESOURCE_KINDS = List.of("container", "network", "volume");
     // Compose prints the cause last, so the reason keeps the end.
     private static final int MAX_OUTPUT_IN_REASON = 500;
+    // Activates the load service. Only the first `up` leaves it out, so it starts after the nodes.
+    private static final List<String> WITH_LOAD = List.of("--profile", PlanCompiler.LOAD_PROFILE);
+    // Longer than the script's graceful stop, so k6 has time to print its summary.
+    private static final String LOAD_STOP_SECONDS = "15";
+    // The line the load scripts print with their summary (load-generator/scripts).
+    static final String SUMMARY_MARKER = "INFRACTURE_SUMMARY ";
 
     private final JsonMapper jsonMapper;
     // The backend's own container in the distribution; empty when it runs on
@@ -43,24 +50,58 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     @Override
     public void up(Map<String, Object> plan) {
         // One minute more than --wait, so Compose names the unhealthy service.
-        compose(plan, START_TIMEOUT.plusMinutes(1),
+        compose(plan, START_TIMEOUT.plusMinutes(1), List.of(),
                 "up", "--wait", "--wait-timeout", String.valueOf(START_TIMEOUT.toSeconds()));
         if (!backendContainer.isBlank()) {
             backendNetwork(plan, "connect");
         }
     }
 
+    // --no-deps: the nodes are already healthy, so Compose only starts k6.
+    @Override
+    public void startLoad(Map<String, Object> plan) {
+        compose(plan, START_TIMEOUT, WITH_LOAD, "up", "-d", "--no-deps", PlanCompiler.LOAD_SERVICE);
+    }
+
+    @Override
+    public LoadReport stopLoad(Map<String, Object> plan) {
+        compose(plan, STOP_TIMEOUT, WITH_LOAD, "stop", "--timeout", LOAD_STOP_SECONDS, PlanCompiler.LOAD_SERVICE);
+        Integer exitCode = null;
+        for (PsLine container : ps(plan, PlanCompiler.LOAD_SERVICE)) {
+            exitCode = container.exitCode();
+        }
+        LoadSummary summary = null;
+        String logs = compose(plan, STOP_TIMEOUT, WITH_LOAD, "logs", "--no-color", "--no-log-prefix",
+                PlanCompiler.LOAD_SERVICE);
+        for (String line : logs.split("\\R")) {
+            if (line.startsWith(SUMMARY_MARKER)) {
+                summary = jsonMapper.readValue(line.substring(SUMMARY_MARKER.length()), LoadSummary.class);
+            }
+        }
+        return new LoadReport(exitCode, summary);
+    }
+
     @Override
     public Map<String, ComponentStatus> status(Map<String, Object> plan) {
         Map<String, ComponentStatus> statuses = new LinkedHashMap<>();
-        // Compose prints one JSON object per container and line.
-        for (String line : compose(plan, STOP_TIMEOUT, "ps", "--all", "--format", "json").split("\\R")) {
-            if (!line.isBlank()) {
-                PsLine container = jsonMapper.readValue(line, PsLine.class);
-                statuses.put(container.service(), ComponentStatus.of(container.state(), container.health()));
-            }
+        for (PsLine container : ps(plan)) {
+            statuses.put(container.service(), ComponentStatus.of(container.state(), container.health()));
         }
         return statuses;
+    }
+
+    // Compose prints one JSON object per container and line.
+    private List<PsLine> ps(Map<String, Object> plan, String... services) {
+        List<String> flags = new ArrayList<>(List.of("--all", "--format", "json"));
+        flags.addAll(List.of(services));
+        List<PsLine> containers = new ArrayList<>();
+        String output = compose(plan, STOP_TIMEOUT, WITH_LOAD, "ps", flags.toArray(String[]::new));
+        for (String line : output.split("\\R")) {
+            if (!line.isBlank()) {
+                containers.add(jsonMapper.readValue(line, PsLine.class));
+            }
+        }
+        return containers;
     }
 
     @Override
@@ -73,7 +114,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
                 // Never attached, or the network is gone: nothing keeps it busy.
             }
         }
-        compose(plan, STOP_TIMEOUT, "down", "-v");
+        compose(plan, STOP_TIMEOUT, WITH_LOAD, "down", "-v");
         // Also removes what a start cut short left outside Compose.
         for (String kind : RESOURCE_KINDS) {
             List<String> ids = find(kind, labels);
@@ -95,9 +136,12 @@ class ComposeRuntimeEngine implements RuntimeEngine {
 
     // -p wins over COMPOSE_PROJECT_NAME, so the plan's name is the project.
     // docker compose (up/down) write the command --> execute
-    private String compose(Map<String, Object> plan, Duration timeout, String verb, String... flags) {
+    private String compose(Map<String, Object> plan, Duration timeout, List<String> profiles, String verb,
+            String... flags) {
         List<String> command = new ArrayList<>(List.of("docker", "compose", "--ansi", "never",
-                "-p", String.valueOf(plan.get("name")), "-f", "-", verb));
+                "-p", String.valueOf(plan.get("name")), "-f", "-"));
+        command.addAll(profiles);
+        command.add(verb);
         command.addAll(List.of(flags));
         return execute("docker compose " + verb, command, jsonMapper.writeValueAsString(plan), timeout);
     }
@@ -174,7 +218,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record PsLine(@JsonProperty("Service") String service, @JsonProperty("State") String state,
-            @JsonProperty("Health") String health) {
+            @JsonProperty("Health") String health, @JsonProperty("ExitCode") Integer exitCode) {
     }
 
     private static String tail(String text) {

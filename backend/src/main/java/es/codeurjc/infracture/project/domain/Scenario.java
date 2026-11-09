@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -76,6 +77,11 @@ public class Scenario {
     @CollectionTable(name = "connections", joinColumns = @JoinColumn(name = "scenario_id"))
     private List<Connection> connections = new ArrayList<>();
 
+    // At most one row. As a collection, each save replaces it the same way it replaces the connections.
+    @ElementCollection
+    @CollectionTable(name = "scenario_workload", joinColumns = @JoinColumn(name = "scenario_id"))
+    private List<Workload> workload = new ArrayList<>();
+
     protected Scenario() {
     }
 
@@ -103,8 +109,9 @@ public class Scenario {
         this.description = description;
     }
 
+    // A null workload means the scenario has none.
     public void replaceGraph(int expectedRevision, List<ComponentDraft> drafts, List<Connection> connections,
-            Map<String, ComponentTemplate> templates) {
+            Workload workload, Map<String, ComponentTemplate> templates) {
         if (expectedRevision != revision) {
             throw new ConflictException("The scenario was saved after revision %d. Reload it to continue from revision %d."
                     .formatted(expectedRevision, revision));
@@ -132,6 +139,7 @@ public class Scenario {
             }
         }
         checkConnections(drafts, connections, problems);
+        checkWorkload(drafts, workload, problems);
         if (!problems.isEmpty()) {
             throw new InvalidDataException(String.join("; ", problems));
         }
@@ -142,6 +150,10 @@ public class Scenario {
         next.stream().filter(component -> !components.contains(component)).forEach(components::add);
         this.connections.clear();
         this.connections.addAll(connections);
+        this.workload.clear();
+        if (workload != null) {
+            this.workload.add(workload);
+        }
         revision++;
     }
 
@@ -207,6 +219,22 @@ public class Scenario {
         }
     }
 
+    // A load may break its contract or have no target (both are reported later), but a target must be a node
+    // of this graph.
+    private static void checkWorkload(List<ComponentDraft> drafts, Workload workload, List<String> problems) {
+        if (workload == null) {
+            return;
+        }
+        UUID target = workload.targetKey();
+        if (target != null && drafts.stream().noneMatch(draft -> target.equals(draft.key()))) {
+            problems.add("Workload: target is not a node of this scenario");
+        }
+        String profile = workload.profile();
+        if (profile != null && profile.codePointCount(0, profile.length()) > MAX_PROFILE_LENGTH) {
+            problems.add("Workload: profile must contain at most " + MAX_PROFILE_LENGTH + " characters");
+        }
+    }
+
     public List<Component> getComponents() {
         return Collections.unmodifiableList(components);
     }
@@ -224,6 +252,10 @@ public class Scenario {
             }
         }
         return outgoing;
+    }
+
+    public Optional<Workload> getWorkload() {
+        return workload.stream().findFirst();
     }
 
     public Long getId() {

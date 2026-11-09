@@ -863,6 +863,23 @@ font-style: italic;
   } ],
   "scenarioRevision" : 1,
   "failureReason" : "failureReason",
+  "workload" : {
+    "summary" : {
+      "droppedIterations" : 9,
+      "requests" : 2,
+      "failedRequests" : 7,
+      "p95LatencyMs" : 2.027123023002322,
+      "averageLatencyMs" : 3.616076749251911
+    },
+    "summaryCollectedAt" : "2000-01-23T04:56:07.000+00:00",
+    "seed" : 5,
+    "profile" : "profile",
+    "completed" : true,
+    "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "parameters" : {
+      "key" : 5
+    }
+  },
   "id" : 0,
   "scenarioId" : 6,
   "plan" : {
@@ -990,6 +1007,23 @@ font-style: italic;
   } ],
   "scenarioRevision" : 1,
   "failureReason" : "failureReason",
+  "workload" : {
+    "summary" : {
+      "droppedIterations" : 9,
+      "requests" : 2,
+      "failedRequests" : 7,
+      "p95LatencyMs" : 2.027123023002322,
+      "averageLatencyMs" : 3.616076749251911
+    },
+    "summaryCollectedAt" : "2000-01-23T04:56:07.000+00:00",
+    "seed" : 5,
+    "profile" : "profile",
+    "completed" : true,
+    "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "parameters" : {
+      "key" : 5
+    }
+  },
   "id" : 0,
   "scenarioId" : 6,
   "plan" : {
@@ -1107,6 +1141,23 @@ font-style: italic;
   } ],
   "scenarioRevision" : 1,
   "failureReason" : "failureReason",
+  "workload" : {
+    "summary" : {
+      "droppedIterations" : 9,
+      "requests" : 2,
+      "failedRequests" : 7,
+      "p95LatencyMs" : 2.027123023002322,
+      "averageLatencyMs" : 3.616076749251911
+    },
+    "summaryCollectedAt" : "2000-01-23T04:56:07.000+00:00",
+    "seed" : 5,
+    "profile" : "profile",
+    "completed" : true,
+    "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "parameters" : {
+      "key" : 5
+    }
+  },
   "id" : 0,
   "scenarioId" : 6,
   "plan" : {
@@ -1744,6 +1795,14 @@ font-style: italic;
     "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
     "templateKey" : "templateKey"
   } ],
+  "workload" : {
+    "seed" : 2,
+    "profile" : "profile",
+    "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "parameters" : {
+      "key" : 5
+    }
+  },
   "issues" : [ {
     "severity" : "ERROR",
     "code" : "code",
@@ -2115,6 +2174,14 @@ font-style: italic;
     "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
     "templateKey" : "templateKey"
   } ],
+  "workload" : {
+    "seed" : 2,
+    "profile" : "profile",
+    "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
+    "parameters" : {
+      "key" : 5
+    }
+  },
   "issues" : [ {
     "severity" : "ERROR",
     "code" : "code",
@@ -2496,7 +2563,9 @@ font-style: italic;
     <li><a href="#ComponentTemplateDTO"><code>ComponentTemplateDTO</code> - </a></li>
     <li><a href="#ConnectionDTO"><code>ConnectionDTO</code> - </a></li>
     <li><a href="#ExecutedComponentDTO"><code>ExecutedComponentDTO</code> - </a></li>
+    <li><a href="#ExecutedWorkloadDTO"><code>ExecutedWorkloadDTO</code> - </a></li>
     <li><a href="#ExecutionDTO"><code>ExecutionDTO</code> - </a></li>
+    <li><a href="#LoadSummaryDTO"><code>LoadSummaryDTO</code> - </a></li>
     <li><a href="#LoginRequest"><code>LoginRequest</code> - </a></li>
     <li><a href="#PageMetadata"><code>PageMetadata</code> - </a></li>
     <li><a href="#PagedModelComponentTemplateDTO"><code>PagedModelComponentTemplateDTO</code> - </a></li>
@@ -2520,6 +2589,7 @@ font-style: italic;
     <li><a href="#TemplateContractDTO"><code>TemplateContractDTO</code> - </a></li>
     <li><a href="#UserDTO"><code>UserDTO</code> - </a></li>
     <li><a href="#ValidationIssueDTO"><code>ValidationIssueDTO</code> - </a></li>
+    <li><a href="#WorkloadDTO"><code>WorkloadDTO</code> - </a></li>
   </ol>
 
   <div class="model">
@@ -2594,6 +2664,19 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="ExecutedWorkloadDTO"><code>ExecutedWorkloadDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">targetKey (optional)</div><div class="param-desc"><span class="param-type"><a href="#UUID">UUID</a></span>  format: uuid</div>
+<div class="param">profile (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">parameters (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">map[String, Integer]</a></span>  format: int32</div>
+<div class="param">seed (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+<div class="param">summaryCollectedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+<div class="param">completed (optional)</div><div class="param-desc"><span class="param-type"><a href="#boolean">Boolean</a></span>  </div>
+<div class="param">summary (optional)</div><div class="param-desc"><span class="param-type"><a href="#LoadSummaryDTO">LoadSummaryDTO</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="ExecutionDTO"><code>ExecutionDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -2613,7 +2696,19 @@ font-style: italic;
 <div class="param">createdAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
 <div class="param">releasedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
 <div class="param">components (optional)</div><div class="param-desc"><span class="param-type"><a href="#ExecutedComponentDTO">array[ExecutedComponentDTO]</a></span>  </div>
+<div class="param">workload (optional)</div><div class="param-desc"><span class="param-type"><a href="#ExecutedWorkloadDTO">ExecutedWorkloadDTO</a></span>  </div>
 <div class="param">plan (optional)</div><div class="param-desc"><span class="param-type"><a href="#AnyType">map[String, oas_any_type_not_mapped]</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="LoadSummaryDTO"><code>LoadSummaryDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">requests (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">failedRequests (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">droppedIterations (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">averageLatencyMs (optional)</div><div class="param-desc"><span class="param-type"><a href="#double">Double</a></span>  format: double</div>
+<div class="param">p95LatencyMs (optional)</div><div class="param-desc"><span class="param-type"><a href="#double">Double</a></span>  format: double</div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -2775,6 +2870,7 @@ font-style: italic;
       <div class="param">revision </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
 <div class="param">components </div><div class="param-desc"><span class="param-type"><a href="#SaveComponentDTO">array[SaveComponentDTO]</a></span>  </div>
 <div class="param">connections </div><div class="param-desc"><span class="param-type"><a href="#ConnectionDTO">array[ConnectionDTO]</a></span>  </div>
+<div class="param">workload (optional)</div><div class="param-desc"><span class="param-type"><a href="#WorkloadDTO">WorkloadDTO</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -2796,6 +2892,7 @@ font-style: italic;
       <div class="param">revision (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
 <div class="param">components (optional)</div><div class="param-desc"><span class="param-type"><a href="#ComponentDTO">array[ComponentDTO]</a></span>  </div>
 <div class="param">connections (optional)</div><div class="param-desc"><span class="param-type"><a href="#ConnectionDTO">array[ConnectionDTO]</a></span>  </div>
+<div class="param">workload (optional)</div><div class="param-desc"><span class="param-type"><a href="#WorkloadDTO">WorkloadDTO</a></span>  </div>
 <div class="param">issues (optional)</div><div class="param-desc"><span class="param-type"><a href="#ValidationIssueDTO">array[ValidationIssueDTO]</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
@@ -2845,6 +2942,16 @@ font-style: italic;
 <div class="param">message (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">target (optional)</div><div class="param-desc"><span class="param-type"><a href="#TargetDTO">TargetDTO</a></span>  </div>
 <div class="param">field (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="WorkloadDTO"><code>WorkloadDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">targetKey (optional)</div><div class="param-desc"><span class="param-type"><a href="#UUID">UUID</a></span>  format: uuid</div>
+<div class="param">profile (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">parameters </div><div class="param-desc"><span class="param-type"><a href="#integer">map[String, Integer]</a></span>  format: int32</div>
+<div class="param">seed </div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
     </div>  <!-- field-items -->
   </div>
   </body>

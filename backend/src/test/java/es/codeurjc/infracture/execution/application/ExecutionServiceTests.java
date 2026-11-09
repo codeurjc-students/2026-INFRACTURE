@@ -51,7 +51,8 @@ class ExecutionServiceTests {
     private final ContractCatalog contracts = ContractCatalogs.standard();
     private final ExecutionService service = new ExecutionService(repository, scenarioService,
             new ScenarioValidator(contracts), contracts,
-            new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local"));
+            new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local",
+                    "infracture/load-generator:0.1.0"));
     private final Project project = new Project(new User("alice", "hash", OWNER, "Alice", UserRole.USER), "Lab", null);
 
     @Test
@@ -205,7 +206,7 @@ class ExecutionServiceTests {
     private Scenario scenario(Long id, ComponentDraft... nodes) {
         Scenario scenario = new Scenario(project, "Run", null);
         ReflectionTestUtils.setField(scenario, "id", id);
-        scenario.replaceGraph(1, List.of(nodes), List.of(), TEMPLATES);
+        scenario.replaceGraph(1, List.of(nodes), List.of(), null, TEMPLATES);
         return scenario;
     }
 

@@ -53,10 +53,10 @@ api (controlador + DTO + mapper) → application (servicio) → domain (entidade
 ### Run → Stop
 
 1. `RunButton` → `use-execution.ts` → `execution-service.runScenario` → `POST …/executions` con la revisión guardada.
-2. `ExecutionService.run` bloquea el escenario, comprueba que no hay otra ejecución, vuelve a validar, guarda la `Execution` en `RESERVED` con la copia congelada de nodos y le adjunta el plan de `PlanCompiler`. No toca Docker.
-3. `ExecutionReconciler`, cada 2 s, ve la reserva, pasa a `STARTING` y pide a `ComposeRuntimeEngine` un `docker compose up --wait` a través de `docker-proxy`. Al estar sano, `RUNNING`, y `ServiceProbe` pide la respuesta real del servicio.
+2. `ExecutionService.run` bloquea el escenario, comprueba que no hay otra ejecución, vuelve a validar, guarda la `Execution` en `RESERVED` con la copia congelada de nodos, conexiones y carga (`ExecutedWorkload`) y le adjunta el plan de `PlanCompiler`, que incluye a k6 con el perfil de Compose `load`. No toca Docker.
+3. `ExecutionReconciler`, cada 2 s, ve la reserva, pasa a `STARTING` y pide a `ComposeRuntimeEngine` un `docker compose up --wait` a través de `docker-proxy`, que arranca solo los nodos. Al estar sanos, `startLoad` lanza k6, la fase pasa a `RUNNING` y `ServiceProbe` pide la respuesta real del servicio.
 4. Mientras corre, cada vuelta lee `docker compose ps` y guarda el estado de cada nodo en `ExecutionObservations`; el front lo consulta con `GET …/executions/current` cada 2 s y lo muestra en `ExecutionBadge`, en los nodos y en el inspector. El editor está en solo lectura.
-5. Stop solo apunta la causa (`POST …/executions/{id}/stop`); el bucle hace `down -v`, borra lo que quede con las etiquetas y libera la reserva. Detalle completo en la [página De Run a Stop](explainers/run-to-stop.html).
+5. Stop solo apunta la causa (`POST …/executions/{id}/stop`); el bucle para k6 con `stopLoad` y guarda su resumen, hace `down -v`, borra lo que quede con las etiquetas y libera la reserva. Si k6 termina antes por sí solo, su resumen se guarda en cuanto la vigilancia lo ve parado. Detalle completo en la [página De Run a Stop](explainers/run-to-stop.html).
 
 ## Backend
 
@@ -101,7 +101,8 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | `HttpServiceDefinition`, `WorkerDefinition`, `PostgresqlDefinition`, `RedisDefinition`, `RabbitmqDefinition` | El contrato de cada tipo: perfiles, parámetros con su rango, puertos y capacidades. | `ContractCatalog`. |
 | `ComponentTemplate` | Una ficha del catálogo guardada en la base de datos. | Servicio y repositorio. |
 | `ComponentType`, `Capability` | Los cinco tipos y lo que un nodo ofrece a una flecha (por ejemplo, caché). | Todo el dominio. |
-| `TemplateContract`, `ProfileContract`, `ParameterContract`, `PortContract`, `ContractViolation` | Las piezas de un contrato y el resultado de comprobar una configuración. | Definiciones, `ScenarioValidator`. |
+| `TemplateContract`, `ProfileContract`, `ParameterContract`, `PortContract`, `ContractViolation` | Las piezas de un contrato y el resultado de comprobar una configuración. `ParameterContract.check` comprueba los parámetros de nodos y carga. | Definiciones, `ScenarioValidator`. |
+| `WorkloadContract` | Los perfiles de carga: hoy solo `CONSTANT_HTTP`, con sus límites (ADR 0016), la semilla y la capacidad que pide al objetivo. | `ScenarioValidator`. |
 | `ComponentConfiguration`, `ComponentTypeDefinition` | Perfil más parámetros de un nodo; interfaz que implementa cada definición. | Dominio de `project` y `catalog`. |
 | `ComponentTemplateRepository` | Búsquedas de plantillas activas, ordenadas por nombre. | `ComponentTemplateService`. |
 
@@ -111,14 +112,15 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | --- | --- | --- |
 | `ProjectController` | Crear, listar, leer y editar proyectos propios. | Front: `project-service`. |
 | `ScenarioController` | Escenarios de un proyecto, y leer o guardar su grafo (`/graph`). | Front: `scenario-service`, `graph-service`. |
-| `*DTO`, `ProjectMapper`, `ScenarioMapper` | Proyecto, escenario, grafo, nodo, conexión, posición e incidencia en JSON. | Controladores de `project`, `ExecutionExceptionHandler`. |
+| `*DTO`, `ProjectMapper`, `ScenarioMapper` | Proyecto, escenario, grafo, nodo, conexión, carga (`WorkloadDTO`), posición e incidencia en JSON. | Controladores de `project`, `ExecutionExceptionHandler`. |
 | `ProjectService` | Reglas de los proyectos: solo el dueño los ve, nombres válidos y normalizados. | `ProjectController`, `ScenarioService`. |
 | `ScenarioService` | Escenarios y grafo: bloquea la fila al escribir, impide editar si hay una ejecución y devuelve el grafo con sus incidencias. | `ScenarioController`, `ExecutionService`. |
-| `ScenarioValidator` | Revisa el escenario guardado contra los contratos: rangos, conexiones obligatorias, ciclos, escenario vacío, RabbitMQ sin consumidor. Nunca impide guardar. | `ScenarioService`, `ExecutionService`. |
+| `ScenarioValidator` | Revisa el escenario guardado contra los contratos: rangos, conexiones obligatorias, ciclos, escenario vacío, RabbitMQ sin consumidor y la carga (sin carga, sin objetivo, objetivo sin `HTTP`, límites). Nunca impide guardar. | `ScenarioService`, `ExecutionService`. |
 | `ScenarioGraph` | El escenario más sus incidencias, lo que devuelve el servicio. | `ScenarioService`, controlador. |
 | `ScenarioReservations` | Pregunta "¿hay una ejecución usando este escenario?". La implementa `execution`, así `project` no depende de él. | `ScenarioService`. |
 | `DetailNormalizer` | Recorta y normaliza nombres y descripciones. | `ProjectService`, `ScenarioService`. |
-| `Project`, `Scenario` | Las entidades. `Scenario.replaceGraph` comprueba la revisión y las reglas estructurales del grafo. | Servicios. |
+| `Project`, `Scenario` | Las entidades. `Scenario.replaceGraph` comprueba la revisión y las reglas estructurales del grafo y de su carga. | Servicios. |
+| `Workload` | La carga del escenario: objetivo (puede quedar vacío), perfil, parámetros y semilla. No es un nodo; se guarda con el grafo en `scenario_workload`. | `Scenario`, validador, `Execution`. |
 | `Component`, `ComponentDraft`, `Connection` | Un nodo guardado, un nodo recibido para guardar y una flecha (origen, puerto, destino). | `Scenario`, validador, `Execution`. |
 | `ValidationIssue` | Una incidencia: gravedad, código, mensaje, elemento y campo. | Validador, front. |
 | `ProjectRepository`, `ScenarioRepository` | Búsquedas por dueño y proyecto; `findForUpdate…` bloquea la fila. | Servicios. |
@@ -128,15 +130,16 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | Clase | Qué hace | Quién la usa |
 | --- | --- | --- |
 | `ExecutionController` | Run (`POST …/executions`), Stop (`…/{id}/stop`) y la ejecución actual (`…/current`). | Front: `execution-service`. |
-| `ExecutionDTO`, `ExecutedComponentDTO`, `RunExecutionDTO`, `ExecutionMapper` | La ejecución en JSON con cada nodo, su estado y su respuesta. | `ExecutionController`. |
+| `ExecutionDTO`, `ExecutedComponentDTO`, `ExecutedWorkloadDTO`, `RunExecutionDTO`, `ExecutionMapper` | La ejecución en JSON con cada nodo, su estado y su respuesta, y la carga congelada con el resumen de k6. | `ExecutionController`. |
 | `ExecutionExceptionHandler` | Convierte un Run con errores en 422 con la lista de incidencias. | Spring. |
 | `ExecutionService` | Reserva la revisión exacta (idempotente, una sola activa), apunta Stop y lee la actual. No toca Docker. | `ExecutionController`. |
 | `ExecutionReservations` | Implementa `ScenarioReservations`: el escenario está reservado mientras haya una ejecución sin liberar. | `ScenarioService`. |
-| `PlanCompiler` | Convierte la ejecución en un plan de Compose endurecido, con etiquetas y límites, sin secretos. | `ExecutionService`, reconciler. |
-| `ComponentDriver`, `HttpServiceDriver` | Lo que cada tipo añade al plan: imagen, variables, salud y dónde pedir su respuesta. | `PlanCompiler`. |
-| `ExecutionReconciler` | El bucle de cada 2 s: arranca, vigila cada nodo, aplica el tiempo límite, limpia y libera. | Spring (`@Scheduled`). |
+| `PlanCompiler` | Convierte la ejecución en un plan de Compose endurecido, con etiquetas y límites, sin secretos. Añade el servicio `workload` de k6 con el perfil `load`. | `ExecutionService`, reconciler. |
+| `ComponentDriver`, `HttpServiceDriver` | Lo que cada tipo añade al plan: imagen, variables, salud, dónde pedir su respuesta y a qué URL envía la carga (`httpUrl`). | `PlanCompiler`. |
+| `ExecutionReconciler` | El bucle de cada 2 s: arranca los nodos y después k6, vigila cada nodo y la carga, aplica el tiempo límite, para k6 y guarda su resumen, limpia y libera. | Spring (`@Scheduled`). |
 | `ExecutionScheduling` | Enciende el bucle; los tests de API lo apagan con una propiedad. | Spring. |
-| `RuntimeEngine`, `ComposeRuntimeEngine` | Habla con Docker con el CLI: `up --wait`, `ps`, `down -v`, barrido por etiquetas y unirse a la red. | Reconciler. |
+| `RuntimeEngine`, `ComposeRuntimeEngine` | Habla con Docker con el CLI: `up --wait`, `startLoad`, `stopLoad` (para k6 y lee su código y su resumen), `ps`, `down -v`, barrido por etiquetas y unirse a la red. | Reconciler. |
+| `LoadReport` | Lo que dejó k6: código de salida (0 terminó, 105 lo paró Stop, vacío si nunca arrancó) y resumen. | Motor, reconciler. |
 | `RuntimeEngineException` | Docker no pudo hacer algo; su mensaje acaba como motivo del fallo. | Motor, reconciler. |
 | `ComponentStatus` | Estado de un nodo según Docker: arrancando, sano, no sano o parado. | Motor, observaciones, DTO. |
 | `ExecutionObservations` | Lo último visto de cada nodo (estado y respuesta), en memoria. Atajo hasta P08. | Reconciler (escribe), mapper (lee). |
@@ -144,6 +147,7 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | `ScenarioNotRunnableException` | Run encontró errores; lleva las incidencias. | `ExecutionService`, handler. |
 | `Execution` | La entidad: fase, causa de parada (gana la más grave), resultado, copia congelada y plan. | Servicio, reconciler. |
 | `ExecutedComponent` | Copia inmutable de un nodo tal como estaba al reservar. | `Execution`, métricas futuras. |
+| `ExecutedWorkload`, `LoadSummary` | Copia de la carga al reservar y el resumen agregado de k6 al terminar; lo que k6 no midió queda vacío. Se guarda el primer resumen. | `Execution`, reconciler, DTO. |
 | `Phase`, `StopCause`, `Outcome` | Qué hace el motor, por qué para y cómo acabó. | `Execution`, DTO. |
 | `ExecutionRepository` | La ejecución activa (con bloqueo y nodos), la última de un escenario y si un escenario está reservado. | Servicio, reconciler, reservas. |
 
@@ -210,6 +214,7 @@ Rutas relativas a `frontend/app/`. Los ficheros de `features/*/model/` son los t
 | --- | --- |
 | `backend/src/main/resources/db/migration/` | Migraciones de Flyway, de `V1` en adelante. Nunca se editan una vez en `main`. |
 | `demo-app/` | La imagen `infracture/demo-app`, el HTTP Service que corre dentro del experimento. |
+| `load-generator/` | La imagen `infracture/load-generator`: k6 con un script fijo por perfil de carga y `run.sh`, que elige el script. |
 | `docker/Dockerfile`, `docker/docker-proxy/haproxy.cfg` | Imagen de la aplicación y lista blanca del proxy de Docker. |
 | `compose.yaml` | Postgres de desarrollo y, con `--profile app`, el proxy y el backend en contenedor. |
 | `scripts/` | Arranque de desarrollo y los entornos desechables de las pruebas de integración y de navegador. |

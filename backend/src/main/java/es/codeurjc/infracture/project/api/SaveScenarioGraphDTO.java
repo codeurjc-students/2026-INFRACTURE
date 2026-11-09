@@ -8,7 +8,8 @@ import java.util.List;
 public record SaveScenarioGraphDTO(
         @NotNull Integer revision,
         @NotNull List<@NotNull @Valid SaveComponentDTO> components,
-        @NotNull List<@NotNull @Valid ConnectionDTO> connections) {
+        @NotNull List<@NotNull @Valid ConnectionDTO> connections,
+        @Valid WorkloadDTO workload) {
 
     @JsonAnySetter
     public void rejectUnknownField(String name, Object value) {
