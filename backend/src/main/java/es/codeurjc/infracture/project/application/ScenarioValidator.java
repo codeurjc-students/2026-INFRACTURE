@@ -4,9 +4,11 @@ import es.codeurjc.infracture.catalog.application.ContractCatalog;
 import es.codeurjc.infracture.catalog.domain.Capability;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.catalog.domain.ContractViolation;
+import es.codeurjc.infracture.catalog.domain.ParameterContract;
 import es.codeurjc.infracture.catalog.domain.PortContract;
 import es.codeurjc.infracture.catalog.domain.ProfileContract;
 import es.codeurjc.infracture.catalog.domain.TemplateContract;
+import es.codeurjc.infracture.catalog.domain.WorkloadContract;
 import es.codeurjc.infracture.project.domain.Component;
 import es.codeurjc.infracture.project.domain.Connection;
 import es.codeurjc.infracture.project.domain.Scenario;
@@ -14,11 +16,13 @@ import es.codeurjc.infracture.project.domain.ValidationIssue;
 import es.codeurjc.infracture.project.domain.ValidationIssue.Kind;
 import es.codeurjc.infracture.project.domain.ValidationIssue.Severity;
 import es.codeurjc.infracture.project.domain.ValidationIssue.Target;
+import es.codeurjc.infracture.project.domain.Workload;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -26,6 +30,8 @@ import org.springframework.stereotype.Service;
 // Checks a saved scenario against the contracts. It only reports issues; it never blocks saving.
 @Service
 public class ScenarioValidator {
+
+    private static final Target WORKLOAD = new Target(Kind.WORKLOAD, null);
 
     private final ContractCatalog contracts;
 
@@ -53,6 +59,7 @@ public class ScenarioValidator {
             issues.add(new ValidationIssue(Severity.ERROR, "EMPTY_SCENARIO",
                     "Add at least one component to run the scenario", new Target(Kind.SCENARIO, null), null));
         }
+        checkWorkload(scenario, nodes, issues);
         return issues;
     }
 
@@ -165,8 +172,10 @@ public class ScenarioValidator {
         onPath.remove(key);
     }
 
-    // A RabbitMQ that something publishes to but no Worker reads from accumulates tasks.
-    // shortcut: a Worker is the only consumer type today; if another type consumes, this check must know it.
+    // A RabbitMQ that something publishes to but no Worker reads from accumulates
+    // tasks.
+    // shortcut: a Worker is the only consumer type today; if another type consumes,
+    // this check must know it.
     private static void findUnconsumedBrokers(Scenario scenario, Map<UUID, Component> nodes,
             List<ValidationIssue> issues) {
         for (Component broker : scenario.getComponents()) {
@@ -190,6 +199,55 @@ public class ScenarioValidator {
                         "Tasks published to %s accumulate because no Worker consumes them".formatted(broker.getName()),
                         componentTarget(broker), null));
             }
+        }
+    }
+
+    // The load is optional: without one the scenario runs with no traffic
+    private void checkWorkload(Scenario scenario, Map<UUID, Component> nodes, List<ValidationIssue> issues) {
+        Optional<Workload> found = scenario.getWorkload();
+        if (found.isEmpty()) {
+            issues.add(new ValidationIssue(Severity.WARNING, "NO_WORKLOAD",
+                    "The scenario has no load, so the experiment receives no traffic", WORKLOAD, null));
+            return;
+        }
+        Workload workload = found.get();
+        WorkloadContract contract = null;
+        if (workload.profile() == null) {
+            issues.add(new ValidationIssue(Severity.ERROR, "MISSING_PROFILE", "The load needs a profile", WORKLOAD,
+                    "profile"));
+        } else {
+            contract = WorkloadContract.find(workload.profile()).orElse(null);
+            if (contract == null) {
+                issues.add(new ValidationIssue(Severity.ERROR, "UNKNOWN_PROFILE",
+                        "There is no load profile " + workload.profile(), WORKLOAD, "profile"));
+            } else {
+                for (ContractViolation violation : ParameterContract.check(contract.parameters(),
+                        workload.parameters(), contract.profile())) {
+                    issues.add(new ValidationIssue(Severity.ERROR, violation.code(), violation.message(), WORKLOAD,
+                            violation.field()));
+                }
+            }
+        }
+        for (ContractViolation violation : ParameterContract.check(List.of(WorkloadContract.SEED),
+                Map.of(WorkloadContract.SEED.name(), workload.seed()), workload.profile())) {
+            issues.add(new ValidationIssue(Severity.ERROR, violation.code(), violation.message(), WORKLOAD,
+                    violation.field()));
+        }
+        if (workload.targetKey() == null) {
+            issues.add(new ValidationIssue(Severity.ERROR, "WORKLOAD_WITHOUT_TARGET",
+                    "Choose the node that receives the load", WORKLOAD, "targetKey"));
+            return;
+        }
+        Component target = nodes.get(workload.targetKey());
+        ProfileContract targetProfile = profile(target);
+        // A target without a known profile already has its own issue.
+        if (contract != null && targetProfile != null
+                && !targetProfile.capabilities().containsAll(contract.requires())) {
+            String needs = String.join(" and ", contract.requires().stream().map(Capability::name).toList());
+            issues.add(new ValidationIssue(Severity.ERROR, "CAPABILITY_MISMATCH",
+                    "The load %s needs %s, which %s does not offer".formatted(contract.profile(), needs,
+                            target.getName()),
+                    WORKLOAD, "targetKey"));
         }
     }
 

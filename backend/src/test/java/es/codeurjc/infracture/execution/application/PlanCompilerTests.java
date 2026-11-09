@@ -12,6 +12,7 @@ import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
+import es.codeurjc.infracture.project.domain.Workload;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -27,9 +28,12 @@ import tools.jackson.databind.json.JsonMapper;
 class PlanCompilerTests {
 
     private static final UUID ORDERS = UUID.fromString("3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10");
+    private static final String LOAD_IMAGE = "infracture/load-generator:0.1.0";
+    private static final Workload LOAD = new Workload(ORDERS, "CONSTANT_HTTP",
+            Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42);
 
     private final PlanCompiler compiler = new PlanCompiler(
-            List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local");
+            List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local", LOAD_IMAGE);
 
     // Reference file: given this snapshot, exactly this plan.
     @Test
@@ -40,21 +44,29 @@ class PlanCompilerTests {
                 JsonMapper.builder().build().writeValueAsString(plan), JSONCompareMode.STRICT);
     }
 
+    // The load only reaches the plan as numbers and the target URL; k6 chooses its fixed script (ADR 0012).
+    @Test
+    void addsTheLoadAsAK6ServiceThatUpWaitLeavesForLater() throws Exception {
+        Map<String, Object> plan = compiler.compile(execution(12L, LOAD));
+
+        JSONAssert.assertEquals(reference("execution/constant-http-plan.json"),
+                JsonMapper.builder().build().writeValueAsString(plan), JSONCompareMode.STRICT);
+    }
+
     @Test
     void givesExperimentsNoPortsVolumesPrivilegesOrSecrets() {
-        Map<String, Object> plan = compiler.compile(execution(12L));
+        Map<String, Object> plan = compiler.compile(execution(12L, LOAD));
         @SuppressWarnings("unchecked")
-        Map<String, Object> services = (Map<String, Object>) plan.get("services");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> service = (Map<String, Object>) services.values().iterator().next();
+        Map<String, Map<String, Object>> services = (Map<String, Map<String, Object>>) plan.get("services");
 
-        assertThat(service).doesNotContainKeys("ports", "volumes", "privileged", "secrets", "command", "network_mode");
+        assertThat(services).hasSize(2).allSatisfy((name, service) -> assertThat(service)
+                .doesNotContainKeys("ports", "volumes", "privileged", "secrets", "command", "network_mode"));
         assertThat(plan).doesNotContainKeys("volumes", "secrets");
     }
 
     @Test
     void refusesANodeTypeWithoutADriver() {
-        PlanCompiler withoutDrivers = new PlanCompiler(List.of(), "local");
+        PlanCompiler withoutDrivers = new PlanCompiler(List.of(), "local", LOAD_IMAGE);
 
         assertThatIllegalStateException().isThrownBy(() -> withoutDrivers.compile(execution(12L)))
                 .withMessage("No driver runs HTTP_SERVICE");
@@ -62,7 +74,7 @@ class PlanCompilerTests {
 
     @Test
     void namesTheComposeProjectAfterTheInstanceSoInstancesSharingDockerStayApart() {
-        PlanCompiler tests = new PlanCompiler(List.of(), "test-1a2b3c4d");
+        PlanCompiler tests = new PlanCompiler(List.of(), "test-1a2b3c4d", LOAD_IMAGE);
 
         assertThat(compiler.projectName(12L)).isEqualTo("infracture-local-exec-12");
         assertThat(tests.projectName(12L)).isEqualTo("infracture-test-1a2b3c4d-exec-12");
@@ -70,24 +82,28 @@ class PlanCompilerTests {
 
     @Test
     void refusesAnInstanceIdThatComposeCannotUse() {
-        assertThatIllegalStateException().isThrownBy(() -> new PlanCompiler(List.of(), "My Mac"));
-        assertThatIllegalStateException().isThrownBy(() -> new PlanCompiler(List.of(), ""));
+        assertThatIllegalStateException().isThrownBy(() -> new PlanCompiler(List.of(), "My Mac", LOAD_IMAGE));
+        assertThatIllegalStateException().isThrownBy(() -> new PlanCompiler(List.of(), "", LOAD_IMAGE));
     }
 
     @Test
     void refusesTwoDriversForTheSameType() {
         HttpServiceDriver driver = new HttpServiceDriver("image");
 
-        assertThatIllegalStateException().isThrownBy(() -> new PlanCompiler(List.of(driver, driver), "local"));
+        assertThatIllegalStateException().isThrownBy(() -> new PlanCompiler(List.of(driver, driver), "local", LOAD_IMAGE));
     }
 
     private static Execution execution(Long id) {
+        return execution(id, null);
+    }
+
+    private static Execution execution(Long id, Workload workload) {
         ComponentTemplate http = new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE,
                 true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)));
         Scenario scenario = new Scenario(new Project(
                 new User("alice", "hash", "alice@example.com", "Alice", UserRole.USER), "Lab", null), "Run", null);
         scenario.replaceGraph(1, List.of(new ComponentDraft(ORDERS, "http-service", "orders-api", 0, 0,
-                new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 50)))), List.of(),
+                new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 50)))), List.of(), workload,
                 Map.of("http-service", http));
         Execution execution = new Execution(scenario, Map.of(ComponentType.HTTP_SERVICE, 1));
         ReflectionTestUtils.setField(execution, "id", id);

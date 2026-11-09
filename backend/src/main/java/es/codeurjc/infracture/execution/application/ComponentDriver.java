@@ -18,4 +18,9 @@ public interface ComponentDriver {
     default URI evidence(String serviceName) {
         return null;
     }
+
+    // Where a load sends its HTTP requests, or null when the type does not accept HTTP.
+    default URI httpUrl(String serviceName) {
+        return null;
+    }
 }

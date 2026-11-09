@@ -85,6 +85,7 @@ public class ScenarioController {
             Principal principal) {
         return mapper.toDTO(service.saveGraph(principal.getName(), projectId, id, graphDTO.revision(),
                 graphDTO.components().stream().map(mapper::toDraft).toList(),
-                graphDTO.connections().stream().map(mapper::toConnection).toList()));
+                graphDTO.connections().stream().map(mapper::toConnection).toList(),
+                mapper.toWorkload(graphDTO.workload())));
     }
 }

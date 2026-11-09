@@ -1,6 +1,7 @@
 package es.codeurjc.infracture.execution.application;
 
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
+import es.codeurjc.infracture.execution.domain.ExecutedWorkload;
 import es.codeurjc.infracture.execution.domain.Execution;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
@@ -74,13 +75,19 @@ public class ExecutionReconciler {
             // and #90 will record the interruption on its own.
             return null;
         }
+        // The steps below run after this transaction ends, so the frozen load is read now.
+        execution.getWorkload();
         return execution;
     }
 
     // A Stop pressed meanwhile is already recorded; the next tick starts the cleanup.
+    // The load starts only once every node is healthy, so its results can be interpreted.
     private void start(Execution execution) {
         try {
             engine.up(execution.getPlan());
+            if (execution.getWorkload() != null) {
+                engine.startLoad(execution.getPlan());
+            }
         } catch (RuntimeEngineException exception) {
             update(execution.getId(), locked -> locked.fail(exception.getMessage()));
             return;
@@ -100,7 +107,10 @@ public class ExecutionReconciler {
             update(execution.getId(), locked -> locked.fail(exception.getMessage()));
             return;
         }
-        String broken = recordStatuses(execution, statuses);
+        String nodeDown = recordStatuses(execution, statuses);
+        String broken = nodeDown == null && statuses.get(PlanCompiler.LOAD_SERVICE) == ComponentStatus.EXITED
+                ? collectEndedLoad(execution)
+                : nodeDown;
         if (broken != null) {
             update(execution.getId(), locked -> locked.fail(broken));
         } else if (!Instant.now().isBefore(execution.getCreatedAt().plus(maxDuration))) {
@@ -125,8 +135,34 @@ public class ExecutionReconciler {
         return broken;
     }
 
+    // k6 exits on its own when its duration ends; the experiment keeps running until Stop or the time limit.
+    // Returns why the execution fails when k6 ended any other way, or null.
+    private String collectEndedLoad(Execution execution) {
+        ExecutedWorkload load = execution.getWorkload();
+        if (load == null || load.hasSummary()) {
+            return null;
+        }
+        LoadReport report;
+        try {
+            report = engine.stopLoad(execution.getPlan());
+        } catch (RuntimeEngineException exception) {
+            return exception.getMessage();
+        }
+        recordLoad(execution, report);
+        return report.completed() ? null : "The load stopped with exit code " + report.exitCode();
+    }
+
     // A failed cleanup leaves the execution in STOPPING, so Run stays blocked and the next tick retries.
+    // The load stops first, so it generates no more work, and its summary is kept before the rest goes.
     private void stop(Execution execution) {
+        ExecutedWorkload load = execution.getWorkload();
+        if (load != null && !load.hasSummary()) {
+            try {
+                recordLoad(execution, engine.stopLoad(execution.getPlan()));
+            } catch (RuntimeEngineException _) {
+                // The cleanup goes on; the summary stays missing rather than invented.
+            }
+        }
         try {
             engine.down(execution.getPlan(), planCompiler.labels(execution.getId()));
         } catch (RuntimeEngineException exception) {
@@ -135,6 +171,13 @@ public class ExecutionReconciler {
         }
         update(execution.getId(), Execution::release);
         observations.forget(execution.getId());
+    }
+
+    // A load that never started left no container and nothing to record.
+    private void recordLoad(Execution execution, LoadReport report) {
+        if (report.exitCode() != null) {
+            update(execution.getId(), locked -> locked.recordLoadSummary(report.summary(), report.completed()));
+        }
     }
 
     private void update(Long id, Consumer<Execution> change) {

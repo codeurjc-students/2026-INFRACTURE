@@ -8,6 +8,7 @@ import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Connection;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
+import es.codeurjc.infracture.project.domain.Workload;
 import es.codeurjc.infracture.project.persistence.ScenarioRepository;
 import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.NotFoundException;
@@ -79,7 +80,7 @@ public class ScenarioService {
 
     @Transactional
     public ScenarioGraph saveGraph(String ownerEmail, Long projectId, Long id, int expectedRevision,
-            List<ComponentDraft> components, List<Connection> connections) {
+            List<ComponentDraft> components, List<Connection> connections, Workload workload) {
         Scenario scenario = lockOwnScenario(ownerEmail, projectId, id);
         requireEditable(scenario);
         Set<String> templateKeys = components.stream().map(ComponentDraft::templateKey)
@@ -88,7 +89,8 @@ public class ScenarioService {
                 .map(draft -> new ComponentDraft(draft.key(), draft.templateKey(), normalizeText(draft.name()),
                         draft.positionX(), draft.positionY(), draft.configuration()))
                 .toList();
-        scenario.replaceGraph(expectedRevision, normalized, connections, templateService.getTemplatesByKey(templateKeys));
+        scenario.replaceGraph(expectedRevision, normalized, connections, workload,
+                templateService.getTemplatesByKey(templateKeys));
         Scenario saved = scenarioRepository.saveAndFlush(scenario);
         return new ScenarioGraph(saved, scenarioValidator.validate(saved));
     }

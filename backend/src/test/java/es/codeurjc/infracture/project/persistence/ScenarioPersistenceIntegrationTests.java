@@ -13,6 +13,7 @@ import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Connection;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
+import es.codeurjc.infracture.project.domain.Workload;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import java.time.Instant;
@@ -152,7 +153,7 @@ class ScenarioPersistenceIntegrationTests {
                 new ComponentDraft(orders, "http-service", "orders-api", 120.5, -40,
                         new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 250))),
                 new ComponentDraft(cache, "redis", "cache", 0, 300,
-                        new ComponentConfiguration("DEFAULT", Map.of()))), List.of(),
+                        new ComponentConfiguration("DEFAULT", Map.of()))), List.of(), null,
                 catalogue());
         repository.saveAndFlush(scenario);
         entityManager.clear();
@@ -176,13 +177,13 @@ class ScenarioPersistenceIntegrationTests {
     void keepsNodeIdentityAndRemovesDeletedNodesOnTheNextSave() {
         UUID kept = UUID.randomUUID();
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
-        scenario.replaceGraph(1, List.of(redis(kept, "cache"), redis(UUID.randomUUID(), "removed")), List.of(), catalogue());
+        scenario.replaceGraph(1, List.of(redis(kept, "cache"), redis(UUID.randomUUID(), "removed")), List.of(), null, catalogue());
         repository.saveAndFlush(scenario);
         Long keptId = scenario.getComponents().getFirst().getId();
         entityManager.clear();
 
         Scenario reopened = repository.findById(scenario.getId()).orElseThrow();
-        reopened.replaceGraph(2, List.of(redis(kept, "renamed")), List.of(), catalogue());
+        reopened.replaceGraph(2, List.of(redis(kept, "renamed")), List.of(), null, catalogue());
         repository.saveAndFlush(reopened);
         entityManager.clear();
 
@@ -201,13 +202,13 @@ class ScenarioPersistenceIntegrationTests {
         UUID cache = UUID.randomUUID();
         Connection connection = new Connection(orders, "cache", cache);
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
-        scenario.replaceGraph(1, List.of(http(orders), redis(cache, "cache")), List.of(connection), catalogue());
+        scenario.replaceGraph(1, List.of(http(orders), redis(cache, "cache")), List.of(connection), null, catalogue());
         repository.saveAndFlush(scenario);
         entityManager.clear();
 
         Scenario reopened = repository.findById(scenario.getId()).orElseThrow();
         assertThat(reopened.getConnections()).containsExactly(connection);
-        reopened.replaceGraph(2, List.of(http(orders)), List.of(), catalogue());
+        reopened.replaceGraph(2, List.of(http(orders)), List.of(), null, catalogue());
         repository.saveAndFlush(reopened);
         entityManager.clear();
 
@@ -222,7 +223,7 @@ class ScenarioPersistenceIntegrationTests {
         UUID cache = UUID.randomUUID();
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
         scenario.replaceGraph(1, List.of(http(orders), redis(cache, "cache")),
-                List.of(new Connection(orders, "cache", cache)), catalogue());
+                List.of(new Connection(orders, "cache", cache)), null, catalogue());
         repository.saveAndFlush(scenario);
 
         entityManager.createNativeQuery("DELETE FROM components WHERE component_key = :key")
@@ -237,9 +238,9 @@ class ScenarioPersistenceIntegrationTests {
         UUID orders = UUID.randomUUID();
         UUID foreign = UUID.randomUUID();
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
-        scenario.replaceGraph(1, List.of(http(orders)), List.of(), catalogue());
+        scenario.replaceGraph(1, List.of(http(orders)), List.of(), null, catalogue());
         Scenario other = repository.saveAndFlush(new Scenario(queueLab, "Backlog", null));
-        other.replaceGraph(1, List.of(redis(foreign, "cache")), List.of(), catalogue());
+        other.replaceGraph(1, List.of(redis(foreign, "cache")), List.of(), null, catalogue());
         repository.saveAndFlush(scenario);
         repository.saveAndFlush(other);
 
@@ -294,7 +295,7 @@ class ScenarioPersistenceIntegrationTests {
     @Test
     void deletesTheNodesTogetherWithTheirScenario() {
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
-        scenario.replaceGraph(1, List.of(redis(UUID.randomUUID(), "cache")), List.of(), catalogue());
+        scenario.replaceGraph(1, List.of(redis(UUID.randomUUID(), "cache")), List.of(), null, catalogue());
         repository.saveAndFlush(scenario);
 
         entityManager.createNativeQuery("DELETE FROM scenarios WHERE id = :id")
@@ -302,6 +303,60 @@ class ScenarioPersistenceIntegrationTests {
 
         assertThat(entityManager.createNativeQuery("SELECT COUNT(*) FROM components").getSingleResult())
                 .isEqualTo(0L);
+    }
+
+    @Test
+    void reopensTheLoadAndMovesItToAnotherTargetWhileDeletingTheOldOne() {
+        UUID orders = UUID.randomUUID();
+        UUID users = UUID.randomUUID();
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        scenario.replaceGraph(1, List.of(http(orders), http(users)), List.of(), load(users), catalogue());
+        repository.saveAndFlush(scenario);
+        entityManager.clear();
+
+        Scenario reopened = repository.findById(scenario.getId()).orElseThrow();
+        assertThat(reopened.getWorkload()).hasValue(load(users));
+        reopened.replaceGraph(2, List.of(http(orders)), List.of(), load(orders), catalogue());
+        repository.saveAndFlush(reopened);
+        entityManager.clear();
+
+        assertThat(repository.findById(scenario.getId()).orElseThrow().getWorkload()).hasValue(load(orders));
+    }
+
+    @Test
+    void keepsTheLoadSettingsWithoutTargetWhenTheTargetIsDeletedInTheDatabase() {
+        UUID orders = UUID.randomUUID();
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        scenario.replaceGraph(1, List.of(http(orders)), List.of(), load(orders), catalogue());
+        repository.saveAndFlush(scenario);
+
+        entityManager.createNativeQuery("DELETE FROM components WHERE component_key = :key")
+                .setParameter("key", orders).executeUpdate();
+        entityManager.clear();
+
+        assertThat(repository.findById(scenario.getId()).orElseThrow().getWorkload()).hasValue(new Workload(
+                null, "CONSTANT_HTTP", Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42));
+    }
+
+    @Test
+    void rejectsALoadOnANodeOfAnotherScenarioInTheDatabase() {
+        UUID foreign = UUID.randomUUID();
+        Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
+        Scenario other = repository.saveAndFlush(new Scenario(queueLab, "Backlog", null));
+        other.replaceGraph(1, List.of(http(foreign)), List.of(), null, catalogue());
+        repository.saveAndFlush(other);
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery("""
+                INSERT INTO scenario_workload (scenario_id, target_key, profile, parameters, seed)
+                VALUES (:scenario, :target, 'CONSTANT_HTTP', '{}', 42)
+                """).setParameter("scenario", scenario.getId()).setParameter("target", foreign).executeUpdate())
+                .isInstanceOf(PersistenceException.class)
+                .hasMessageContaining("fk_scenario_workload_target");
+    }
+
+    private static Workload load(UUID target) {
+        return new Workload(target, "CONSTANT_HTTP",
+                Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42);
     }
 
     private static ComponentDraft http(UUID key) {

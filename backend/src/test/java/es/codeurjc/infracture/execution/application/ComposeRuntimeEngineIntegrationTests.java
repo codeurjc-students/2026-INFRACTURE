@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import es.codeurjc.infracture.execution.domain.LoadSummary;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -21,6 +23,7 @@ class ComposeRuntimeEngineIntegrationTests {
     private final Map<String, String> labels =
             Map.of(PlanCompiler.INSTANCE_LABEL, instance, PlanCompiler.EXECUTION_LABEL, "1");
     private final ComposeRuntimeEngine engine = new ComposeRuntimeEngine(JsonMapper.builder().build(), "");
+    private static final LoadSummary SUMMARY = new LoadSummary(3L, 0L, 0L, 1.5, 2.0);
 
     @AfterEach
     void removeEverything() {
@@ -66,6 +69,37 @@ class ComposeRuntimeEngineIntegrationTests {
         } finally {
             docker("container", "rm", "-f", backend);
         }
+    }
+
+    @Test
+    void startsTheLoadOnlyWhenAskedAndKeepsItsSummaryWhenStopped() {
+        Map<String, Object> plan = withLoad("while true; do sleep 1; done");
+        engine.up(plan);
+        assertThat(engine.status(plan)).containsOnlyKeys("probe");
+        assertThat(engine.stopLoad(plan)).isEqualTo(new LoadReport(null, null));
+
+        engine.startLoad(plan);
+        assertThat(engine.status(plan)).containsEntry(PlanCompiler.LOAD_SERVICE, ComponentStatus.HEALTHY);
+
+        LoadReport report = engine.stopLoad(plan);
+        assertThat(report).isEqualTo(new LoadReport(105, SUMMARY));
+        assertThat(report.completed()).isFalse();
+        assertThat(engine.stopLoad(plan)).isEqualTo(report);
+
+        engine.down(plan, labels);
+        assertThat(labelled()).isEmpty();
+    }
+
+    @Test
+    void readsTheSummaryOfALoadThatEndedOnItsOwn() throws InterruptedException {
+        Map<String, Object> plan = withLoad("true");
+        engine.up(plan);
+        engine.startLoad(plan);
+        while (engine.status(plan).get(PlanCompiler.LOAD_SERVICE) != ComponentStatus.EXITED) {
+            Thread.sleep(200);
+        }
+
+        assertThat(engine.stopLoad(plan)).isEqualTo(new LoadReport(0, SUMMARY));
     }
 
     @Test
@@ -116,6 +150,25 @@ class ComposeRuntimeEngineIntegrationTests {
                 "name", "infracture-" + instance + "-exec-1",
                 "networks", Map.of(PlanCompiler.NETWORK, Map.of("labels", labels)),
                 "services", Map.of("probe", service));
+    }
+
+    // A shell stands in for k6: it prints the summary line when it ends, as the load scripts do.
+    private Map<String, Object> withLoad(String body) {
+        String summary = ComposeRuntimeEngine.SUMMARY_MARKER + "{\"requests\":3,\"failedRequests\":0,"
+                + "\"droppedIterations\":0,\"averageLatencyMs\":1.5,\"p95LatencyMs\":2.0}";
+        Map<String, Object> load = Map.of(
+                "image", "busybox:1.37",
+                "command", List.of("sh", "-c", "finish() { echo '" + summary + "'; }; "
+                        + "trap 'finish; exit 105' TERM; " + body + "; finish"),
+                "profiles", List.of(PlanCompiler.LOAD_PROFILE),
+                "networks", List.of(PlanCompiler.NETWORK),
+                "labels", labels);
+        Map<String, Object> plan = new HashMap<>(plan("true"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> services = new HashMap<>((Map<String, Object>) plan.get("services"));
+        services.put(PlanCompiler.LOAD_SERVICE, load);
+        plan.put("services", services);
+        return plan;
     }
 
     private List<String> labelled() {

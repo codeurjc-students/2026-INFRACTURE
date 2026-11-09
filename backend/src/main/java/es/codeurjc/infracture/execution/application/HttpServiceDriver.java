@@ -48,6 +48,11 @@ class HttpServiceDriver implements ComponentDriver {
 
     @Override
     public URI evidence(String serviceName) {
+        return httpUrl(serviceName);
+    }
+
+    @Override
+    public URI httpUrl(String serviceName) {
         return URI.create("http://" + serviceName + ":" + PORT + "/");
     }
 }

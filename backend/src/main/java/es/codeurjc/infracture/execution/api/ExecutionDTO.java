@@ -18,5 +18,7 @@ public record ExecutionDTO(
         Instant createdAt,
         Instant releasedAt,
         List<ExecutedComponentDTO> components,
+        // Null when the scenario had no load.
+        ExecutedWorkloadDTO workload,
         Map<String, Object> plan) {
 }

@@ -6,6 +6,7 @@ import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Connection;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.domain.ValidationIssue;
+import es.codeurjc.infracture.project.domain.Workload;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
@@ -20,7 +21,12 @@ public interface ScenarioMapper {
     @Mapping(target = "revision", source = "scenario.revision")
     @Mapping(target = "components", source = "scenario.components")
     @Mapping(target = "connections", source = "scenario.connections")
+    @Mapping(target = "workload", expression = "java(toDTO(graph.scenario().getWorkload().orElse(null)))")
     ScenarioGraphDTO toDTO(ScenarioGraph graph);
+
+    WorkloadDTO toDTO(Workload workload);
+
+    Workload toWorkload(WorkloadDTO workload);
 
     @Mapping(target = "position.x", source = "positionX")
     @Mapping(target = "position.y", source = "positionY")

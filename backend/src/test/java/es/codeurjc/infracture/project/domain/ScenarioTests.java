@@ -36,7 +36,7 @@ class ScenarioTests {
 
     @Test
     void savesAnEmptyGraphAndIncrementsTheRevision() {
-        scenario.replaceGraph(1, List.of(), List.of(), templates);
+        scenario.replaceGraph(1, List.of(), List.of(), null, templates);
 
         assertThat(scenario.getComponents()).isEmpty();
         assertThat(scenario.getRevision()).isEqualTo(2);
@@ -46,7 +46,7 @@ class ScenarioTests {
     void createsIndependentNodesFromTheSameTemplate() {
         scenario.replaceGraph(1, List.of(
                 httpNode(FIRST, "orders-api", 0),
-                httpNode(SECOND, "users-api", 250)), List.of(), templates);
+                httpNode(SECOND, "users-api", 250)), List.of(), null, templates);
 
         assertThat(scenario.getComponents()).hasSize(2);
         Component orders = component(FIRST);
@@ -58,7 +58,7 @@ class ScenarioTests {
 
         scenario.replaceGraph(2, List.of(
                 httpNode(FIRST, "orders-api", 900),
-                httpNode(SECOND, "users-api", 250)), List.of(), templates);
+                httpNode(SECOND, "users-api", 250)), List.of(), null, templates);
 
         assertThat(component(FIRST).getConfiguration()).isEqualTo(stateless(900));
         assertThat(component(SECOND).getConfiguration()).isEqualTo(stateless(250));
@@ -67,11 +67,11 @@ class ScenarioTests {
 
     @Test
     void updatesNodesByKeyAndRemovesTheMissingOnes() {
-        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), redisNode(SECOND)), List.of(), templates);
+        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), redisNode(SECOND)), List.of(), null, templates);
         Component orders = component(FIRST);
 
         scenario.replaceGraph(2, List.of(new ComponentDraft(FIRST, "http-service", "orders", 300.5, -20,
-                stateless(100))), List.of(), templates);
+                stateless(100))), List.of(), null, templates);
 
         assertThat(scenario.getComponents()).containsExactly(orders);
         assertThat(orders.getName()).isEqualTo("orders");
@@ -83,22 +83,22 @@ class ScenarioTests {
     @Test
     void keepsSavedNodesWhoseTemplateWasDisabledButRejectsNewOnes() {
         Map<String, ComponentTemplate> before = Map.of("redis", redis);
-        scenario.replaceGraph(1, List.of(redisNode(FIRST)), List.of(), before);
+        scenario.replaceGraph(1, List.of(redisNode(FIRST)), List.of(), null, before);
 
-        scenario.replaceGraph(2, List.of(redisNode(FIRST)), List.of(), Map.of());
+        scenario.replaceGraph(2, List.of(redisNode(FIRST)), List.of(), null, Map.of());
         assertThat(scenario.getRevision()).isEqualTo(3);
 
         assertThatThrownBy(() -> scenario.replaceGraph(3, List.of(redisNode(FIRST),
-                new ComponentDraft(SECOND, "old-worker", "worker", 0, 0, empty())), List.of(), templates))
+                new ComponentDraft(SECOND, "old-worker", "worker", 0, 0, empty())), List.of(), null, templates))
                 .isInstanceOf(InvalidDataException.class)
                 .hasMessage("Component worker: unknown or disabled template old-worker");
     }
 
     @Test
     void rejectsAStaleRevisionWithoutChangingTheGraph() {
-        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0)), List.of(), templates);
+        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0)), List.of(), null, templates);
 
-        assertThatThrownBy(() -> scenario.replaceGraph(1, List.of(), List.of(), templates))
+        assertThatThrownBy(() -> scenario.replaceGraph(1, List.of(), List.of(), null, templates))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("The scenario was saved after revision 1. Reload it to continue from revision 2.");
         assertThat(scenario.getComponents()).hasSize(1);
@@ -107,12 +107,12 @@ class ScenarioTests {
 
     @Test
     void rejectsInvalidNodesListingEveryProblemWithoutChangingTheGraph() {
-        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0)), List.of(), templates);
+        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0)), List.of(), null, templates);
 
         assertThatThrownBy(() -> scenario.replaceGraph(2, List.of(
                 new ComponentDraft(FIRST, "redis", "orders-api", 0, 0, empty()),
                 new ComponentDraft(SECOND, "http-service", " ", 0, 0, stateless(9000)),
-                new ComponentDraft(null, "unknown", "x".repeat(31), 0, 0, empty())), List.of(), templates))
+                new ComponentDraft(null, "unknown", "x".repeat(31), 0, 0, empty())), List.of(), null, templates))
                 .isInstanceOf(InvalidDataException.class)
                 .hasMessage(String.join("; ",
                         "Component orders-api: template cannot change from http-service to redis",
@@ -129,7 +129,7 @@ class ScenarioTests {
         scenario.replaceGraph(1, List.of(
                 httpNode(FIRST, "orders-api", 9000),
                 new ComponentDraft(SECOND, "redis", "cache", 0, 0,
-                        new ComponentConfiguration("CACHE_ASIDE", Map.of("maxmemory", 64)))), List.of(), templates);
+                        new ComponentConfiguration("CACHE_ASIDE", Map.of("maxmemory", 64)))), List.of(), null, templates);
 
         assertThat(scenario.getRevision()).isEqualTo(2);
         assertThat(component(FIRST).getConfiguration()).isEqualTo(stateless(9000));
@@ -139,14 +139,14 @@ class ScenarioTests {
     @Test
     void rejectsProfileNamesLongerThanTheDatabaseAccepts() {
         assertThatThrownBy(() -> scenario.replaceGraph(1, List.of(new ComponentDraft(FIRST, "redis", "cache", 0, 0,
-                new ComponentConfiguration("P".repeat(51), Map.of()))), List.of(), templates))
+                new ComponentConfiguration("P".repeat(51), Map.of()))), List.of(), null, templates))
                 .isInstanceOf(InvalidDataException.class)
                 .hasMessage("Component cache: profile must contain at most 50 characters");
     }
 
     @Test
     void rejectsRepeatedKeys() {
-        assertThatThrownBy(() -> scenario.replaceGraph(1, List.of(redisNode(FIRST), redisNode(FIRST)), List.of(), templates))
+        assertThatThrownBy(() -> scenario.replaceGraph(1, List.of(redisNode(FIRST), redisNode(FIRST)), List.of(), null, templates))
                 .isInstanceOf(InvalidDataException.class)
                 .hasMessage("Component " + FIRST + " appears more than once");
     }
@@ -155,11 +155,11 @@ class ScenarioTests {
     void acceptsUpToFiftyNodes() {
         List<ComponentDraft> fifty = new ArrayList<>(IntStream.range(0, 50)
                 .mapToObj(number -> redisNode(UUID.randomUUID())).toList());
-        scenario.replaceGraph(1, fifty, List.of(), templates);
+        scenario.replaceGraph(1, fifty, List.of(), null, templates);
         assertThat(scenario.getComponents()).hasSize(50);
 
         fifty.add(redisNode(UUID.randomUUID()));
-        assertThatThrownBy(() -> scenario.replaceGraph(2, fifty, List.of(), templates))
+        assertThatThrownBy(() -> scenario.replaceGraph(2, fifty, List.of(), null, templates))
                 .isInstanceOf(InvalidDataException.class)
                 .hasMessage("A scenario can have at most 50 components");
     }
@@ -170,7 +170,7 @@ class ScenarioTests {
         Connection users = new Connection(SECOND, "cache", THIRD);
 
         scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), httpNode(SECOND, "users-api", 0),
-                redisNode(THIRD)), List.of(orders, users), templates);
+                redisNode(THIRD)), List.of(orders, users), null, templates);
 
         assertThat(scenario.getConnections()).containsExactly(orders, users);
     }
@@ -182,7 +182,7 @@ class ScenarioTests {
         Connection users = new Connection(SECOND, "cache", THIRD);
 
         scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), httpNode(SECOND, "users-api", 0),
-                redisNode(THIRD)), List.of(cache, users, database), templates);
+                redisNode(THIRD)), List.of(cache, users, database), null, templates);
 
         assertThat(scenario.connectionsFrom(FIRST)).containsExactly(cache, database);
         assertThat(scenario.connectionsFrom(THIRD)).isEmpty();
@@ -193,7 +193,7 @@ class ScenarioTests {
         Connection unknownPort = new Connection(FIRST, "database", SECOND);
 
         scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), redisNode(SECOND)),
-                List.of(unknownPort), templates);
+                List.of(unknownPort), null, templates);
 
         assertThat(scenario.getConnections()).containsExactly(unknownPort);
     }
@@ -201,9 +201,9 @@ class ScenarioTests {
     @Test
     void removesANodeTogetherWithItsConnections() {
         scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), redisNode(SECOND)),
-                List.of(new Connection(FIRST, "cache", SECOND)), templates);
+                List.of(new Connection(FIRST, "cache", SECOND)), null, templates);
 
-        scenario.replaceGraph(2, List.of(httpNode(FIRST, "orders-api", 0)), List.of(), templates);
+        scenario.replaceGraph(2, List.of(httpNode(FIRST, "orders-api", 0)), List.of(), null, templates);
 
         assertThat(scenario.getComponents()).extracting(Component::getKey).containsExactly(FIRST);
         assertThat(scenario.getConnections()).isEmpty();
@@ -212,7 +212,7 @@ class ScenarioTests {
     @Test
     void rejectsConnectionsThatLeaveTheGraphListingEveryProblemWithoutChangingIt() {
         Connection saved = new Connection(FIRST, "cache", SECOND);
-        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), redisNode(SECOND)), List.of(saved),
+        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), redisNode(SECOND)), List.of(saved), null,
                 templates);
         UUID outside = UUID.fromString("00000000-0000-4000-8000-000000000001");
 
@@ -222,7 +222,7 @@ class ScenarioTests {
                 new Connection(FIRST, " ", FIRST),
                 new Connection(FIRST, "p".repeat(51), FIRST),
                 new Connection(FIRST, "downstream", FIRST),
-                new Connection(FIRST, "downstream", FIRST)), templates))
+                new Connection(FIRST, "downstream", FIRST)), null, templates))
                 .isInstanceOf(InvalidDataException.class)
                 .hasMessage(String.join("; ",
                         "Connection orders-api.cache → " + SECOND + ": target is not a node of this scenario",
@@ -240,17 +240,55 @@ class ScenarioTests {
         List<ComponentDraft> nodes = List.of(httpNode(FIRST, "orders-api", 0), redisNode(SECOND));
         List<Connection> connections = new ArrayList<>(IntStream.range(0, 200)
                 .mapToObj(number -> new Connection(FIRST, "port" + number, SECOND)).toList());
-        scenario.replaceGraph(1, nodes, connections, templates);
+        scenario.replaceGraph(1, nodes, connections, null, templates);
         assertThat(scenario.getConnections()).hasSize(200);
 
         connections.add(new Connection(FIRST, "one-more", SECOND));
-        assertThatThrownBy(() -> scenario.replaceGraph(2, nodes, connections, templates))
+        assertThatThrownBy(() -> scenario.replaceGraph(2, nodes, connections, null, templates))
                 .isInstanceOf(InvalidDataException.class)
                 .hasMessage("A scenario can have at most 200 connections");
     }
 
     private Component component(UUID key) {
         return scenario.getComponents().stream().filter(c -> c.getKey().equals(key)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void savesTheLoadWithTheGraphUnderTheSameRevision() {
+        Workload load = new Workload(FIRST, "CONSTANT_HTTP",
+                Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42);
+
+        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0)), List.of(), load, templates);
+
+        assertThat(scenario.getWorkload()).hasValue(load);
+        assertThat(scenario.getRevision()).isEqualTo(2);
+
+        scenario.replaceGraph(2, List.of(httpNode(FIRST, "orders-api", 0)), List.of(), null, templates);
+
+        assertThat(scenario.getWorkload()).isEmpty();
+        assertThat(scenario.getRevision()).isEqualTo(3);
+    }
+
+    @Test
+    void keepsALoadWithoutTargetAsADraft() {
+        Workload load = new Workload(null, "CONSTANT_HTTP", Map.of("requestsPerSecond", 99), -5);
+
+        scenario.replaceGraph(1, List.of(), List.of(), load, templates);
+
+        assertThat(scenario.getWorkload()).hasValue(load);
+    }
+
+    @Test
+    void rejectsALoadThatLeavesTheGraphWithoutChangingIt() {
+        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0)), List.of(), null, templates);
+
+        assertThatThrownBy(() -> scenario.replaceGraph(2, List.of(httpNode(FIRST, "orders-api", 0)), List.of(),
+                new Workload(SECOND, "x".repeat(51), Map.of(), 42), templates))
+                .isInstanceOf(InvalidDataException.class)
+                .hasMessage("Workload: target is not a node of this scenario; "
+                        + "Workload: profile must contain at most 50 characters");
+        assertThat(scenario.getWorkload()).isEmpty();
+        assertThat(scenario.getRevision()).isEqualTo(2);
     }
 
     private static ComponentDraft httpNode(UUID key, String name, int delay) {

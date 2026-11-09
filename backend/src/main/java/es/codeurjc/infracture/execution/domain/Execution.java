@@ -57,6 +57,11 @@ public class Execution {
     @CollectionTable(name = "executed_connections", joinColumns = @JoinColumn(name = "execution_id"))
     private List<Connection> connections = new ArrayList<>();
 
+    // At most one: the frozen load, or none when the scenario had no load. A lazy collection keeps the load
+    // out of the row-locking queries, which cannot join it.
+    @OneToMany(mappedBy = "execution", cascade = CascadeType.ALL)
+    private List<ExecutedWorkload> workload = new ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Phase phase;
@@ -93,6 +98,7 @@ public class Execution {
             components.add(new ExecutedComponent(this, component, contractVersions.get(component.getType())));
         }
         this.connections.addAll(scenario.getConnections());
+        scenario.getWorkload().ifPresent(load -> workload.add(new ExecutedWorkload(this, load)));
         this.phase = Phase.RESERVED;
     }
 
@@ -114,6 +120,14 @@ public class Execution {
             throw new IllegalStateException("Execution %d already has a plan".formatted(id));
         }
         this.plan = plan;
+    }
+
+    public void recordLoadSummary(LoadSummary summary, boolean completed) {
+        ExecutedWorkload load = getWorkload();
+        if (load == null) {
+            throw new IllegalStateException("Execution %d has no load".formatted(id));
+        }
+        load.recordSummary(summary, completed);
     }
 
     public void startStarting() {
@@ -192,6 +206,11 @@ public class Execution {
 
     public List<Connection> getConnections() {
         return Collections.unmodifiableList(connections);
+    }
+
+    // Null when the scenario had no load.
+    public ExecutedWorkload getWorkload() {
+        return workload.isEmpty() ? null : workload.getFirst();
     }
 
     public Phase getPhase() {

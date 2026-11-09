@@ -20,6 +20,7 @@ import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
+import es.codeurjc.infracture.project.domain.ValidationIssue;
 import es.codeurjc.infracture.project.persistence.ScenarioRepository;
 import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.NotFoundException;
@@ -157,20 +158,19 @@ class ScenarioServiceTests {
                 Map.of("redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of()))));
 
         ScenarioGraph saved = service.saveGraph(OWNER_EMAIL, 5L, 3L, 1, List.of(new ComponentDraft(
-                key, "redis", "  cache  ", 10, 20, new ComponentConfiguration("CACHE_ASIDE", Map.of()))), List.of());
+                key, "redis", "  cache  ", 10, 20, new ComponentConfiguration("CACHE_ASIDE", Map.of()))), List.of(), null);
 
         assertThat(saved.scenario().getRevision()).isEqualTo(2);
         assertThat(saved.scenario().getComponents()).singleElement()
                 .satisfies(component -> assertThat(component.getName()).isEqualTo("cache"));
-        assertThat(saved.issues()).singleElement()
-                .satisfies(issue -> assertThat(issue.code()).isEqualTo("UNKNOWN_PROFILE"));
+        assertThat(saved.issues()).extracting(ValidationIssue::code).containsExactly("UNKNOWN_PROFILE", "NO_WORKLOAD");
         verify(repository).saveAndFlush(existing);
         verify(repository, never()).findByIdAndProjectId(any(), any());
     }
 
     @Test
     void rejectsTheGraphOfAScenarioOutsideTheProject() {
-        assertThatThrownBy(() -> service.saveGraph(OWNER_EMAIL, 5L, 99L, 1, List.of(), List.of()))
+        assertThatThrownBy(() -> service.saveGraph(OWNER_EMAIL, 5L, 99L, 1, List.of(), List.of(), null))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("Scenario not found");
         verifyNoInteractions(templateService);
@@ -184,7 +184,7 @@ class ScenarioServiceTests {
         when(repository.findForUpdateByIdAndProjectId(3L, 5L)).thenReturn(Optional.of(reserved));
         when(reservations.isReserved(3L)).thenReturn(true);
 
-        assertThatThrownBy(() -> service.saveGraph(OWNER_EMAIL, 5L, 3L, 1, List.of(), List.of()))
+        assertThatThrownBy(() -> service.saveGraph(OWNER_EMAIL, 5L, 3L, 1, List.of(), List.of(), null))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("The scenario is read-only while an experiment uses it. Stop it to edit the scenario.");
         assertThatThrownBy(() -> service.updateScenario(OWNER_EMAIL, 5L, 3L, "Renamed", null))

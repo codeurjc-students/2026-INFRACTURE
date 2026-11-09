@@ -6,19 +6,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.startsWith;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import es.codeurjc.infracture.execution.application.ComponentStatus;
 import es.codeurjc.infracture.execution.application.ExecutionReconciler;
+import es.codeurjc.infracture.execution.application.LoadReport;
 import es.codeurjc.infracture.execution.application.RuntimeEngine;
 import es.codeurjc.infracture.execution.application.RuntimeEngineException;
 import es.codeurjc.infracture.execution.application.ServiceProbe;
+import es.codeurjc.infracture.execution.domain.LoadSummary;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
 import es.codeurjc.infracture.project.api.ApiSession;
 import es.codeurjc.infracture.project.persistence.ProjectRepository;
@@ -33,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -112,6 +117,62 @@ class ExecutionApiSystemTests {
         alice.write().body("{\"name\":\"Renamed\"}").put(scenario).then().spec(problem(409, readOnly));
         alice.read().get(scenario + "/graph").then().body("revision", equalTo(2));
         alice.write().body(graph(1, http(ORDERS))).put(other + "/graph").then().statusCode(200);
+    }
+
+    @Test
+    void freezesTheLoadAndPlansK6ApartFromTheNodes() {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = createScenario(alice);
+        alice.write().body("""
+                {"revision":1,"components":[%s],"connections":[],
+                 "workload":{"targetKey":"%s","profile":"CONSTANT_HTTP",
+                  "parameters":{"requestsPerSecond":10,"virtualUsers":5,"durationSeconds":60},"seed":42}}
+                """.formatted(http(ORDERS), ORDERS)).put(scenario + "/graph").then().statusCode(200);
+
+        alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+            .body("workload.targetKey", equalTo(ORDERS))
+            .body("workload.profile", equalTo("CONSTANT_HTTP"))
+            .body("workload.parameters.requestsPerSecond", equalTo(10))
+            .body("workload.seed", equalTo(42))
+            .body("plan.services.workload.image", equalTo("infracture/load-generator:0.1.0"))
+            .body("plan.services.workload.profiles", equalTo(List.of("load")))
+            .body("plan.services.workload.environment.TARGET_URL", equalTo("http://c-" + ORDERS + ":8080/"))
+            .body("plan.services.workload.environment.REQUESTS_PER_SECOND", equalTo("10"));
+        alice.read().get(scenario + "/executions/current").then().body("workload.seed", equalTo(42))
+            .body("workload.summaryCollectedAt", nullValue()).body("workload.summary", nullValue());
+    }
+
+    @Test
+    void stopsTheLoadFirstAndShowsItsSummaryAfterStop() {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = createScenario(alice);
+        alice.write().body("""
+                {"revision":1,"components":[%s],"connections":[],
+                 "workload":{"targetKey":"%s","profile":"CONSTANT_HTTP",
+                  "parameters":{"requestsPerSecond":10,"virtualUsers":5,"durationSeconds":60},"seed":42}}
+                """.formatted(http(ORDERS), ORDERS)).put(scenario + "/graph").then().statusCode(200);
+        long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+            .extract().jsonPath().getLong("id");
+        when(engine.stopLoad(anyMap())).thenReturn(new LoadReport(105, new LoadSummary(120L, 1L, 0L, 52.5, null)));
+        reconciler.reconcile();
+        reconciler.reconcile();
+
+        alice.write().post(scenario + "/executions/" + id + "/stop").then().statusCode(202);
+        reconciler.reconcile();
+
+        InOrder order = inOrder(engine);
+        order.verify(engine).up(anyMap());
+        order.verify(engine).startLoad(anyMap());
+        order.verify(engine).stopLoad(anyMap());
+        order.verify(engine).down(anyMap(), anyMap());
+        alice.read().get(scenario + "/executions/current").then()
+            .body("phase", equalTo("RELEASED"))
+            .body("workload.completed", equalTo(false))
+            .body("workload.summaryCollectedAt", notNullValue())
+            .body("workload.summary.requests", equalTo(120))
+            .body("workload.summary.failedRequests", equalTo(1))
+            .body("workload.summary.averageLatencyMs", equalTo(52.5f))
+            .body("workload.summary.p95LatencyMs", nullValue());
     }
 
     @Test

@@ -309,7 +309,7 @@ test("connects ports to compatible nodes, keeps arrows through a profile change 
   });
 });
 
-test("finds errors in an invalid graph, corrects them and keeps only an allowed warning", async ({
+test("finds errors in an invalid graph, corrects them and keeps only allowed warnings", async ({
   page,
 }, testInfo) => {
   const issues = (count: string) =>
@@ -324,7 +324,7 @@ test("finds errors in an invalid graph, corrects them and keeps only an allowed 
       "Task queue",
     );
     await page.goto(`/projects/${project.id}/scenarios/${scenario.id}`);
-    await issues("1 issue").click();
+    await issues("2 issues").click();
     await expect(
       inspector(page).getByText(
         "Add at least one component to run the scenario",
@@ -347,7 +347,7 @@ test("finds errors in an invalid graph, corrects them and keeps only an allowed 
     await connect(page, "Edge", "downstream", "Gateway");
     await page.getByRole("button", { name: "Save", exact: true }).click();
 
-    await issues("2 issues").click();
+    await issues("3 issues").click();
     await expect(
       inspector(page).getByText(
         "2 errors block running the scenario. Warnings do not.",
@@ -375,7 +375,7 @@ test("finds errors in an invalid graph, corrects them and keeps only an allowed 
     await connect(page, "Edge", "downstream", "Tasks API");
     await connect(page, "Tasks API", "queue", "RabbitMQ");
 
-    await issues("2 issues, from the last save").click();
+    await issues("3 issues, from the last save").click();
     await expect(
       inspector(page).getByText(
         "These issues come from the last save. Save to check your changes.",
@@ -383,19 +383,24 @@ test("finds errors in an invalid graph, corrects them and keeps only an allowed 
     ).toBeVisible();
   });
 
-  await test.step("Save and keep only the warning that does not block running", async () => {
+  await test.step("Save and keep only the warnings that do not block running", async () => {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Saved", exact: true }),
     ).toBeDisabled();
     // The issues panel stays open and now shows the issues of this save.
-    await expect(issues("1 issue")).toBeVisible();
+    await expect(issues("2 issues")).toBeVisible();
     await expect(
       inspector(page).getByText("Warnings do not block running the scenario."),
     ).toBeVisible();
     await expect(
       inspector(page).getByText(
         "Tasks published to RabbitMQ accumulate because no Worker consumes them",
+      ),
+    ).toBeVisible();
+    await expect(
+      inspector(page).getByText(
+        "The scenario has no load, so the experiment receives no traffic",
       ),
     ).toBeVisible();
     await expect(node(page, "RabbitMQ")).toContainText("1 warning");
