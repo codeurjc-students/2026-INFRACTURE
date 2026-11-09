@@ -44,8 +44,8 @@ api (controlador + DTO + mapper) → application (servicio) → domain (entidade
 
 ### Diseñar y guardar un escenario
 
-1. `routes/scenario.tsx` carga a la vez proyecto, escenario, grafo, catálogo y la ejecución actual, y monta `ScenarioCanvas`.
-2. Cada cambio del lienzo (añadir, mover, conectar, configurar) es una acción de `graph-reducer.ts`; `draft-storage.ts` guarda el trabajo sin guardar en el navegador.
+1. `routes/scenario.tsx` carga a la vez proyecto, escenario, grafo, catálogo, perfiles de carga y la ejecución actual, y monta `ScenarioCanvas`.
+2. Cada cambio del lienzo (añadir, mover, conectar, configurar, la carga del panel Load) es una acción de `graph-reducer.ts`; `draft-storage.ts` guarda el trabajo sin guardar en el navegador.
 3. Guardar envía el grafo entero con la revisión de partida: `graph-service.saveGraph` → `PUT …/graph` → `ScenarioController` → `ScenarioService.saveGraph`.
 4. `ScenarioService` bloquea la fila del escenario, rechaza la escritura si una ejecución lo reserva y llama a `Scenario.replaceGraph`, que comprueba la revisión (409 si otra pestaña guardó antes) y las reglas estructurales.
 5. `ScenarioValidator` revisa el grafo guardado contra los contratos de `ContractCatalog` y devuelve errores y avisos; el lienzo los pinta en los nodos, las flechas y el panel de incidencias.
@@ -55,7 +55,7 @@ api (controlador + DTO + mapper) → application (servicio) → domain (entidade
 1. `RunButton` → `use-execution.ts` → `execution-service.runScenario` → `POST …/executions` con la revisión guardada.
 2. `ExecutionService.run` bloquea el escenario, comprueba que no hay otra ejecución, vuelve a validar, guarda la `Execution` en `RESERVED` con la copia congelada de nodos, conexiones y carga (`ExecutedWorkload`) y le adjunta el plan de `PlanCompiler`, que incluye a k6 con el perfil de Compose `load`. No toca Docker.
 3. `ExecutionReconciler`, cada 2 s, ve la reserva, pasa a `STARTING` y pide a `ComposeRuntimeEngine` un `docker compose up --wait` a través de `docker-proxy`, que arranca solo los nodos. Al estar sanos, `startLoad` lanza k6, la fase pasa a `RUNNING` y `ServiceProbe` pide la respuesta real del servicio.
-4. Mientras corre, cada vuelta lee `docker compose ps` y guarda el estado de cada nodo en `ExecutionObservations`; el front lo consulta con `GET …/executions/current` cada 2 s y lo muestra en `ExecutionBadge`, en los nodos y en el inspector. El editor está en solo lectura.
+4. Mientras corre, cada vuelta lee `docker compose ps` y guarda el estado de cada nodo en `ExecutionObservations`; el front lo consulta con `GET …/executions/current` cada 2 s y lo muestra en `ExecutionBadge`, en los nodos, en el inspector y, para la carga, en el panel Load. El editor está en solo lectura.
 5. Stop solo apunta la causa (`POST …/executions/{id}/stop`); el bucle para k6 con `stopLoad` y guarda su resumen, hace `down -v`, borra lo que quede con las etiquetas y libera la reserva. Si k6 termina antes por sí solo, su resumen se guarda en cuanto la vigilancia lo ve parado. Detalle completo en la [página De Run a Stop](explainers/run-to-stop.html).
 
 ## Backend
@@ -95,14 +95,15 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | Clase | Qué hace | Quién la usa |
 | --- | --- | --- |
 | `ComponentTemplateController` | `GET /api/v1/component-templates`, paginado y con filtros por nombre y tipo. | Front: catálogo y lienzo. |
-| `ComponentTemplateDTO`, `TemplateContractDTO`, `ComponentConfigurationDTO`, `ComponentTemplateMapper` | La plantilla en JSON con su contrato y su configuración inicial. | `ComponentTemplateController`. |
+| `WorkloadProfileController`, `WorkloadProfileDTO` | `GET /api/v1/workload-profiles`: cada perfil de carga con sus límites, la semilla, lo que pide al objetivo y sus valores iniciales. | Front: lienzo (panel Load). |
+| `ComponentTemplateDTO`, `TemplateContractDTO`, `ComponentConfigurationDTO`, `ComponentTemplateMapper` | La plantilla en JSON con su contrato y su configuración inicial; el mapper también convierte los perfiles de carga. | `ComponentTemplateController`, `WorkloadProfileController`. |
 | `ComponentTemplateService` | Lista las plantillas activas y las busca por clave. | Controlador, `ScenarioService`. |
 | `ContractCatalog` | Reúne el contrato de cada tipo y no deja arrancar si a un tipo le falta o le sobra uno. | Validación, `ExecutionService`. |
 | `HttpServiceDefinition`, `WorkerDefinition`, `PostgresqlDefinition`, `RedisDefinition`, `RabbitmqDefinition` | El contrato de cada tipo: perfiles, parámetros con su rango, puertos y capacidades. | `ContractCatalog`. |
 | `ComponentTemplate` | Una ficha del catálogo guardada en la base de datos. | Servicio y repositorio. |
 | `ComponentType`, `Capability` | Los cinco tipos y lo que un nodo ofrece a una flecha (por ejemplo, caché). | Todo el dominio. |
 | `TemplateContract`, `ProfileContract`, `ParameterContract`, `PortContract`, `ContractViolation` | Las piezas de un contrato y el resultado de comprobar una configuración. `ParameterContract.check` comprueba los parámetros de nodos y carga. | Definiciones, `ScenarioValidator`. |
-| `WorkloadContract` | Los perfiles de carga: hoy solo `CONSTANT_HTTP`, con sus límites (ADR 0016), la semilla y la capacidad que pide al objetivo. | `ScenarioValidator`. |
+| `WorkloadContract` | Los perfiles de carga: hoy solo `CONSTANT_HTTP`, con sus límites (ADR 0016), la semilla, la capacidad que pide al objetivo y sus valores iniciales. | `ScenarioValidator`, `WorkloadProfileController`. |
 | `ComponentConfiguration`, `ComponentTypeDefinition` | Perfil más parámetros de un nodo; interfaz que implementa cada definición. | Dominio de `project` y `catalog`. |
 | `ComponentTemplateRepository` | Búsquedas de plantillas activas, ordenadas por nombre. | `ComponentTemplateService`. |
 
@@ -194,16 +195,20 @@ Rutas relativas a `frontend/app/`. Los ficheros de `features/*/model/` son los t
 | Fichero | Qué hace |
 | --- | --- |
 | `components/scenario-canvas.tsx` | El editor completo: barra superior, paleta, lienzo de React Flow, avisos y panel lateral. Decide qué se puede hacer en cada momento (guardar, Run, solo lectura). |
-| `graph-reducer.ts` | El estado del grafo y todas sus acciones: añadir, mover, conectar, configurar, guardar y conflicto. |
+| `graph-reducer.ts` | El estado del grafo y todas sus acciones: añadir, mover, conectar, configurar, la carga, guardar y conflicto. |
 | `connections.ts` | Identidad de las flechas y si un puerto puede conectarse a un nodo. |
-| `draft-storage.ts` | El borrador sin guardar en `localStorage`, por cuenta y escenario. |
+| `draft-storage.ts` | El borrador sin guardar en `localStorage`, por cuenta y escenario, con la carga. |
 | `api/graph-service.ts`, `api/execution-service.ts` | Leer y guardar el grafo; Run, ejecución actual y Stop. |
+| `component-catalogue/api/workload-profile-service.ts` | Lee los perfiles de carga con sus límites (`GET /api/v1/workload-profiles`). |
 | `use-execution.ts` | Estado de la ejecución, Run y Stop sin dobles envíos, y la consulta cada 2 s mientras está activa. |
-| `execution-status.ts` | Palabra y tono de cada fase y de cada estado de nodo, con el vocabulario de `DESIGN.md`. |
+| `execution-status.ts` | Palabra y tono de cada fase, de cada estado de nodo y de la carga, con el vocabulario de `DESIGN.md`. |
 | `components/component-palette.tsx` | Lista de plantillas para añadir con un clic o arrastrando. |
-| `components/component-node.tsx` | Cómo se dibuja un nodo: configuración, puertos, incidencias y estado en el experimento. |
+| `components/component-node.tsx` | Cómo se dibuja un nodo: configuración, puertos, incidencias, estado en el experimento y el carril de tráfico si recibe la carga. |
+| `components/traffic-lane.tsx` | El carril de la carga que entra en su objetivo: frecuencia y peticiones que lo recorren mientras k6 envía tráfico (animación en `app.css`). |
 | `components/node-inspector.tsx` | Formulario del nodo seleccionado, sus conexiones y la sección "In the experiment" con la respuesta. |
-| `components/issue-list.tsx`, `issue-note.tsx` | Panel de incidencias y una incidencia en una línea. |
+| `components/parameter-field.tsx` | Campo de un parámetro entero con sus límites; lo usan el nodo y la carga. |
+| `components/workload-inspector.tsx` | Panel Load: añadir, configurar o quitar la carga (objetivo, perfil, números y semilla) y lo que hizo en el último experimento, con el resumen de k6. |
+| `components/issue-list.tsx`, `issue-note.tsx` | Panel de incidencias y una incidencia en una línea. Las de la carga abren el panel Load. |
 | `components/scenario-details.tsx` | Nombre y descripción del escenario en el panel lateral. |
 | `components/run-button.tsx`, `execution-badge.tsx`, `status-icon.tsx` | Botón Run/Stop, estado del experimento en la barra e icono de cada estado. |
 | `components/component-icon.tsx` | Icono de cada tipo de componente. |

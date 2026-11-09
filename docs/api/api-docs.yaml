@@ -1062,6 +1062,62 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+  /api/v1/workload-profiles:
+    get:
+      tags:
+      - workload-profile-controller
+      operationId: getWorkloadProfiles
+      responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "400":
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "500":
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkloadProfileDTO"
   /api/v1/users/me:
     get:
       tags:
@@ -1732,6 +1788,45 @@ components:
           type: string
         password:
           type: string
+    ParameterDTO:
+      type: object
+      properties:
+        name:
+          type: string
+        min:
+          type: integer
+          format: int32
+        max:
+          type: integer
+          format: int32
+    WorkloadProfileDTO:
+      type: object
+      properties:
+        name:
+          type: string
+        parameters:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParameterDTO"
+        seed:
+          $ref: "#/components/schemas/ParameterDTO"
+        requires:
+          type: array
+          items:
+            type: string
+            enum:
+            - HTTP
+            - RESOURCE_READ
+            - RESOURCE_WRITE
+            - TASK_CREATE
+            - SQL_DATABASE
+            - KEY_VALUE
+            - MESSAGE_BROKER
+        initialParameters:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
     PageMetadata:
       type: object
       properties:
@@ -1803,17 +1898,6 @@ components:
             $ref: "#/components/schemas/ComponentTemplateDTO"
         page:
           $ref: "#/components/schemas/PageMetadata"
-    ParameterDTO:
-      type: object
-      properties:
-        name:
-          type: string
-        min:
-          type: integer
-          format: int32
-        max:
-          type: integer
-          format: int32
     PortDTO:
       type: object
       properties:
