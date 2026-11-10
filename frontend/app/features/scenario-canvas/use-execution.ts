@@ -62,7 +62,11 @@ export function useExecution(
   return {
     execution,
     active,
-    stopping: active && execution.stopCause !== null,
+    // The backend is cleaning up on its own, so Stop has nothing to add.
+    stopping:
+      active && execution.stopCause !== null && !execution.cleanupRetryNeeded,
+    // The cleanup gave up trying on its own: Stop asks for new attempts.
+    retryCleanup: active && execution.cleanupRetryNeeded,
     pending,
     error,
     run: (revision: number) =>

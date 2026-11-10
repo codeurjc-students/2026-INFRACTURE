@@ -11,6 +11,11 @@ export interface ExecutionDTO {
   stopCause: "STOP_REQUESTED" | "FAILURE" | "INTERRUPTION" | null;
   outcome: "COMPLETED" | "FAILED" | "INTERRUPTED" | null;
   failureReason: string | null;
+  // Failed cleanups in a row since the last Stop and the last error. They never change the outcome.
+  cleanupFailures: number;
+  cleanupError: string | null;
+  // The automatic attempts are spent: the cleanup waits until the owner presses Stop again.
+  cleanupRetryNeeded: boolean;
   createdAt: string;
   releasedAt: string | null;
   components: ExecutedComponentDTO[];

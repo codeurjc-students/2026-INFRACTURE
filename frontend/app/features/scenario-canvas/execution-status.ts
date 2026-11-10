@@ -21,6 +21,13 @@ export function executionView(execution: ExecutionDTO): StatusView {
     }
     return { label: "Completed", tone: "paused" };
   }
+  // A failed cleanup keeps the experiment, so it shows before the cause.
+  if (execution.cleanupRetryNeeded) {
+    return { label: "Cleanup failed", tone: "failed" };
+  }
+  if (execution.cleanupFailures > 0) {
+    return { label: "Cleanup failed, retrying", tone: "degraded" };
+  }
   // A cause means the backend is already cleaning up, whatever the phase says.
   if (execution.stopCause === "FAILURE") {
     return { label: "Failed, cleaning up", tone: "failed" };
