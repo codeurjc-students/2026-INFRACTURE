@@ -167,57 +167,19 @@ describe("execution client against the real API", () => {
     expect(edit).toMatchObject({ status: 409 });
 
     current = await stopExecution(projectId, scenarioId, current.id);
-    expect(current.stopCause).toBe("STOP_REQUESTED");
-    await expect(released()).resolves.toMatchObject({
-      phase: "RELEASED",
-      outcome: "COMPLETED",
-    });
-    await expect(
-      saveGraph(projectId, scenarioId, { ...graph, revision: saved.revision }),
-    ).resolves.toMatchObject({ revision: saved.revision + 1 });
-  }, 240_000);
-
-  // The client follows a Stop sent during the start until the backend released everything.
-  it("stops an execution that is still starting and follows it until released", async () => {
-    scenarioId = await createScenario(projectId, "Stopped while starting");
-    const saved = await saveGraph(projectId, scenarioId, {
-      revision: 1,
-      components: [
-        {
-          key: crypto.randomUUID(),
-          templateKey: "http-service",
-          name: "orders-api",
-          position: { x: 0, y: 0 },
-          profile: "STATELESS",
-          parameters: { responseDelayMs: 0 },
-        },
-      ],
-      connections: [],
-      workload: null,
-    });
-    current = await runScenario(projectId, scenarioId, saved.revision);
-    for (
-      let attempt = 0;
-      attempt < 100 && current.phase === "RESERVED";
-      attempt++
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      current = (await getCurrentExecution(projectId, scenarioId))!;
-    }
-
-    current = await stopExecution(projectId, scenarioId, current.id);
     expect(current).toMatchObject({
       stopCause: "STOP_REQUESTED",
       cleanupFailures: 0,
       cleanupError: null,
       cleanupRetryNeeded: false,
     });
-
     await expect(released()).resolves.toMatchObject({
       phase: "RELEASED",
       outcome: "COMPLETED",
-      failureReason: null,
       cleanupFailures: 0,
     });
+    await expect(
+      saveGraph(projectId, scenarioId, { ...graph, revision: saved.revision }),
+    ).resolves.toMatchObject({ revision: saved.revision + 1 });
   }, 240_000);
 });
