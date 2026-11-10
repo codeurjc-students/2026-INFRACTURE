@@ -56,7 +56,7 @@ api (controlador + DTO + mapper) → application (servicio) → domain (entidade
 2. `ExecutionService.run` bloquea el escenario, comprueba que no hay otra ejecución, vuelve a validar, guarda la `Execution` en `RESERVED` con la copia congelada de nodos, conexiones y carga (`ExecutedWorkload`) y le adjunta el plan de `PlanCompiler`, que incluye a k6 con el perfil de Compose `load`. No toca Docker.
 3. `ExecutionReconciler`, cada 2 s, ve la reserva, pasa a `STARTING` y pide a `ComposeRuntimeEngine` un `docker compose up --wait` a través de `docker-proxy`, que arranca solo los nodos. Al estar sanos, `startLoad` lanza k6, la fase pasa a `RUNNING` y `ServiceProbe` pide la respuesta real del servicio.
 4. Mientras corre, cada vuelta lee `docker compose ps` y guarda el estado de cada nodo en `ExecutionObservations`; el front lo consulta con `GET …/executions/current` cada 2 s y lo muestra en `ExecutionBadge`, en los nodos, en el inspector y, para la carga, en el panel Load. El editor está en solo lectura.
-5. Stop solo apunta la causa (`POST …/executions/{id}/stop`); el bucle para k6 con `stopLoad` y guarda su resumen, hace `down -v`, borra lo que quede con las etiquetas y libera la reserva. Si k6 termina antes por sí solo, su resumen se guarda en cuanto la vigilancia lo ve parado. Detalle completo en la [página De Run a Stop](explainers/run-to-stop.html).
+5. Stop solo apunta la causa (`POST …/executions/{id}/stop`); el bucle para k6 con `stopLoad` y guarda su resumen, hace `down -v`, borra lo que quede con las etiquetas y libera la reserva. Si k6 termina antes por sí solo, su resumen se guarda en cuanto la vigilancia lo ve parado. Si Stop llega mientras arranca, el motor corta el arranque y la siguiente vuelta limpia. Si la limpieza falla, la ejecución sigue en `STOPPING` con el error a la vista y se reintenta. Detalle completo en la [página De Run a Stop](explainers/run-to-stop.html).
 
 ## Backend
 
@@ -137,16 +137,16 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | `ExecutionReservations` | Implementa `ScenarioReservations`: el escenario está reservado mientras haya una ejecución sin liberar. | `ScenarioService`. |
 | `PlanCompiler` | Convierte la ejecución en un plan de Compose endurecido, con etiquetas y límites, sin secretos. Añade el servicio `workload` de k6 con el perfil `load`. | `ExecutionService`, reconciler. |
 | `ComponentDriver`, `HttpServiceDriver` | Lo que cada tipo añade al plan: imagen, variables, salud, dónde pedir su respuesta y a qué URL envía la carga (`httpUrl`). | `PlanCompiler`. |
-| `ExecutionReconciler` | El bucle de cada 2 s: arranca los nodos y después k6, vigila cada nodo y la carga, aplica el tiempo límite, para k6 y guarda su resumen, limpia y libera. | Spring (`@Scheduled`). |
+| `ExecutionReconciler` | El bucle de cada 2 s: arranca los nodos y después k6 (y cancela el arranque si llega Stop), vigila cada nodo y la carga, aplica el tiempo límite, para k6 y guarda su resumen, limpia y libera. Reintenta una limpieza fallida tres veces, con pausas, y luego espera a Stop. | Spring (`@Scheduled`). |
 | `ExecutionScheduling` | Enciende el bucle; los tests de API lo apagan con una propiedad. | Spring. |
-| `RuntimeEngine`, `ComposeRuntimeEngine` | Habla con Docker con el CLI: `up --wait`, `startLoad`, `stopLoad` (para k6 y lee su código y su resumen), `ps`, `down -v`, barrido por etiquetas y unirse a la red. | Reconciler. |
+| `RuntimeEngine`, `ComposeRuntimeEngine` | Habla con Docker con el CLI: `up --wait`, `startLoad`, `stopLoad` (para k6 y lee su código y su resumen), `ps`, `down -v`, barrido por etiquetas y unirse a la red. Mientras arranca, pregunta cada segundo si debe parar y, si es así, termina el comando. | Reconciler. |
 | `LoadReport` | Lo que dejó k6: código de salida (0 terminó, 105 lo paró Stop, vacío si nunca arrancó) y resumen. | Motor, reconciler. |
-| `RuntimeEngineException` | Docker no pudo hacer algo; su mensaje acaba como motivo del fallo. | Motor, reconciler. |
+| `RuntimeEngineException`, `StartCancelledException` | Docker no pudo hacer algo; su mensaje acaba como motivo del fallo o de la limpieza fallida. La segunda dice que el arranque se canceló por Stop, que no es un fallo. | Motor, reconciler. |
 | `ComponentStatus` | Estado de un nodo según Docker: arrancando, sano, no sano o parado. | Motor, observaciones, DTO. |
 | `ExecutionObservations` | Lo último visto de cada nodo (estado y respuesta), en memoria. Atajo hasta P08. | Reconciler (escribe), mapper (lee). |
 | `ServiceProbe` | Una petición `GET /` al servicio como evidencia de que funciona. | Reconciler. |
 | `ScenarioNotRunnableException` | Run encontró errores; lleva las incidencias. | `ExecutionService`, handler. |
-| `Execution` | La entidad: fase, causa de parada (gana la más grave), resultado, copia congelada y plan. | Servicio, reconciler. |
+| `Execution` | La entidad: fase, causa de parada (gana la más grave), resultado, copia congelada y plan. Lleva aparte los fallos de limpieza, que no cambian el resultado. | Servicio, reconciler. |
 | `ExecutedComponent` | Copia inmutable de un nodo tal como estaba al reservar. | `Execution`, métricas futuras. |
 | `ExecutedWorkload`, `LoadSummary` | Copia de la carga al reservar y el resumen agregado de k6 al terminar; lo que k6 no midió queda vacío. Se guarda el primer resumen. | `Execution`, reconciler, DTO. |
 | `Phase`, `StopCause`, `Outcome` | Qué hace el motor, por qué para y cómo acabó. | `Execution`, DTO. |
@@ -200,7 +200,7 @@ Rutas relativas a `frontend/app/`. Los ficheros de `features/*/model/` son los t
 | `draft-storage.ts` | El borrador sin guardar en `localStorage`, por cuenta y escenario, con la carga. |
 | `api/graph-service.ts`, `api/execution-service.ts` | Leer y guardar el grafo; Run, ejecución actual y Stop. |
 | `component-catalogue/api/workload-profile-service.ts` | Lee los perfiles de carga con sus límites (`GET /api/v1/workload-profiles`). |
-| `use-execution.ts` | Estado de la ejecución, Run y Stop sin dobles envíos, y la consulta cada 2 s mientras está activa. |
+| `use-execution.ts` | Estado de la ejecución, Run y Stop sin dobles envíos (Stop también reintenta una limpieza fallida), y la consulta cada 2 s mientras está activa. |
 | `execution-status.ts` | Palabra y tono de cada fase, de cada estado de nodo y de la carga, con el vocabulario de `DESIGN.md`. |
 | `components/component-palette.tsx` | Lista de plantillas para añadir con un clic o arrastrando. |
 | `components/component-node.tsx` | Cómo se dibuja un nodo: configuración, puertos, incidencias, estado en el experimento y el carril de tráfico si recibe la carga. |
@@ -210,7 +210,7 @@ Rutas relativas a `frontend/app/`. Los ficheros de `features/*/model/` son los t
 | `components/workload-inspector.tsx` | Panel Load: añadir, configurar o quitar la carga (objetivo, perfil, números y semilla) y lo que hizo en el último experimento, con el resumen de k6. |
 | `components/issue-list.tsx`, `issue-note.tsx` | Panel de incidencias y una incidencia en una línea. Las de la carga abren el panel Load. |
 | `components/scenario-details.tsx` | Nombre y descripción del escenario en el panel lateral. |
-| `components/run-button.tsx`, `execution-badge.tsx`, `status-icon.tsx` | Botón Run/Stop, estado del experimento en la barra e icono de cada estado. |
+| `components/run-button.tsx`, `execution-badge.tsx`, `status-icon.tsx` | Botón Run/Stop/Retry cleanup, estado del experimento en la barra e icono de cada estado. |
 | `components/component-icon.tsx` | Icono de cada tipo de componente. |
 
 ## Fuera de las aplicaciones

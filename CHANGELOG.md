@@ -19,8 +19,9 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - An issues panel lists what the last save found: errors, such as a missing connection, a dependency cycle or an empty scenario, which will block running, and warnings, which do not. Picking one selects its component.
 - The scenario is saved as a whole. If another tab saved first, the editor warns without overwriting anything and lets you choose which version to keep.
 - Unsaved work is kept in the browser and can be recovered after a reload or after the session expires. Another account in the same browser cannot see it.
-- Run and Stop on the scenario canvas, for scenarios whose nodes are HTTP Services in `STATELESS` mode. Run starts the saved revision in Docker and Stop removes everything it created; the API offers the same under `…/scenarios/{id}/executions`.
+- Run and Stop on the scenario canvas, for scenarios whose nodes are HTTP Services in `STATELESS` mode. Run starts the saved revision in Docker and Stop removes everything it created, also while it is still starting; the API offers the same under `…/scenarios/{id}/executions`.
 - A scenario can carry one constant HTTP load, set in the canvas Load panel and drawn as traffic entering its target. Run starts it with k6 once every service is healthy; Stop halts it first and the panel shows its summary.
+- If Docker cannot remove part of an experiment, the canvas shows the error and the scenario stays locked. The backend retries three times, then Retry cleanup tries again; a stopped experiment still ends as completed.
 - While an experiment runs, the canvas shows its state, each node's health and the service's real response, and the scenario is read-only. One experiment runs at a time per installation; a node that falls over fails it, and it stops after 30 minutes.
 - Light or dark theme following the system preference.
 - REST API under `/api/v1` for all of the above. Requests that change data must send the `X-XSRF-TOKEN` header, obtained with `GET /api/v1/auth/csrf`, and errors arrive as `application/problem+json`. The OpenAPI contract and the Postman collection are in [`docs/api`](docs/api).
