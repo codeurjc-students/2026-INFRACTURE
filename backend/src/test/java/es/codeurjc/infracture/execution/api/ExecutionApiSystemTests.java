@@ -11,6 +11,8 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
@@ -22,6 +24,7 @@ import es.codeurjc.infracture.execution.application.LoadReport;
 import es.codeurjc.infracture.execution.application.RuntimeEngine;
 import es.codeurjc.infracture.execution.application.RuntimeEngineException;
 import es.codeurjc.infracture.execution.application.ServiceProbe;
+import es.codeurjc.infracture.execution.application.StartCancelledException;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
 import es.codeurjc.infracture.project.api.ApiSession;
@@ -35,6 +38,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -51,7 +55,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @TestPropertySource(locations = "classpath:admin-test.properties",
-        properties = "infracture.execution.reconciler.enabled=false")
+        properties = {"infracture.execution.reconciler.enabled=false",
+            "infracture.execution.cleanup-retry-pause=0s"})
 @Testcontainers
 class ExecutionApiSystemTests {
 
@@ -161,8 +166,8 @@ class ExecutionApiSystemTests {
         reconciler.reconcile();
 
         InOrder order = inOrder(engine);
-        order.verify(engine).up(anyMap());
-        order.verify(engine).startLoad(anyMap());
+        order.verify(engine).up(anyMap(), any());
+        order.verify(engine).startLoad(anyMap(), any());
         order.verify(engine).stopLoad(anyMap());
         order.verify(engine).down(anyMap(), anyMap());
         alice.read().get(scenario + "/executions/current").then()
@@ -201,7 +206,7 @@ class ExecutionApiSystemTests {
             .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"));
         alice.write().post(stop).then().statusCode(202).body("outcome", equalTo("COMPLETED"));
         alice.write().body(graph(2, http(ORDERS))).put(scenario + "/graph").then().statusCode(200);
-        verify(engine).up(anyMap());
+        verify(engine).up(anyMap(), any());
         verify(engine).down(anyMap(), eq(Map.of("io.infracture.instance", instanceOf(alice, scenario),
             "io.infracture.execution", String.valueOf(id))));
     }
@@ -211,7 +216,7 @@ class ExecutionApiSystemTests {
         ApiSession alice = ApiSession.signUp(port);
         String scenario = statelessScenario(alice);
         doThrow(new RuntimeEngineException("docker compose up failed: container is unhealthy"))
-            .when(engine).up(anyMap());
+            .when(engine).up(anyMap(), any());
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202);
 
         reconciler.reconcile();
@@ -222,6 +227,75 @@ class ExecutionApiSystemTests {
             .body("failureReason", equalTo("docker compose up failed: container is unhealthy"));
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
             .body("phase", equalTo("RESERVED"));
+    }
+
+    // The engine asks whether to go on while it waits; a Stop sent meanwhile cancels the start.
+    @Test
+    void cancelsTheStartWhenStopArrivesBeforeTheNodesAreHealthy() {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = statelessScenario(alice);
+        long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+            .extract().jsonPath().getLong("id");
+        String stop = scenario + "/executions/" + id + "/stop";
+        doAnswer(invocation -> {
+            alice.write().post(stop).then().statusCode(202).body("phase", equalTo("STARTING"));
+            alice.write().post(stop).then().statusCode(202).body("stopCause", equalTo("STOP_REQUESTED"));
+            BooleanSupplier cancelled = invocation.getArgument(1);
+            assertThat(cancelled.getAsBoolean()).isTrue();
+            throw new StartCancelledException("docker compose up was cancelled because the execution is stopping");
+        }).when(engine).up(anyMap(), any());
+
+        reconciler.reconcile();
+        alice.read().get(scenario + "/executions/current").then()
+            .body("phase", equalTo("STARTING")).body("failureReason", nullValue());
+        reconciler.reconcile();
+
+        alice.read().get(scenario + "/executions/current").then()
+            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"))
+            .body("failureReason", nullValue());
+        verify(engine).down(anyMap(), anyMap());
+        alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202);
+    }
+
+    // After the automatic attempts, the cleanup waits for Stop. Until it succeeds, the reservation and the
+    // read-only scenario stay, and the outcome stays the one the stop cause says.
+    @Test
+    void keepsTheScenarioLockedUntilAFailedCleanupIsRetriedWithStop() {
+        ApiSession alice = ApiSession.signUp(port);
+        ApiSession bob = ApiSession.signUp(port);
+        String scenario = statelessScenario(alice);
+        String other = statelessScenario(bob);
+        long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+            .extract().jsonPath().getLong("id");
+        String stop = scenario + "/executions/" + id + "/stop";
+        reconciler.reconcile();
+        doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
+            .doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
+            .doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
+            .doNothing()
+            .when(engine).down(anyMap(), anyMap());
+        alice.write().post(stop).then().statusCode(202);
+
+        for (int tick = 0; tick < 4; tick++) {
+            reconciler.reconcile();
+        }
+
+        alice.read().get(scenario + "/executions/current").then()
+            .body("phase", equalTo("STOPPING")).body("outcome", nullValue())
+            .body("stopCause", equalTo("STOP_REQUESTED"))
+            .body("cleanupFailures", equalTo(3)).body("cleanupRetryNeeded", equalTo(true))
+            .body("cleanupError", equalTo("docker volume rm failed: volume is in use"));
+        alice.write().body(graph(2, "")).put(scenario + "/graph").then().statusCode(409);
+        bob.write().body(run(2)).post(other + "/executions").then().spec(problem(409, ANOTHER_RUNNING));
+
+        alice.write().post(stop).then().statusCode(202)
+            .body("cleanupRetryNeeded", equalTo(false)).body("cleanupFailures", equalTo(0));
+        reconciler.reconcile();
+
+        alice.read().get(scenario + "/executions/current").then()
+            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"))
+            .body("failureReason", nullValue());
+        bob.write().body(run(2)).post(other + "/executions").then().statusCode(202);
     }
 
     @Test

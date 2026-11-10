@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -52,7 +53,7 @@ class ExecutionReconcilerTests {
                     "infracture/load-generator:0.1.0");
     private final ExecutionObservations observations = new ExecutionObservations();
     private final ServiceProbe probe = mock(ServiceProbe.class);
-    private final ExecutionReconciler reconciler = reconciler(Duration.ofMinutes(30));
+    private final ExecutionReconciler reconciler = reconciler(Duration.ofMinutes(30), Duration.ZERO);
     private Execution execution;
 
     @BeforeEach
@@ -68,6 +69,8 @@ class ExecutionReconcilerTests {
         when(repository.findForUpdateByReleasedAtIsNull())
                 .thenAnswer(invocation -> execution.isActive() ? Optional.of(execution) : Optional.empty());
         when(repository.findForUpdateById(12L)).thenReturn(Optional.of(execution));
+        when(repository.existsByIdAndStopCauseIsNotNull(12L))
+                .thenAnswer(invocation -> execution.getStopCause() != null);
     }
 
     @Test
@@ -118,7 +121,7 @@ class ExecutionReconcilerTests {
     }
 
     @Test
-    void keepsTheReservationAndRetriesWhenCleanupFails() {
+    void keepsTheReservationAndRetriesWhenCleanupFailsWithoutChangingTheOutcome() {
         reconciler.reconcile();
         execution.requestStop();
         engine.downFailure = new RuntimeEngineException("Cleanup left 1 Docker resources with the execution labels");
@@ -127,10 +130,88 @@ class ExecutionReconcilerTests {
 
         assertThat(execution.getPhase()).isEqualTo(Phase.STOPPING);
         assertThat(execution.isActive()).isTrue();
+        assertThat(execution.getCleanupFailures()).isEqualTo(1);
+        assertThat(execution.getCleanupError())
+                .isEqualTo("Cleanup left 1 Docker resources with the execution labels");
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.STOP_REQUESTED);
         engine.downFailure = null;
         reconciler.reconcile();
-        assertThat(execution.getOutcome()).isEqualTo(Outcome.FAILED);
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
+        assertThat(execution.getFailureReason()).isNull();
         assertThat(engine.calls).containsExactly(UP, DOWN, DOWN);
+    }
+
+    @Test
+    void waitsBeforeRetryingAFailedCleanup() {
+        ExecutionReconciler patient = reconciler(Duration.ofMinutes(30), Duration.ofHours(1));
+        patient.reconcile();
+        execution.requestStop();
+        engine.downFailure = new RuntimeEngineException("docker network rm failed: network has active endpoints");
+
+        patient.reconcile();
+        patient.reconcile();
+
+        assertThat(engine.calls).containsExactly(UP, DOWN);
+    }
+
+    @Test
+    void stopsRetryingAfterTheAutomaticAttemptsUntilStopIsPressedAgain() {
+        reconciler.reconcile();
+        execution.requestStop();
+        engine.downFailure = new RuntimeEngineException("docker volume rm failed: volume is in use");
+
+        for (int tick = 0; tick < 5; tick++) {
+            reconciler.reconcile();
+        }
+
+        assertThat(engine.calls).containsExactly(UP, DOWN, DOWN, DOWN);
+        assertThat(execution.isCleanupRetryNeeded()).isTrue();
+        assertThat(execution.isActive()).isTrue();
+        engine.downFailure = null;
+        execution.requestStop();
+        reconciler.reconcile();
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
+        assertThat(engine.calls).containsExactly(UP, DOWN, DOWN, DOWN, DOWN);
+    }
+
+    @Test
+    void cancelsTheStartWhenStopArrivesWhileTheNodesStart() {
+        engine.duringUp = execution::requestStop;
+
+        reconciler.reconcile();
+
+        assertThat(execution.getPhase()).isEqualTo(Phase.STARTING);
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.STOP_REQUESTED);
+        reconciler.reconcile();
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
+        assertThat(execution.getFailureReason()).isNull();
+        assertThat(engine.calls).containsExactly(UP, DOWN);
+    }
+
+    @Test
+    void cancelsTheLoadStartAndCleansUpWithoutRunning() {
+        reserve(LOAD);
+        engine.duringStartLoad = execution::requestStop;
+        engine.loadReport = new LoadReport(null, null);
+
+        reconciler.reconcile();
+
+        assertThat(execution.getPhase()).isEqualTo(Phase.STARTING);
+        reconciler.reconcile();
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN);
+    }
+
+    @Test
+    void failsWhenTheStartFailsAfterStopArrivedMeanwhile() {
+        engine.duringUp = execution::requestStop;
+        engine.upFailure = new RuntimeEngineException("docker compose up failed: pull access denied");
+
+        reconciler.reconcile();
+        reconciler.reconcile();
+
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.FAILED);
+        assertThat(execution.getFailureReason()).isEqualTo("docker compose up failed: pull access denied");
     }
 
     @Test
@@ -191,7 +272,7 @@ class ExecutionReconcilerTests {
 
     @Test
     void stopsOnItsOwnWhenTheTimeLimitIsReached() {
-        ExecutionReconciler limited = reconciler(Duration.ZERO);
+        ExecutionReconciler limited = reconciler(Duration.ZERO, Duration.ZERO);
 
         limited.reconcile();
         limited.reconcile();
@@ -313,9 +394,9 @@ class ExecutionReconcilerTests {
         assertThat(engine.calls).isEmpty();
     }
 
-    private ExecutionReconciler reconciler(Duration maxDuration) {
+    private ExecutionReconciler reconciler(Duration maxDuration, Duration cleanupPause) {
         return new ExecutionReconciler(repository, engine, planCompiler, observations, probe, maxDuration,
-                mock(PlatformTransactionManager.class));
+                cleanupPause, mock(PlatformTransactionManager.class));
     }
 
     private static Scenario statelessScenario(Workload load) {
@@ -337,23 +418,36 @@ class ExecutionReconcilerTests {
         private RuntimeEngineException statusFailure;
         private RuntimeEngineException startLoadFailure;
         private RuntimeEngineException stopLoadFailure;
+        // What happens while the engine waits, such as a Stop from the owner.
+        private Runnable duringUp = () -> { };
+        private Runnable duringStartLoad = () -> { };
         private Map<String, ComponentStatus> status = Map.of("c-" + ORDERS, ComponentStatus.HEALTHY);
         // k6 exits with 105 when Stop interrupts it.
         private LoadReport loadReport = new LoadReport(105, SUMMARY);
 
         @Override
-        public void up(Map<String, Object> plan) {
+        public void up(Map<String, Object> plan, BooleanSupplier cancelled) {
             calls.add("up " + plan.get("name"));
+            duringUp.run();
             if (upFailure != null) {
                 throw upFailure;
             }
+            cancelIf(cancelled);
         }
 
         @Override
-        public void startLoad(Map<String, Object> plan) {
+        public void startLoad(Map<String, Object> plan, BooleanSupplier cancelled) {
             calls.add("start-load");
+            duringStartLoad.run();
             if (startLoadFailure != null) {
                 throw startLoadFailure;
+            }
+            cancelIf(cancelled);
+        }
+
+        private static void cancelIf(BooleanSupplier cancelled) {
+            if (cancelled.getAsBoolean()) {
+                throw new StartCancelledException("docker compose up was cancelled because the execution is stopping");
             }
         }
 

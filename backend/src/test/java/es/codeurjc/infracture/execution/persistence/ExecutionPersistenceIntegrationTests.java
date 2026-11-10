@@ -170,6 +170,25 @@ class ExecutionPersistenceIntegrationTests {
     }
 
     @Test
+    void keepsTheReservationWhileAFailedCleanupWaitsForItsRetry() {
+        Execution stopping = repository.saveAndFlush(new Execution(cache, CONTRACTS));
+        assertThat(repository.existsByIdAndStopCauseIsNotNull(stopping.getId())).isFalse();
+        stopping.requestStop();
+        stopping.beginStopping();
+        stopping.recordCleanupFailure("docker volume rm failed: volume is in use");
+        repository.saveAndFlush(stopping);
+        entityManager.clear();
+
+        Execution reopened = repository.findById(stopping.getId()).orElseThrow();
+        assertThat(reopened.getCleanupFailures()).isEqualTo(1);
+        assertThat(reopened.getCleanupError()).isEqualTo("docker volume rm failed: volume is in use");
+        assertThat(reopened.getStopCause()).isEqualTo(StopCause.STOP_REQUESTED);
+        assertThat(repository.existsByIdAndStopCauseIsNotNull(stopping.getId())).isTrue();
+        assertThatThrownBy(() -> repository.saveAndFlush(new Execution(queue, CONTRACTS)))
+                .hasMessageContaining("ux_executions_single_active");
+    }
+
+    @Test
     void rejectsAReleasedRowWithoutOutcome() {
         Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
 

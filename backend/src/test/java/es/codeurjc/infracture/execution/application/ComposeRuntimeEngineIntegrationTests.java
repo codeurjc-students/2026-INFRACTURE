@@ -5,12 +5,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
@@ -24,6 +27,7 @@ class ComposeRuntimeEngineIntegrationTests {
             Map.of(PlanCompiler.INSTANCE_LABEL, instance, PlanCompiler.EXECUTION_LABEL, "1");
     private final ComposeRuntimeEngine engine = new ComposeRuntimeEngine(JsonMapper.builder().build(), "");
     private static final LoadSummary SUMMARY = new LoadSummary(3L, 0L, 0L, 1.5, 2.0);
+    private static final BooleanSupplier NEVER = () -> false;
 
     @AfterEach
     void removeEverything() {
@@ -32,7 +36,7 @@ class ComposeRuntimeEngineIntegrationTests {
 
     @Test
     void startsAHealthyPlanAndLeavesNothingAfterDown() {
-        engine.up(plan("true"));
+        engine.up(plan("true"), NEVER);
 
         assertThat(docker("container", "ls", "-q", "--filter", "health=healthy", "--filter", label())).hasSize(1);
         assertThat(docker("network", "ls", "-q", "--filter", label())).hasSize(1);
@@ -44,7 +48,7 @@ class ComposeRuntimeEngineIntegrationTests {
 
     @Test
     void reportsTheStatusOfEachService() {
-        engine.up(plan("true"));
+        engine.up(plan("true"), NEVER);
         assertThat(engine.status(plan("true"))).containsExactly(Map.entry("probe", ComponentStatus.HEALTHY));
 
         docker("container", "stop", "-t", "1", "infracture-" + instance + "-exec-1-probe-1");
@@ -58,7 +62,7 @@ class ComposeRuntimeEngineIntegrationTests {
         docker("container", "run", "-d", "--quiet", "--name", backend, "busybox:1.37", "sleep", "300");
         ComposeRuntimeEngine inContainer = new ComposeRuntimeEngine(JsonMapper.builder().build(), backend);
         try {
-            inContainer.up(plan("true"));
+            inContainer.up(plan("true"), NEVER);
             assertThat(docker("container", "inspect", "-f", "{{range $name, $n := .NetworkSettings.Networks}}"
                     + "{{$name}} {{end}}", backend).getFirst())
                     .contains("infracture-" + instance + "-exec-1_exec");
@@ -74,11 +78,11 @@ class ComposeRuntimeEngineIntegrationTests {
     @Test
     void startsTheLoadOnlyWhenAskedAndKeepsItsSummaryWhenStopped() {
         Map<String, Object> plan = withLoad("while true; do sleep 1; done");
-        engine.up(plan);
+        engine.up(plan, NEVER);
         assertThat(engine.status(plan)).containsOnlyKeys("probe");
         assertThat(engine.stopLoad(plan)).isEqualTo(new LoadReport(null, null));
 
-        engine.startLoad(plan);
+        engine.startLoad(plan, NEVER);
         assertThat(engine.status(plan)).containsEntry(PlanCompiler.LOAD_SERVICE, ComponentStatus.HEALTHY);
 
         LoadReport report = engine.stopLoad(plan);
@@ -93,8 +97,8 @@ class ComposeRuntimeEngineIntegrationTests {
     @Test
     void readsTheSummaryOfALoadThatEndedOnItsOwn() throws InterruptedException {
         Map<String, Object> plan = withLoad("true");
-        engine.up(plan);
-        engine.startLoad(plan);
+        engine.up(plan, NEVER);
+        engine.startLoad(plan, NEVER);
         while (engine.status(plan).get(PlanCompiler.LOAD_SERVICE) != ComponentStatus.EXITED) {
             Thread.sleep(200);
         }
@@ -104,12 +108,50 @@ class ComposeRuntimeEngineIntegrationTests {
 
     @Test
     void reportsAnUnhealthyServiceAndCleansUpWhatItCreated() {
-        assertThatThrownBy(() -> engine.up(plan("false")))
+        assertThatThrownBy(() -> engine.up(plan("false"), NEVER))
                 .isInstanceOf(RuntimeEngineException.class)
                 .hasMessageStartingWith("docker compose up failed:")
                 .hasMessageContaining("unhealthy");
 
         engine.down(plan("false"), labels);
+
+        assertThat(labelled()).isEmpty();
+    }
+
+    // The first health check runs only after its interval, so the start waits until Stop cancels it.
+    @Test
+    void cancelsAStartThatWaitsForHealthAndLeavesNothingAfterDown() {
+        Map<String, Object> slow = plan("true", "300s");
+        Instant stopAt = Instant.now().plusSeconds(2);
+
+        assertThatThrownBy(() -> engine.up(slow, () -> Instant.now().isAfter(stopAt)))
+                .isInstanceOf(StartCancelledException.class)
+                .hasMessage("docker compose up was cancelled because the execution is stopping");
+        assertThat(Duration.between(stopAt, Instant.now())).isLessThan(Duration.ofSeconds(30));
+
+        engine.down(slow, labels);
+
+        assertThat(labelled()).isEmpty();
+    }
+
+    // A volume of the execution that a container of someone else uses cannot be removed. The cleanup fails,
+    // leaves that container alone and succeeds once the volume is free.
+    @Test
+    void failsTheCleanupOfAVolumeInUseAndRetriesItWithoutTouchingOtherContainers() {
+        String volume = docker("volume", "create", "--label", label(PlanCompiler.INSTANCE_LABEL),
+                "--label", label(PlanCompiler.EXECUTION_LABEL)).getLast();
+        String other = docker("container", "run", "-d", "--quiet", "-v", volume + ":/data", "busybox:1.37",
+                "sleep", "300").getLast();
+        try {
+            assertThatThrownBy(() -> engine.down(plan("true"), labels))
+                    .isInstanceOf(RuntimeEngineException.class)
+                    .hasMessageStartingWith("docker volume rm failed:");
+            assertThat(docker("container", "ls", "-q", "--no-trunc", "--filter", "id=" + other)).hasSize(1);
+        } finally {
+            docker("container", "rm", "-f", other);
+        }
+
+        engine.down(plan("true"), labels);
 
         assertThat(labelled()).isEmpty();
     }
@@ -138,12 +180,16 @@ class ComposeRuntimeEngineIntegrationTests {
     }
 
     private Map<String, Object> plan(String healthCommand) {
+        return plan(healthCommand, "1s");
+    }
+
+    private Map<String, Object> plan(String healthCommand, String healthInterval) {
         Map<String, Object> service = Map.of(
                 "image", "busybox:1.37",
                 "command", List.of("sleep", "300"),
                 // An init process passes the stop signal on, so down does not wait for its timeout.
                 "init", true,
-                "healthcheck", Map.of("test", List.of("CMD", healthCommand), "interval", "1s", "retries", 1),
+                "healthcheck", Map.of("test", List.of("CMD", healthCommand), "interval", healthInterval, "retries", 1),
                 "networks", List.of(PlanCompiler.NETWORK),
                 "labels", labels);
         return Map.of(

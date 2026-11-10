@@ -23,5 +23,8 @@ public interface ExecutionRepository extends JpaRepository<Execution, Long> {
 
     boolean existsByScenarioIdAndReleasedAtIsNull(Long scenarioId);
 
+    // A plain read, without the lock: a start asks it while it waits, and Stop must not wait for it.
+    boolean existsByIdAndStopCauseIsNotNull(Long id);
+
     Optional<Execution> findFirstByScenarioIdOrderByCreatedAtDescIdDesc(Long scenarioId);
 }

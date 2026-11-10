@@ -12,6 +12,8 @@ import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.domain.Workload;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -147,6 +149,63 @@ class ExecutionTests {
         assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
         assertThat(execution.getStopCause()).isEqualTo(StopCause.STOP_REQUESTED);
         assertThat(execution.getFailureReason()).isNull();
+    }
+
+    @Test
+    void tracksAFailedCleanupWithoutChangingHowTheExecutionEnds() {
+        execution.requestStop();
+        execution.beginStopping();
+
+        execution.recordCleanupFailure("docker volume rm failed: " + "x".repeat(1200));
+        execution.release();
+
+        assertThat(execution.getCleanupFailures()).isEqualTo(1);
+        assertThat(execution.getCleanupError()).startsWith("docker volume rm failed").hasSize(1000);
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.STOP_REQUESTED);
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
+        assertThat(execution.getFailureReason()).isNull();
+    }
+
+    @Test
+    void waitsLongerAfterEachFailedCleanupAndThenForTheOwner() {
+        Duration pause = Duration.ofSeconds(10);
+        execution.requestStop();
+        execution.beginStopping();
+        assertThat(execution.isCleanupDue(Instant.now(), pause)).isTrue();
+
+        execution.recordCleanupFailure("first");
+        Instant now = Instant.now();
+        assertThat(execution.isCleanupDue(now, pause)).isFalse();
+        assertThat(execution.isCleanupDue(now.plusSeconds(10), pause)).isTrue();
+
+        execution.recordCleanupFailure("second");
+        now = Instant.now();
+        assertThat(execution.isCleanupDue(now.plusSeconds(10), pause)).isFalse();
+        assertThat(execution.isCleanupDue(now.plusSeconds(20), pause)).isTrue();
+
+        execution.recordCleanupFailure("third");
+        assertThat(execution.isCleanupRetryNeeded()).isTrue();
+        assertThat(execution.isCleanupDue(Instant.now().plus(Duration.ofDays(1)), pause)).isFalse();
+    }
+
+    @Test
+    void asksForNewCleanupAttemptsWhenStopIsPressedAgain() {
+        execution.requestStop();
+        execution.beginStopping();
+        for (int attempt = 0; attempt < Execution.AUTOMATIC_CLEANUP_ATTEMPTS; attempt++) {
+            execution.recordCleanupFailure("docker network rm failed");
+        }
+
+        execution.requestStop();
+
+        assertThat(execution.isCleanupRetryNeeded()).isFalse();
+        assertThat(execution.isCleanupDue(Instant.now(), Duration.ofSeconds(10))).isTrue();
+        assertThat(execution.getCleanupError()).isEqualTo("docker network rm failed");
+    }
+
+    @Test
+    void recordsCleanupFailuresOnlyWhileStopping() {
+        assertThatIllegalStateException().isThrownBy(() -> execution.recordCleanupFailure("too early"));
     }
 
     @Test

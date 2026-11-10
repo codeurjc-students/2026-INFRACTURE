@@ -22,6 +22,7 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,11 +33,14 @@ import org.hibernate.type.SqlTypes;
 
 // One run of an exact scenario revision. The phase says what the engine is doing; the stop cause says why
 // it stops. Stop, failure and interruption only record a cause; the engine then cleans up and releases.
+// A failed cleanup is tracked apart from the cause, so it never changes how the execution ended.
 @Entity
 @Table(name = "executions")
 public class Execution {
 
-    private static final int MAX_FAILURE_REASON_LENGTH = 1000;
+    // After this many failed cleanups in a row, the engine waits until the owner presses Stop again.
+    public static final int AUTOMATIC_CLEANUP_ATTEMPTS = 3;
+    private static final int MAX_REASON_LENGTH = 1000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -75,6 +79,15 @@ public class Execution {
 
     @Column(name = "failure_reason")
     private String failureReason;
+
+    @Column(name = "cleanup_failures", nullable = false)
+    private int cleanupFailures;
+
+    @Column(name = "cleanup_error")
+    private String cleanupError;
+
+    @Column(name = "cleanup_failed_at")
+    private Instant cleanupFailedAt;
 
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> plan;
@@ -140,15 +153,18 @@ public class Execution {
         phase = Phase.RUNNING;
     }
 
+    // Stop during a failed cleanup asks for a new round of attempts at once. The last error stays
+    // visible until one of them succeeds.
     public void requestStop() {
         recordCause(StopCause.STOP_REQUESTED);
+        if (phase == Phase.STOPPING) {
+            cleanupFailures = 0;
+        }
     }
 
     public void fail(String reason) {
         if (isActive() && failureReason == null) {
-            failureReason = reason.length() > MAX_FAILURE_REASON_LENGTH
-                    ? reason.substring(0, MAX_FAILURE_REASON_LENGTH)
-                    : reason;
+            failureReason = shorten(reason);
         }
         recordCause(StopCause.FAILURE);
     }
@@ -162,6 +178,29 @@ public class Execution {
             throw new IllegalStateException("Execution %d has nothing to stop in phase %s".formatted(id, phase));
         }
         phase = Phase.STOPPING;
+    }
+
+    public void recordCleanupFailure(String reason) {
+        require(Phase.STOPPING);
+        cleanupFailures++;
+        cleanupError = shorten(reason);
+        cleanupFailedAt = Instant.now();
+    }
+
+    // The engine retries a failed cleanup on its own, each time after a longer pause, and then stops trying
+    // until the owner asks again.
+    public boolean isCleanupDue(Instant now, Duration pause) {
+        if (cleanupFailures == 0) {
+            return true;
+        }
+        if (isCleanupRetryNeeded()) {
+            return false;
+        }
+        return !now.isBefore(cleanupFailedAt.plus(pause.multipliedBy(cleanupFailures)));
+    }
+
+    public boolean isCleanupRetryNeeded() {
+        return cleanupFailures >= AUTOMATIC_CLEANUP_ATTEMPTS;
     }
 
     public void release() {
@@ -179,6 +218,10 @@ public class Execution {
         if (isActive() && cause.isWorseThan(stopCause)) {
             stopCause = cause;
         }
+    }
+
+    private static String shorten(String reason) {
+        return reason.length() > MAX_REASON_LENGTH ? reason.substring(0, MAX_REASON_LENGTH) : reason;
     }
 
     private void require(Phase expected) {
@@ -227,6 +270,14 @@ public class Execution {
 
     public String getFailureReason() {
         return failureReason;
+    }
+
+    public int getCleanupFailures() {
+        return cleanupFailures;
+    }
+
+    public String getCleanupError() {
+        return cleanupError;
     }
 
     public Map<String, Object> getPlan() {
