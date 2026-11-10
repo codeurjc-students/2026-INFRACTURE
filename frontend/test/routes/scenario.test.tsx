@@ -159,6 +159,9 @@ function execution(overrides: Partial<ExecutionDTO> = {}): ExecutionDTO {
     stopCause: null,
     outcome: null,
     failureReason: null,
+    cleanupFailures: 0,
+    cleanupError: null,
+    cleanupRetryNeeded: false,
     createdAt: "2026-11-07T10:00:00Z",
     releasedAt: null,
     components: [],
@@ -1088,6 +1091,72 @@ describe("running the scenario", () => {
       await screen.findByRole("button", { name: "Stopping…" }),
     ).toBeDisabled();
     expect(stopExecution).toHaveBeenCalledExactlyOnceWith("7", "3", 12);
+  });
+
+  it("shows a failed cleanup and retries it once the automatic attempts are spent", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    const stuck = {
+      phase: "STOPPING",
+      stopCause: "STOP_REQUESTED",
+      cleanupFailures: 3,
+      cleanupError: "docker volume rm failed: volume is in use",
+      cleanupRetryNeeded: true,
+    } as const;
+    vi.mocked(getCurrentExecution).mockResolvedValue(execution(stuck));
+    vi.mocked(stopExecution).mockResolvedValue(
+      execution({ ...stuck, cleanupFailures: 0, cleanupRetryNeeded: false }),
+    );
+    renderScenario();
+
+    const alert = await screen.findByText("The cleanup could not finish");
+    const message = alert.closest('[role="alert"]')!;
+    expect(message).toHaveTextContent(
+      "docker volume rm failed: volume is in use",
+    );
+    expect(message).toHaveTextContent("press Retry cleanup");
+    expect(screen.getByText("Cleanup failed")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Run" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry cleanup" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Stopping…" }),
+    ).toBeDisabled();
+    expect(stopExecution).toHaveBeenCalledExactlyOnceWith("7", "3", 12);
+    expect(
+      screen.queryByText("The cleanup could not finish"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("says the backend retries a failed cleanup on its own", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({
+        phase: "STOPPING",
+        stopCause: "FAILURE",
+        failureReason: "Orders API is unhealthy",
+        cleanupFailures: 1,
+        cleanupError: "docker network rm failed: network has active endpoints",
+      }),
+    );
+    renderScenario();
+
+    const alerts = await screen.findAllByRole("alert");
+    const cleanupAlert = alerts.find((alert) =>
+      alert.textContent?.includes("The cleanup failed, trying again"),
+    )!;
+    expect(cleanupAlert).toHaveTextContent(
+      "The backend tries again on its own.",
+    );
+    expect(
+      alerts.some((alert) =>
+        alert.textContent?.includes("Orders API is unhealthy"),
+      ),
+    ).toBe(true);
+    expect(screen.getByText("Cleanup failed, retrying")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stopping…" })).toBeDisabled();
   });
 
   it("follows the experiment every 2 s until it is released", async () => {

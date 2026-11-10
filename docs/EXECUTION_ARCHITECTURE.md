@@ -403,7 +403,7 @@ Todas las formas de terminar piden lo mismo. Para alcanzar `STOPPED`, el motor s
 4. Busca por etiqueta (`io.infracture.instance=local` y `io.infracture.execution=12`, las dos a la vez) lo que haya quedado, lo retira y vuelve a comprobar que no queda nada.
 5. Registra el resultado y libera la reserva.
 
-No se guarda en qué paso iba el arranque, porque nunca se reanuda ([ADR 0005](adr/0005-recuperacion-sin-reanudacion-automatica.md)). Tras una caída, el backend solo necesita saber qué ejecuciones estaban abiertas y retirar todo lo que lleve su etiqueta. Si la limpieza falla, se registra, `Run` sigue bloqueado y la limpieza se puede reintentar sin efectos duplicados. La limpieza filtra siempre por las etiquetas de Infracture, nunca por nombres parecidos, para no tocar contenedores ajenos.
+No se guarda en qué paso iba el arranque, porque nunca se reanuda ([ADR 0005](adr/0005-recuperacion-sin-reanudacion-automatica.md)). Tras una caída, el backend solo necesita saber qué ejecuciones estaban abiertas y retirar todo lo que lleve su etiqueta. Si la limpieza falla, se registra aparte del resultado, `Run` sigue bloqueado y la limpieza se reintenta sin efectos duplicados: sola unas pocas veces y después cuando el dueño pulsa Stop ([sección 10.2](#102-fase-causa-y-resultado)). La limpieza filtra siempre por las etiquetas de Infracture, nunca por nombres parecidos, para no tocar contenedores ajenos.
 
 ### 9.6 Acceso a Docker desde el backend contenedorizado
 
@@ -490,6 +490,7 @@ stateDiagram-v2
   s5 --> s10: pulsas Stop
   s6 --> s8: falla la descarga, el arranque o la salud
   s6 --> s10: todo arranca sano
+  s6 --> s9: el arranque se cancela
   s7 --> s13: no queda nada con la etiqueta
   s8 --> s13: no queda nada con la etiqueta
   s9 --> s12: no queda nada con la etiqueta
@@ -499,11 +500,11 @@ stateDiagram-v2
   s1 --> s11: el backend se cae
 ```
 
-- **Stop no corta el arranque.** Durante `Arrancando`, Stop solo se apunta; el motor espera a que `docker compose up --wait` termine y después limpia.
+- **Stop corta el arranque (#88).** Mientras espera a Docker (descarga, creación o salud), el motor pregunta cada segundo si hay una causa de parada. Si la hay, termina `docker compose up` y la siguiente vuelta limpia lo que dejó. Cancelar no es un fallo: la causa sigue siendo Stop. Si el arranque ya había fallado o termina justo antes, manda lo que pasó primero según la regla de la peor causa.
 - **Toda salida pasa por la limpieza.** Stop, un fallo o una caída llevan a `Limpiando…`, y la reserva solo se libera cuando no queda nada con la etiqueta de la ejecución.
 - **Una interrupción nunca es un éxito.** Tras una caída, la ejecución se reconcilia, conserva su snapshot y sus evidencias, y se limpia sin reanudarse.
 - **Cerrar el navegador no es Stop.** La ejecución sigue hasta que alguien la detiene o se agota el tiempo, y se puede volver a consultar.
-- **Una limpieza que no termina deja `Run` bloqueado.** Si Docker no responde, la ejecución se queda limpiando y el escenario sigue en solo lectura. Es el estado sin salida que el ADR 0005 acepta: el problema queda visible y Stop lo reintenta.
+- **Una limpieza que no termina deja `Run` bloqueado.** Si Docker no deja retirar algo, la ejecución se queda limpiando y el escenario sigue en solo lectura. El motor lo reintenta solo tres veces, cada vez tras una pausa más larga (10 s, 20 s). Después espera a que el dueño pulse **Retry cleanup**, que es el mismo Stop. Es el estado sin salida que el ADR 0005 acepta: el problema queda visible y se puede reintentar sin efectos duplicados.
 
 ### 10.2 Fase, causa y resultado
 
@@ -512,7 +513,7 @@ Así se guarda en `Execution` (#86). Las fases solo avanzan en orden; un método
 | Fase (`phase`) | Qué hace el motor |
 | --- | --- |
 | `RESERVED` | La revisión está reservada y congelada; aún no hay contenedores. |
-| `STARTING` | `docker compose up -d --wait` está en marcha. |
+| `STARTING` | `docker compose up -d --wait` está en marcha; una causa de parada lo cancela. |
 | `RUNNING` | Todos los servicios están sanos. |
 | `STOPPING` | `docker compose down -v` y limpieza por etiqueta. |
 | `RELEASED` | No queda nada; la reserva está libre y el escenario vuelve a ser editable. |
@@ -522,10 +523,20 @@ Stop, un fallo y una interrupción no cambian la fase: solo registran una causa.
 | Causa (`stopCause`), de menos a más grave | La registra | Resultado al liberar (`outcome`) |
 | --- | --- | --- |
 | `STOP_REQUESTED` | El usuario pulsa Stop. | `COMPLETED` |
-| `FAILURE` | Falla la descarga, el arranque, la salud o la limpieza. Se guarda el primer motivo. | `FAILED` |
+| `FAILURE` | Falla la descarga, el arranque, la salud o un nodo en marcha. Se guarda el primer motivo. | `FAILED` |
 | `INTERRUPTION` | El backend se reinicia con la ejecución abierta (#90). | `INTERRUPTED` |
 
 Por ejemplo, si pulsas Stop mientras arranca y después falla la salud, la causa pasa de `STOP_REQUESTED` a `FAILURE` y el resultado es `FAILED`. Pulsar Stop dos veces no cambia nada.
+
+**La limpieza va aparte (#88).** Un fallo al limpiar no es una causa y no cambia el resultado: un experimento detenido con Stop termina `COMPLETED` aunque su limpieza necesitara varios intentos. Se guarda en tres campos que la API devuelve:
+
+| Campo | Qué guarda |
+| --- | --- |
+| `cleanupFailures` | Intentos fallidos seguidos desde el último Stop. |
+| `cleanupError` | El último error de Docker, por ejemplo `docker volume rm failed: volume is in use`. |
+| `cleanupRetryNeeded` | `true` tras tres fallos: el motor ya no lo intenta solo y espera a que el dueño pulse Stop. |
+
+No se guarda en qué paso iba la limpieza: cada intento repite `down -v` y la búsqueda por etiqueta, y solo libera la reserva cuando ya no queda nada.
 
 ### 10.3 Cómo se comprobó el diseño con TLA+
 
@@ -563,7 +574,7 @@ Hay un segundo camino al mismo error: pulsas Stop, el backend se cae durante la 
 
 **Límites.**
 
-- El modelo no incluye el tiempo máximo de 30 minutos (#89), el borrado del escenario ni los reintentos de una limpieza fallida (#88).
+- El modelo no incluye el tiempo máximo de 30 minutos (#89) ni el borrado del escenario. Sí incluye la cancelación del arranque (#88), con la acción `StartCancelled`. Los reintentos de una limpieza fallida no se modelan, porque no cambian ni la fase ni la causa.
 - Dos reglas se cumplen porque el modelo copia las guardas del diseño (solo se libera tras limpiar y el guardado se rechaza con la reserva tomada). Lo que demuestra es que ninguna combinación de Stop, fallo y caída las salta.
 - El modelo agrupa fallo y caída en "terminada con fallo"; el código los distingue con `FAILED` e `INTERRUPTED`.
 

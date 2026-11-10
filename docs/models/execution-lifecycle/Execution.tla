@@ -68,12 +68,20 @@ UpFails(s) ==
     /\ trouble' = [trouble EXCEPT ![s] = TRUE]
     /\ UNCHANGED <<released, revision, snapRev, backendUp>>
 
-\* Stop only sets the desired phase; during STARTING it waits for up --wait to end.
+\* Stop only sets the desired phase; during STARTING the engine then cancels the start (#88).
 UserStop(s) ==
     /\ backendUp /\ phase[s] \in {"RESERVED", "STARTING", "RUNNING"} /\ desired[s] = "RUNNING"
     /\ desired' = [desired EXCEPT ![s] = "STOPPED"]
     /\ cause' = [cause EXCEPT ![s] = NewCause(s, "stop")]
     /\ UNCHANGED <<phase, resources, released, revision, snapRev, trouble, backendUp>>
+
+\* The engine sees the Stop while it waits for Docker and ends the start. It is not a failure: the
+\* cause stays as it was, and the cleanup removes whatever the start created.
+StartCancelled(s) ==
+    /\ backendUp /\ phase[s] = "STARTING" /\ desired[s] = "STOPPED"
+    /\ phase' = [phase EXCEPT ![s] = "STOPPING"]
+    /\ resources' = [resources EXCEPT ![s] = "some"]
+    /\ UNCHANGED <<desired, cause, released, revision, snapRev, trouble, backendUp>>
 
 CleanupBegins(s) ==
     /\ backendUp /\ desired[s] = "STOPPED" /\ phase[s] \in {"RESERVED", "RUNNING"}
@@ -109,7 +117,7 @@ BackendRestarts ==
 Next ==
     \/ \E s \in Scen :
         \/ UserRun(s) \/ UserSavesGraph(s) \/ PlanCompiled(s) \/ UpSucceeds(s) \/ UpFails(s)
-        \/ UserStop(s) \/ CleanupBegins(s) \/ CleanupSucceeds(s)
+        \/ UserStop(s) \/ StartCancelled(s) \/ CleanupBegins(s) \/ CleanupSucceeds(s)
     \/ BackendCrashes \/ BackendRestarts
 
 Spec == Init /\ [][Next]_vars

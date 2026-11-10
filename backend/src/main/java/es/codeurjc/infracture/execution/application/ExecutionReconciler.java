@@ -11,8 +11,10 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -30,11 +32,13 @@ public class ExecutionReconciler {
     private final ExecutionObservations observations;
     private final ServiceProbe probe;
     private final Duration maxDuration;
+    private final Duration cleanupPause;
     private final TransactionTemplate transactions;
 
     public ExecutionReconciler(ExecutionRepository repository, RuntimeEngine engine, PlanCompiler planCompiler,
             ExecutionObservations observations, ServiceProbe probe,
             @Value("${infracture.execution.max-duration:30m}") Duration maxDuration,
+            @Value("${infracture.execution.cleanup-retry-pause:10s}") Duration cleanupPause,
             PlatformTransactionManager transactionManager) {
         this.repository = repository;
         this.engine = engine;
@@ -42,6 +46,7 @@ public class ExecutionReconciler {
         this.observations = observations;
         this.probe = probe;
         this.maxDuration = maxDuration;
+        this.cleanupPause = cleanupPause;
         this.transactions = new TransactionTemplate(transactionManager);
     }
 
@@ -74,20 +79,27 @@ public class ExecutionReconciler {
             // Only a backend restart leaves a start cut short. Stop cleans it up,
             // and #90 will record the interruption on its own.
             return null;
+        } else if (execution.getPhase() == Phase.STOPPING && !execution.isCleanupDue(Instant.now(), cleanupPause)) {
+            // A failed cleanup waits for its pause, or for the owner once the automatic attempts are spent.
+            return null;
         }
         // The steps below run after this transaction ends, so the frozen load is read now.
         execution.getWorkload();
         return execution;
     }
 
-    // A Stop pressed meanwhile is already recorded; the next tick starts the cleanup.
+    // A Stop pressed meanwhile cancels the start; the next tick cleans up what it left.
     // The load starts only once every node is healthy, so its results can be interpreted.
     private void start(Execution execution) {
+        BooleanSupplier stopping = () -> isStopping(execution.getId());
         try {
-            engine.up(execution.getPlan());
+            engine.up(execution.getPlan(), stopping);
             if (execution.getWorkload() != null) {
-                engine.startLoad(execution.getPlan());
+                engine.startLoad(execution.getPlan(), stopping);
             }
+        } catch (StartCancelledException _) {
+            // The cause is already recorded, and a cancelled start is not a failure.
+            return;
         } catch (RuntimeEngineException exception) {
             update(execution.getId(), locked -> locked.fail(exception.getMessage()));
             return;
@@ -152,7 +164,8 @@ public class ExecutionReconciler {
         return report.completed() ? null : "The load stopped with exit code " + report.exitCode();
     }
 
-    // A failed cleanup leaves the execution in STOPPING, so Run stays blocked and the next tick retries.
+    // A failed cleanup leaves the execution in STOPPING, so Run stays blocked until a later attempt
+    // succeeds. It is recorded apart from the cause, so it does not change how the execution ended.
     // The load stops first, so it generates no more work, and its summary is kept before the rest goes.
     private void stop(Execution execution) {
         ExecutedWorkload load = execution.getWorkload();
@@ -166,7 +179,7 @@ public class ExecutionReconciler {
         try {
             engine.down(execution.getPlan(), planCompiler.labels(execution.getId()));
         } catch (RuntimeEngineException exception) {
-            update(execution.getId(), locked -> locked.fail(exception.getMessage()));
+            update(execution.getId(), locked -> locked.recordCleanupFailure(exception.getMessage()));
             return;
         }
         update(execution.getId(), Execution::release);
@@ -177,6 +190,16 @@ public class ExecutionReconciler {
     private void recordLoad(Execution execution, LoadReport report) {
         if (report.exitCode() != null) {
             update(execution.getId(), locked -> locked.recordLoadSummary(report.summary(), report.completed()));
+        }
+    }
+
+    // Asked every second while a start waits. If the database cannot answer, the start goes on and the
+    // next answer decides.
+    private boolean isStopping(Long id) {
+        try {
+            return repository.existsByIdAndStopCauseIsNotNull(id);
+        } catch (DataAccessException _) {
+            return false;
         }
     }
 

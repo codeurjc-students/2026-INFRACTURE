@@ -38,6 +38,7 @@ const labels: Record<string, string> = {
   UpSucceeds: "todo arranca sano",
   UpFails: "falla la descarga, el arranque o la salud",
   UserStop: "pulsas Stop",
+  StartCancelled: "el arranque se cancela",
   CleanupBegins: "empieza la limpieza",
   CleanupSucceeds: "no queda nada con la etiqueta",
   BackendCrashes: "el backend se cae",

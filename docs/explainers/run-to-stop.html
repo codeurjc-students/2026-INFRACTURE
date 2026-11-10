@@ -536,13 +536,13 @@ Carga: CONSTANT_HTTP · 5 peticiones/s · 2 usuarios virtuales · semilla 7
       down("FAILURE", 'completed false<br>' + SUMMARY, "failureReason ✓"), released("FAILED", 'completed false<br>' + SUMMARY, "failureReason ✓")],
     clean: [before, run, tick1, startLoad, running, stop(), stopLoad(), s({
       ...down(), title: "La limpieza falla",
-      txt: "Docker no responde a tiempo, o queda algo con las etiquetas. El bucle lo guarda con <code>fail()</code>, que sustituye a <code>STOP_REQUESTED</code> por ser más grave. La fila se queda en <code>STOPPING</code> y la reserva sigue tomada. El resumen de k6 ya está guardado.",
-      cmd: `docker compose … --profile load down -v\n✗ docker compose down did not finish within 120 seconds\n\nexecution.fail(…)   → la fase sigue en STOPPING`,
-      db: row("STOPPING", '<span class="chg bad">FAILURE</span>', null, "failureReason ✓"), docker: '<span class="bad">puede quedar algo</span>', svc: "healthy", k6: "done",
+      txt: "Docker no responde a tiempo, o queda algo con las etiquetas (por ejemplo, un volumen que usa otro contenedor). El bucle lo guarda con <code>recordCleanupFailure()</code>: cuenta el intento y guarda el error, pero la causa sigue siendo <code>STOP_REQUESTED</code>. La fila se queda en <code>STOPPING</code> y la reserva sigue tomada. El resumen de k6 ya está guardado.",
+      cmd: `docker compose … --profile load down -v\n✗ docker volume rm failed: volume is in use\n\nexecution.recordCleanupFailure(…)   → cleanupFailures 1, la fase sigue en STOPPING`,
+      db: row("STOPPING", "STOP_REQUESTED", null, '<span class="chg bad">cleanupFailures 1</span>'), docker: '<span class="bad">puede quedar algo</span>', svc: "healthy", k6: "done",
     }), s({
-      ...down("FAILURE", 'completed false<br>' + SUMMARY, "failureReason ✓"), title: "La siguiente vuelta lo reintenta",
-      txt: "La fila sigue en <code>STOPPING</code>, así que el bucle repite la limpieza. Como la carga ya tiene resumen, no vuelve a llamar a <code>stopLoad</code>. Repetir <code>down -v</code> y el barrido es seguro.",
-    }), released("FAILED", 'completed false<br>' + SUMMARY, "failureReason ✓")],
+      ...down("STOP_REQUESTED", 'completed false<br>' + SUMMARY, "cleanupFailures 1"), title: "Se reintenta, y después espera a Retry cleanup",
+      txt: "Tras una pausa (10 s, después 20 s) el bucle repite la limpieza. Como la carga ya tiene resumen, no vuelve a llamar a <code>stopLoad</code>. Repetir <code>down -v</code> y el barrido es seguro. Tras tres fallos deja de intentarlo y el canvas muestra el error con el botón <b>Retry cleanup</b>, que es el mismo Stop. Run sigue bloqueado.",
+    }), released("COMPLETED", 'completed false<br>' + SUMMARY)],
   };
 
   const SVC = { off: "demo-app", starting: "arrancando…", healthy: "healthy", unhealthy: "unhealthy", gone: "borrado" };

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -35,6 +37,10 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     private static final String LOAD_STOP_SECONDS = "15";
     // The line the load scripts print with their summary (load-generator/scripts).
     static final String SUMMARY_MARKER = "INFRACTURE_SUMMARY ";
+    // How often a start asks whether it must stop, and how long a stopped command has to exit cleanly.
+    private static final Duration CANCEL_CHECK = Duration.ofSeconds(1);
+    private static final Duration GRACEFUL_EXIT = Duration.ofSeconds(10);
+    private static final BooleanSupplier NEVER = () -> false;
 
     private final JsonMapper jsonMapper;
     // The backend's own container in the distribution; empty when it runs on
@@ -48,9 +54,9 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     }
 
     @Override
-    public void up(Map<String, Object> plan) {
+    public void up(Map<String, Object> plan, BooleanSupplier cancelled) {
         // One minute more than --wait, so Compose names the unhealthy service.
-        compose(plan, START_TIMEOUT.plusMinutes(1), List.of(),
+        compose(plan, START_TIMEOUT.plusMinutes(1), cancelled, List.of(),
                 "up", "--wait", "--wait-timeout", String.valueOf(START_TIMEOUT.toSeconds()));
         if (!backendContainer.isBlank()) {
             backendNetwork(plan, "connect");
@@ -59,8 +65,8 @@ class ComposeRuntimeEngine implements RuntimeEngine {
 
     // --no-deps: the nodes are already healthy, so Compose only starts k6.
     @Override
-    public void startLoad(Map<String, Object> plan) {
-        compose(plan, START_TIMEOUT, WITH_LOAD, "up", "-d", "--no-deps", PlanCompiler.LOAD_SERVICE);
+    public void startLoad(Map<String, Object> plan, BooleanSupplier cancelled) {
+        compose(plan, START_TIMEOUT, cancelled, WITH_LOAD, "up", "-d", "--no-deps", PlanCompiler.LOAD_SERVICE);
     }
 
     @Override
@@ -138,12 +144,17 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     // docker compose (up/down) write the command --> execute
     private String compose(Map<String, Object> plan, Duration timeout, List<String> profiles, String verb,
             String... flags) {
+        return compose(plan, timeout, NEVER, profiles, verb, flags);
+    }
+
+    private String compose(Map<String, Object> plan, Duration timeout, BooleanSupplier cancelled,
+            List<String> profiles, String verb, String... flags) {
         List<String> command = new ArrayList<>(List.of("docker", "compose", "--ansi", "never",
                 "-p", String.valueOf(plan.get("name")), "-f", "-"));
         command.addAll(profiles);
         command.add(verb);
         command.addAll(List.of(flags));
-        return execute("docker compose " + verb, command, jsonMapper.writeValueAsString(plan), timeout);
+        return execute("docker compose " + verb, command, jsonMapper.writeValueAsString(plan), timeout, cancelled);
     }
 
     private void backendNetwork(Map<String, Object> plan, String... action) {
@@ -163,7 +174,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     private static String docker(List<String> arguments) {
         List<String> command = new ArrayList<>(List.of("docker"));
         command.addAll(arguments);
-        return execute("docker " + arguments.get(0) + " " + arguments.get(1), command, null, STOP_TIMEOUT);
+        return execute("docker " + arguments.get(0) + " " + arguments.get(1), command, null, STOP_TIMEOUT, NEVER);
     }
 
     private static List<String> find(String kind, Map<String, String> labels) {
@@ -186,8 +197,9 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     }
 
     // The output is read while the process runs: an unread pipe fills up and
-    // blocks the process.
-    private static String execute(String step, List<String> command, String input, Duration timeout) {
+    // blocks the process. A cancelled or late command is ended, not left running.
+    private static String execute(String step, List<String> command, String input, Duration timeout,
+            BooleanSupplier cancelled) {
         try {
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
             FutureTask<String> output = new FutureTask<>(
@@ -198,10 +210,17 @@ class ComposeRuntimeEngine implements RuntimeEngine {
                     stdin.write(input.getBytes(StandardCharsets.UTF_8));
                 }
             }
-            if (!process.waitFor(timeout.toSeconds(), TimeUnit.SECONDS)) {
-                process.destroyForcibly();
-                throw new RuntimeEngineException(
-                        "%s did not finish within %d seconds".formatted(step, timeout.toSeconds()));
+            Instant deadline = Instant.now().plus(timeout);
+            while (!process.waitFor(CANCEL_CHECK.toMillis(), TimeUnit.MILLISECONDS)) {
+                if (cancelled.getAsBoolean()) {
+                    end(process);
+                    throw new StartCancelledException(step + " was cancelled because the execution is stopping");
+                }
+                if (!Instant.now().isBefore(deadline)) {
+                    end(process);
+                    throw new RuntimeEngineException(
+                            "%s did not finish within %d seconds".formatted(step, timeout.toSeconds()));
+                }
             }
             String text = output.get();
             if (process.exitValue() != 0) {
@@ -213,6 +232,17 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new RuntimeEngineException(step + " was interrupted", exception);
+        }
+    }
+
+    // `docker compose` runs as a child of the docker CLI, so the child is ended too. SIGTERM first lets
+    // Compose stop what it was doing; a command that ignores it is killed.
+    private static void end(Process process) throws InterruptedException {
+        process.descendants().forEach(ProcessHandle::destroy);
+        process.destroy();
+        if (!process.waitFor(GRACEFUL_EXIT.toSeconds(), TimeUnit.SECONDS)) {
+            process.descendants().forEach(ProcessHandle::destroyForcibly);
+            process.destroyForcibly();
         }
     }
 

@@ -206,3 +206,134 @@ test("sends real traffic with a constant load, stops it first and keeps its summ
     await shot("3-summary");
   });
 });
+
+async function savedStatelessScenario(page: Page, user: string) {
+  await register(page, user);
+  const project = await post(page, "/api/v1/projects", "Recovery lab");
+  const scenario = await post(
+    page,
+    `/api/v1/projects/${project.id}/scenarios`,
+    "Stateless",
+  );
+  const path = `/api/v1/projects/${project.id}/scenarios/${scenario.id}`;
+  await page.goto(`/projects/${project.id}/scenarios/${scenario.id}`);
+  await page.getByRole("button", { name: "Add HTTP Service" }).click();
+  await inspector(page).getByLabel("Name").fill("orders-api");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Saved", exact: true }),
+  ).toBeVisible();
+  return path;
+}
+
+function docker(...args: string[]) {
+  return execFileSync("docker", args, { encoding: "utf8" }).trim();
+}
+
+function removeQuietly(kind: string, id: string) {
+  try {
+    execFileSync("docker", [kind, "rm", "-f", id], { stdio: "ignore" });
+  } catch {
+    // Nothing to remove.
+  }
+}
+
+test("stops an experiment that is still starting and leaves nothing behind", async ({
+  page,
+}, testInfo) => {
+  await savedStatelessScenario(page, "starter");
+
+  await page.getByRole("button", { name: "Run" }).click();
+  await expect(status(page)).toHaveText("Starting", { timeout: 30_000 });
+  await page.getByRole("button", { name: "Stop" }).click();
+  await expect(page.getByRole("button", { name: "Stopping…" })).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("startup-1-stopping.png"),
+    fullPage: true,
+  });
+
+  await expect(status(page)).toHaveText("Completed", { timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "Run" })).toBeEnabled();
+  expect(experimentResources()).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath("startup-2-completed.png"),
+    fullPage: true,
+  });
+});
+
+// A volume of the experiment that a container of someone else uses cannot be removed, so the cleanup
+// fails for real. Once that container goes, Retry cleanup removes the rest.
+test("keeps Run blocked while a cleanup fails and finishes it with Retry cleanup", async ({
+  page,
+}, testInfo) => {
+  const shot = (name: string) =>
+    page.screenshot({
+      path: testInfo.outputPath(`cleanup-${name}.png`),
+      fullPage: true,
+    });
+  const bystander = `infracture-bystander-${suffix}`;
+  let volume = "";
+
+  try {
+    await test.step("Run a scenario and let another container use one of its volumes", async () => {
+      const scenario = await savedStatelessScenario(page, "cleaner");
+      await page.getByRole("button", { name: "Run" }).click();
+      await expect(status(page)).toHaveText("Running", { timeout: 180_000 });
+      const current = await page.request.get(`${scenario}/executions/current`);
+      const { id } = await current.json();
+      volume = docker(
+        "volume",
+        "create",
+        "--label",
+        "io.infracture.instance=e2e",
+        "--label",
+        `io.infracture.execution=${id}`,
+      );
+      docker(
+        "container",
+        "run",
+        "-d",
+        "--name",
+        bystander,
+        "-v",
+        `${volume}:/data`,
+        "busybox:1.37",
+        "sleep",
+        "600",
+      );
+    });
+
+    await test.step("Stop: the cleanup fails, retries on its own and then waits", async () => {
+      await page.getByRole("button", { name: "Stop" }).click();
+      await expect(
+        page.getByText("The cleanup failed, trying again"),
+      ).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText("The cleanup could not finish")).toBeVisible({
+        timeout: 120_000,
+      });
+      await expect(status(page)).toHaveText("Cleanup failed");
+      await expect(page.getByText(/docker volume rm failed/)).toBeVisible();
+      await expect(page.getByRole("button", { name: "Run" })).not.toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Add HTTP Service" }),
+      ).toBeDisabled();
+      expect(
+        docker("container", "inspect", "-f", "{{.State.Running}}", bystander),
+      ).toBe("true");
+      await shot("1-failed");
+    });
+
+    await test.step("Free the volume and retry: the experiment ends as stopped, not failed", async () => {
+      docker("container", "rm", "-f", bystander);
+      await page.getByRole("button", { name: "Retry cleanup" }).click();
+      await expect(status(page)).toHaveText("Completed", { timeout: 60_000 });
+      await expect(page.getByRole("button", { name: "Run" })).toBeEnabled();
+      expect(experimentResources()).toEqual([]);
+      await shot("2-completed");
+    });
+  } finally {
+    // Gone already when the test passed.
+    removeQuietly("container", bystander);
+    if (volume) removeQuietly("volume", volume);
+  }
+});

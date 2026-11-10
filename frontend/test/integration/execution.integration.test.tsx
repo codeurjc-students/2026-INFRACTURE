@@ -167,10 +167,16 @@ describe("execution client against the real API", () => {
     expect(edit).toMatchObject({ status: 409 });
 
     current = await stopExecution(projectId, scenarioId, current.id);
-    expect(current.stopCause).toBe("STOP_REQUESTED");
+    expect(current).toMatchObject({
+      stopCause: "STOP_REQUESTED",
+      cleanupFailures: 0,
+      cleanupError: null,
+      cleanupRetryNeeded: false,
+    });
     await expect(released()).resolves.toMatchObject({
       phase: "RELEASED",
       outcome: "COMPLETED",
+      cleanupFailures: 0,
     });
     await expect(
       saveGraph(projectId, scenarioId, { ...graph, revision: saved.revision }),

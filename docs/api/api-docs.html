@@ -849,8 +849,7 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "phase" : "RESERVED",
-  "stopCause" : "STOP_REQUESTED",
-  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "cleanupRetryNeeded" : true,
   "releasedAt" : "2000-01-23T04:56:07.000+00:00",
   "components" : [ {
     "response" : "response",
@@ -866,17 +865,16 @@ font-style: italic;
     "status" : "STARTING"
   } ],
   "scenarioRevision" : 1,
-  "failureReason" : "failureReason",
   "workload" : {
     "summary" : {
-      "droppedIterations" : 9,
-      "requests" : 2,
-      "failedRequests" : 7,
-      "p95LatencyMs" : 2.027123023002322,
-      "averageLatencyMs" : 3.616076749251911
+      "droppedIterations" : 3,
+      "requests" : 7,
+      "failedRequests" : 9,
+      "p95LatencyMs" : 4.145608029883936,
+      "averageLatencyMs" : 2.027123023002322
     },
     "summaryCollectedAt" : "2000-01-23T04:56:07.000+00:00",
-    "seed" : 5,
+    "seed" : 2,
     "profile" : "profile",
     "completed" : true,
     "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
@@ -884,7 +882,12 @@ font-style: italic;
       "key" : 5
     }
   },
+  "stopCause" : "STOP_REQUESTED",
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "cleanupError" : "cleanupError",
+  "failureReason" : "failureReason",
   "id" : 0,
+  "cleanupFailures" : 5,
   "scenarioId" : 6,
   "plan" : {
     "key" : ""
@@ -993,8 +996,7 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "phase" : "RESERVED",
-  "stopCause" : "STOP_REQUESTED",
-  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "cleanupRetryNeeded" : true,
   "releasedAt" : "2000-01-23T04:56:07.000+00:00",
   "components" : [ {
     "response" : "response",
@@ -1010,17 +1012,16 @@ font-style: italic;
     "status" : "STARTING"
   } ],
   "scenarioRevision" : 1,
-  "failureReason" : "failureReason",
   "workload" : {
     "summary" : {
-      "droppedIterations" : 9,
-      "requests" : 2,
-      "failedRequests" : 7,
-      "p95LatencyMs" : 2.027123023002322,
-      "averageLatencyMs" : 3.616076749251911
+      "droppedIterations" : 3,
+      "requests" : 7,
+      "failedRequests" : 9,
+      "p95LatencyMs" : 4.145608029883936,
+      "averageLatencyMs" : 2.027123023002322
     },
     "summaryCollectedAt" : "2000-01-23T04:56:07.000+00:00",
-    "seed" : 5,
+    "seed" : 2,
     "profile" : "profile",
     "completed" : true,
     "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
@@ -1028,7 +1029,12 @@ font-style: italic;
       "key" : 5
     }
   },
+  "stopCause" : "STOP_REQUESTED",
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "cleanupError" : "cleanupError",
+  "failureReason" : "failureReason",
   "id" : 0,
+  "cleanupFailures" : 5,
   "scenarioId" : 6,
   "plan" : {
     "key" : ""
@@ -1127,8 +1133,7 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "phase" : "RESERVED",
-  "stopCause" : "STOP_REQUESTED",
-  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "cleanupRetryNeeded" : true,
   "releasedAt" : "2000-01-23T04:56:07.000+00:00",
   "components" : [ {
     "response" : "response",
@@ -1144,17 +1149,16 @@ font-style: italic;
     "status" : "STARTING"
   } ],
   "scenarioRevision" : 1,
-  "failureReason" : "failureReason",
   "workload" : {
     "summary" : {
-      "droppedIterations" : 9,
-      "requests" : 2,
-      "failedRequests" : 7,
-      "p95LatencyMs" : 2.027123023002322,
-      "averageLatencyMs" : 3.616076749251911
+      "droppedIterations" : 3,
+      "requests" : 7,
+      "failedRequests" : 9,
+      "p95LatencyMs" : 4.145608029883936,
+      "averageLatencyMs" : 2.027123023002322
     },
     "summaryCollectedAt" : "2000-01-23T04:56:07.000+00:00",
-    "seed" : 5,
+    "seed" : 2,
     "profile" : "profile",
     "completed" : true,
     "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
@@ -1162,7 +1166,12 @@ font-style: italic;
       "key" : 5
     }
   },
+  "stopCause" : "STOP_REQUESTED",
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "cleanupError" : "cleanupError",
+  "failureReason" : "failureReason",
   "id" : 0,
+  "cleanupFailures" : 5,
   "scenarioId" : 6,
   "plan" : {
     "key" : ""
@@ -2820,6 +2829,9 @@ font-style: italic;
         <div class="param-enum-header">Enum:</div>
         <div class="param-enum">COMPLETED</div><div class="param-enum">FAILED</div><div class="param-enum">INTERRUPTED</div>
 <div class="param">failureReason (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">cleanupFailures (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
+<div class="param">cleanupError (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">cleanupRetryNeeded (optional)</div><div class="param-desc"><span class="param-type"><a href="#boolean">Boolean</a></span>  </div>
 <div class="param">createdAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
 <div class="param">releasedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
 <div class="param">components (optional)</div><div class="param-desc"><span class="param-type"><a href="#ExecutedComponentDTO">array[ExecutedComponentDTO]</a></span>  </div>

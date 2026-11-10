@@ -1737,6 +1737,13 @@ components:
           - INTERRUPTED
         failureReason:
           type: string
+        cleanupFailures:
+          type: integer
+          format: int32
+        cleanupError:
+          type: string
+        cleanupRetryNeeded:
+          type: boolean
         createdAt:
           type: string
           format: date-time

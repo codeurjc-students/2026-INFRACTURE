@@ -500,6 +500,12 @@ function Editor({
       ? experiment.execution
       : null;
 
+  // Shown until the cleanup succeeds; a new Stop clears the count while the backend tries again.
+  const failedCleanup =
+    experiment.active && (experiment.execution?.cleanupFailures ?? 0) > 0
+      ? experiment.execution
+      : null;
+
   const sending = isSendingTraffic(experiment.execution);
   const displayed = useMemo(
     () =>
@@ -794,6 +800,7 @@ function Editor({
         <RunButton
           active={experiment.active}
           stopping={experiment.stopping}
+          retryCleanup={experiment.retryCleanup}
           pending={experiment.pending}
           blockedBy={runBlocker}
           onRun={() => void experiment.run(state.revision)}
@@ -1030,6 +1037,32 @@ function Editor({
                     >
                       Dismiss
                     </Button>
+                  </span>
+                </AlertDescription>
+              </Alert>
+            )}
+            {failedCleanup && (
+              <Alert
+                variant="destructive"
+                role="alert"
+                className="bg-card shadow-lg"
+              >
+                <CircleXIcon />
+                <AlertTitle>
+                  {failedCleanup.cleanupRetryNeeded
+                    ? "The cleanup could not finish"
+                    : "The cleanup failed, trying again"}
+                </AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  <span className="[overflow-wrap:anywhere]">
+                    {failedCleanup.cleanupError}
+                  </span>
+                  <span>
+                    Run stays blocked and the scenario stays read-only until
+                    nothing of this experiment is left.{" "}
+                    {failedCleanup.cleanupRetryNeeded
+                      ? "Fix the cause in Docker and press Retry cleanup."
+                      : "The backend tries again on its own."}
                   </span>
                 </AlertDescription>
               </Alert>

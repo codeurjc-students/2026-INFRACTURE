@@ -15,6 +15,11 @@ public record ExecutionDTO(
         StopCause stopCause,
         Outcome outcome,
         String failureReason,
+        // Failed cleanups in a row since the last Stop, and the last error. They never change the outcome.
+        int cleanupFailures,
+        String cleanupError,
+        // The automatic attempts are spent: the cleanup waits until the owner presses Stop again.
+        boolean cleanupRetryNeeded,
         Instant createdAt,
         Instant releasedAt,
         List<ExecutedComponentDTO> components,
