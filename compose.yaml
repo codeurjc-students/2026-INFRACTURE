@@ -60,6 +60,8 @@ services:
       # The CLI writes its config here; the rest of the file system is read-only.
       DOCKER_CONFIG: /tmp/docker
       INFRACTURE_EXECUTION_BACKEND_CONTAINER: infracture-backend
+      # The server ends every experiment this long after all its nodes are healthy.
+      INFRACTURE_EXECUTION_MAX_DURATION: ${INFRACTURE_EXECUTION_MAX_DURATION:-30m}
       # Keeps the experiments of two installations on the same Docker apart (labels and names).
       INFRACTURE_INSTANCE_ID: ${INFRACTURE_INSTANCE_ID:-local}
     ports:
