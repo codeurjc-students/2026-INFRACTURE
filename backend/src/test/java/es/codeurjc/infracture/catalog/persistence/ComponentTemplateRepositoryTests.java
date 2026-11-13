@@ -31,7 +31,7 @@ class ComponentTemplateRepositoryTests {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18.6-alpine");
+    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18.7-alpine");
 
     private final ComponentTemplateRepository repository;
     private final ComponentTemplateService service;

@@ -16,7 +16,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 class ComponentTemplateMigrationIntegrationTests {
 
     @Container
-    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18.6-alpine");
+    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18.7-alpine");
 
     @Test
     void upgradesExistingCataloguePreservingDataAndUniqueKeys() {
