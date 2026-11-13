@@ -30,7 +30,7 @@ Infracture se desarrolla como una aplicación web **SPA**: el navegador carga el
 ## Tecnologías
 
 - [Eclipse Temurin (Java)](https://adoptium.net/) 25 LTS y [Spring Boot](https://spring.io/projects/spring-boot/) implementan la API y las capas de aplicación, dominio y persistencia.
-- [PostgreSQL](https://www.postgresql.org/) 18.6 almacena el catálogo; [Flyway](https://documentation.red-gate.com/fd) aplica las migraciones versionadas al arrancar el backend.
+- [PostgreSQL](https://www.postgresql.org/) 18.7 almacena el catálogo; [Flyway](https://documentation.red-gate.com/fd) aplica las migraciones versionadas al arrancar el backend.
 - [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [React Router](https://reactrouter.com/) y [Vite](https://vite.dev/) forman el cliente SPA. React Router se configura con `ssr: false`.
 - [Docker](https://docs.docker.com/) y [Docker Compose](https://docs.docker.com/compose/) proporcionan el PostgreSQL de desarrollo. El motor Docker también es necesario para los PostgreSQL desechables de las pruebas con Testcontainers.
 

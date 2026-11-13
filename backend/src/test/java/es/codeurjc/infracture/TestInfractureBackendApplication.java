@@ -28,7 +28,7 @@ public class TestInfractureBackendApplication {
         @Bean
         @ServiceConnection
         PostgreSQLContainer postgresContainer() {
-            return new PostgreSQLContainer("postgres:18.6-alpine");
+            return new PostgreSQLContainer("postgres:18.7-alpine");
         }
 
         @Bean

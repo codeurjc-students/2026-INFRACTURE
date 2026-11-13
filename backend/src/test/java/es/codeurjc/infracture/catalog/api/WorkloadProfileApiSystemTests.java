@@ -23,7 +23,7 @@ class WorkloadProfileApiSystemTests {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18.6-alpine");
+    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18.7-alpine");
 
     @LocalServerPort
     private int port;
