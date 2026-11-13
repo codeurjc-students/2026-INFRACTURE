@@ -4,6 +4,7 @@ import es.codeurjc.infracture.execution.application.ExecutionObservations;
 import es.codeurjc.infracture.execution.application.ExecutionService;
 import jakarta.validation.Valid;
 import java.security.Principal;
+import java.time.Clock;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,12 +20,14 @@ public class ExecutionController {
     private final ExecutionService service;
     private final ExecutionMapper mapper;
     private final ExecutionObservations observations;
+    private final Clock clock;
 
     public ExecutionController(ExecutionService service, ExecutionMapper mapper,
-            ExecutionObservations observations) {
+            ExecutionObservations observations, Clock clock) {
         this.service = service;
         this.mapper = mapper;
         this.observations = observations;
+        this.clock = clock;
     }
 
     // 202: the request is accepted and reserved; starting the containers happens afterwards.
@@ -35,7 +38,7 @@ public class ExecutionController {
             @Valid @RequestBody RunExecutionDTO runDTO,
             Principal principal) {
         return ResponseEntity.accepted().body(mapper.toDTO(
-                service.run(principal.getName(), projectId, scenarioId, runDTO.revision()), observations));
+                service.run(principal.getName(), projectId, scenarioId, runDTO.revision()), observations, clock.instant()));
     }
 
     // 202: Stop is recorded; the cleanup runs afterwards and the phase shows when it ends.
@@ -46,7 +49,7 @@ public class ExecutionController {
             @PathVariable Long executionId,
             Principal principal) {
         return ResponseEntity.accepted().body(mapper.toDTO(
-                service.stop(principal.getName(), projectId, scenarioId, executionId), observations));
+                service.stop(principal.getName(), projectId, scenarioId, executionId), observations, clock.instant()));
     }
 
     @GetMapping("/current")
@@ -55,7 +58,7 @@ public class ExecutionController {
             @PathVariable Long scenarioId,
             Principal principal) {
         return service.getCurrent(principal.getName(), projectId, scenarioId)
-                .map(execution -> ResponseEntity.ok(mapper.toDTO(execution, observations)))
+                .map(execution -> ResponseEntity.ok(mapper.toDTO(execution, observations, clock.instant())))
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

@@ -21,6 +21,10 @@ public record ExecutionDTO(
         // The automatic attempts are spent: the cleanup waits until the owner presses Stop again.
         boolean cleanupRetryNeeded,
         Instant createdAt,
+        // Fixed when every node is healthy; null before. The server ends the experiment at this time.
+        Instant deadlineAt,
+        // Whole seconds until the deadline by the server's clock, or null when no countdown applies.
+        Long secondsLeft,
         Instant releasedAt,
         List<ExecutedComponentDTO> components,
         // Null when the scenario had no load.

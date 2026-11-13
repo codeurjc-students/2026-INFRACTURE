@@ -19,7 +19,7 @@ Init ==
     /\ trouble = [s \in Scen |-> FALSE]
     /\ backendUp = TRUE
 
-Rank(c) == IF c = "none" THEN 0 ELSE IF c = "stop" THEN 1 ELSE IF c = "failure" THEN 2 ELSE 3
+Rank(c) == IF c = "none" THEN 0 ELSE IF c \in {"stop", "limit"} THEN 1 ELSE IF c = "failure" THEN 2 ELSE 3
 
 \* Every way to end asks for the same desired phase; the cause decides the final result.
 NewCause(s, c) ==
@@ -27,7 +27,7 @@ NewCause(s, c) ==
     THEN cause[s]
     ELSE c
 
-Final(s) == IF cause[s] = "stop" THEN "COMPLETED" ELSE "FAILED"
+Final(s) == IF cause[s] \in {"stop", "limit"} THEN "COMPLETED" ELSE "FAILED"
 
 \* Run: save, validate and reserve the same revision; only one unreleased Execution globally.
 UserRun(s) ==
@@ -75,6 +75,14 @@ UserStop(s) ==
     /\ cause' = [cause EXCEPT ![s] = NewCause(s, "stop")]
     /\ UNCHANGED <<phase, resources, released, revision, snapRev, trouble, backendUp>>
 
+\* The server reaches the deadline fixed when every node became healthy (#89). Like Stop, it only
+\* asks for STOPPED, with a cause of the same rank, so the cleanup is the same.
+TimeLimitReached(s) ==
+    /\ backendUp /\ phase[s] = "RUNNING"
+    /\ desired' = [desired EXCEPT ![s] = "STOPPED"]
+    /\ cause' = [cause EXCEPT ![s] = NewCause(s, "limit")]
+    /\ UNCHANGED <<phase, resources, released, revision, snapRev, trouble, backendUp>>
+
 \* The engine sees the Stop while it waits for Docker and ends the start. It is not a failure: the
 \* cause stays as it was, and the cleanup removes whatever the start created.
 StartCancelled(s) ==
@@ -117,7 +125,7 @@ BackendRestarts ==
 Next ==
     \/ \E s \in Scen :
         \/ UserRun(s) \/ UserSavesGraph(s) \/ PlanCompiled(s) \/ UpSucceeds(s) \/ UpFails(s)
-        \/ UserStop(s) \/ StartCancelled(s) \/ CleanupBegins(s) \/ CleanupSucceeds(s)
+        \/ UserStop(s) \/ TimeLimitReached(s) \/ StartCancelled(s) \/ CleanupBegins(s) \/ CleanupSucceeds(s)
     \/ BackendCrashes \/ BackendRestarts
 
 Spec == Init /\ [][Next]_vars

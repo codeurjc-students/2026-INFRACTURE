@@ -5,6 +5,7 @@ import {
   isSendingTraffic,
   loadView,
   nodeView,
+  timeLeftLabel,
 } from "~/features/scenario-canvas/execution-status";
 import type { ExecutedWorkloadDTO } from "~/features/scenario-canvas/model/ExecutedWorkloadDTO";
 import type { ExecutionDTO } from "~/features/scenario-canvas/model/ExecutionDTO";
@@ -22,6 +23,8 @@ function execution(overrides: Partial<ExecutionDTO>): ExecutionDTO {
     cleanupError: null,
     cleanupRetryNeeded: false,
     createdAt: "2026-11-07T10:00:00Z",
+    deadlineAt: null,
+    secondsLeft: null,
     releasedAt: null,
     components: [],
     workload: null,
@@ -35,6 +38,16 @@ describe("execution status", () => {
     [{ phase: "STARTING" }, "Starting", "recovering"],
     [{ phase: "RUNNING" }, "Running", "healthy"],
     [{ phase: "RUNNING", stopCause: "STOP_REQUESTED" }, "Stopping", "paused"],
+    [
+      { phase: "STOPPING", stopCause: "TIME_LIMIT" },
+      "Time limit reached, stopping",
+      "paused",
+    ],
+    [
+      { phase: "RELEASED", stopCause: "TIME_LIMIT", outcome: "COMPLETED" },
+      "Time limit reached",
+      "paused",
+    ],
     [
       { phase: "STARTING", stopCause: "FAILURE" },
       "Failed, cleaning up",
@@ -146,5 +159,14 @@ describe("execution status", () => {
       isSendingTraffic(execution({ phase: "RUNNING", workload: ended })),
     ).toBe(false);
     expect(isSendingTraffic(null)).toBe(false);
+  });
+
+  it.each([
+    [1800, "30:00 left"],
+    [1789, "29:49 left"],
+    [59, "0:59 left"],
+    [0, "0:00 left"],
+  ])("writes %i seconds as %s", (seconds, label) => {
+    expect(timeLeftLabel(seconds)).toBe(label);
   });
 });

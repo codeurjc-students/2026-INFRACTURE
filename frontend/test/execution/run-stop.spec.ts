@@ -337,3 +337,72 @@ test("keeps Run blocked while a cleanup fails and finishes it with Retry cleanup
     if (volume) removeQuietly("volume", volume);
   }
 });
+
+// scripts/test-execution-stack.sh cuts the limit to 60 s, so the test reaches it without waiting 30 minutes.
+test("ends the experiment at its time limit with the tab closed and shows why on return", async ({
+  context,
+  page,
+}, testInfo) => {
+  const shot = (target: Page, name: string) =>
+    target.screenshot({
+      path: testInfo.outputPath(`time-limit-${name}.png`),
+      fullPage: true,
+    });
+  const scenario = await savedStatelessScenario(page, "timer");
+  const canvas = page.url();
+  let deadline = "";
+
+  await test.step("Run it and see the server's countdown", async () => {
+    await page.getByRole("button", { name: "Run" }).click();
+    await expect(status(page)).toHaveText("Running", { timeout: 180_000 });
+    await expect(page.getByRole("timer", { name: "Time left" })).toHaveText(
+      /^[01]:\d\d left$/,
+    );
+    const current = await page.request.get(`${scenario}/executions/current`);
+    ({ deadlineAt: deadline } = await current.json());
+    expect(deadline).toBeTruthy();
+    await shot(page, "1-running");
+  });
+
+  await test.step("Close the tab: the experiment keeps running with the same deadline", async () => {
+    await page.close();
+    const current = await context.request.get(`${scenario}/executions/current`);
+    expect(await current.json()).toMatchObject({
+      phase: "RUNNING",
+      stopCause: null,
+      deadlineAt: deadline,
+    });
+  });
+
+  await test.step("Wait past the deadline with no tab open", async () => {
+    await expect
+      .poll(
+        async () =>
+          (
+            await (
+              await context.request.get(`${scenario}/executions/current`)
+            ).json()
+          ).phase,
+        { timeout: 150_000, intervals: [2_000] },
+      )
+      .toBe("RELEASED");
+  });
+
+  await test.step("Reopen the canvas: it ended at the time limit and nothing is left", async () => {
+    const reopened = await context.newPage();
+    await reopened.goto(canvas);
+    await expect(status(reopened)).toHaveText("Time limit reached");
+    await expect(reopened.getByRole("timer")).not.toBeVisible();
+    await expect(reopened.getByRole("button", { name: "Run" })).toBeEnabled();
+    const current = await reopened.request.get(
+      `${scenario}/executions/current`,
+    );
+    expect(await current.json()).toMatchObject({
+      outcome: "COMPLETED",
+      stopCause: "TIME_LIMIT",
+      deadlineAt: deadline,
+    });
+    expect(experimentResources()).toEqual([]);
+    await shot(reopened, "2-reopened");
+  });
+});

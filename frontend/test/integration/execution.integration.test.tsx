@@ -151,6 +151,9 @@ describe("execution client against the real API", () => {
     expect(current).toMatchObject({
       scenarioRevision: saved.revision,
       stopCause: null,
+      // The deadline is set only once every node is healthy.
+      deadlineAt: null,
+      secondsLeft: null,
       components: [{ name: "orders-api", type: "HTTP_SERVICE" }],
     });
     const again = await runScenario(projectId, scenarioId, saved.revision);

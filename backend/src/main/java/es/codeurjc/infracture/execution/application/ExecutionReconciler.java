@@ -6,6 +6,7 @@ import es.codeurjc.infracture.execution.domain.Execution;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -33,13 +34,14 @@ public class ExecutionReconciler {
     private final ServiceProbe probe;
     private final Duration maxDuration;
     private final Duration cleanupPause;
+    private final Clock clock;
     private final TransactionTemplate transactions;
 
     public ExecutionReconciler(ExecutionRepository repository, RuntimeEngine engine, PlanCompiler planCompiler,
             ExecutionObservations observations, ServiceProbe probe,
             @Value("${infracture.execution.max-duration:30m}") Duration maxDuration,
             @Value("${infracture.execution.cleanup-retry-pause:10s}") Duration cleanupPause,
-            PlatformTransactionManager transactionManager) {
+            Clock clock, PlatformTransactionManager transactionManager) {
         this.repository = repository;
         this.engine = engine;
         this.planCompiler = planCompiler;
@@ -47,6 +49,7 @@ public class ExecutionReconciler {
         this.probe = probe;
         this.maxDuration = maxDuration;
         this.cleanupPause = cleanupPause;
+        this.clock = clock;
         this.transactions = new TransactionTemplate(transactionManager);
     }
 
@@ -71,6 +74,11 @@ public class ExecutionReconciler {
             return null;
         }
         Execution execution = active.get();
+        Instant now = clock.instant();
+        // Checked before any Docker call, so the limit holds even when Docker cannot answer.
+        if (execution.isPastDeadline(now)) {
+            execution.reachTimeLimit();
+        }
         if (execution.getStopCause() != null && execution.getPhase() != Phase.STOPPING) {
             execution.beginStopping();
         } else if (execution.getPhase() == Phase.RESERVED) {
@@ -79,7 +87,7 @@ public class ExecutionReconciler {
             // Only a backend restart leaves a start cut short. Stop cleans it up,
             // and #90 will record the interruption on its own.
             return null;
-        } else if (execution.getPhase() == Phase.STOPPING && !execution.isCleanupDue(Instant.now(), cleanupPause)) {
+        } else if (execution.getPhase() == Phase.STOPPING && !execution.isCleanupDue(now, cleanupPause)) {
             // A failed cleanup waits for its pause, or for the owner once the automatic attempts are spent.
             return null;
         }
@@ -104,7 +112,7 @@ public class ExecutionReconciler {
             update(execution.getId(), locked -> locked.fail(exception.getMessage()));
             return;
         }
-        update(execution.getId(), Execution::markRunning);
+        update(execution.getId(), locked -> locked.markRunning(clock.instant(), maxDuration));
         for (Map.Entry<UUID, URI> target : planCompiler.evidence(execution).entrySet()) {
             observations.recordResponse(execution.getId(), target.getKey(), probe.get(target.getValue()));
         }
@@ -125,9 +133,6 @@ public class ExecutionReconciler {
                 : nodeDown;
         if (broken != null) {
             update(execution.getId(), locked -> locked.fail(broken));
-        } else if (!Instant.now().isBefore(execution.getCreatedAt().plus(maxDuration))) {
-            // shortcut: the time limit ends like Stop until it gets a cause of its own.
-            update(execution.getId(), Execution::requestStop);
         }
     }
 
@@ -179,7 +184,7 @@ public class ExecutionReconciler {
         try {
             engine.down(execution.getPlan(), planCompiler.labels(execution.getId()));
         } catch (RuntimeEngineException exception) {
-            update(execution.getId(), locked -> locked.recordCleanupFailure(exception.getMessage()));
+            update(execution.getId(), locked -> locked.recordCleanupFailure(exception.getMessage(), clock.instant()));
             return;
         }
         update(execution.getId(), Execution::release);

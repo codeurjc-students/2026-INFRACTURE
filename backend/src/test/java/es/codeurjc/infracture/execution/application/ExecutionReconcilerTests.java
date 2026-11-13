@@ -21,8 +21,10 @@ import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.domain.Workload;
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +55,9 @@ class ExecutionReconcilerTests {
                     "infracture/load-generator:0.1.0");
     private final ExecutionObservations observations = new ExecutionObservations();
     private final ServiceProbe probe = mock(ServiceProbe.class);
-    private final ExecutionReconciler reconciler = reconciler(Duration.ofMinutes(30), Duration.ZERO);
+    private static final Instant STARTED = Instant.parse("2026-11-13T10:00:00Z");
+    private static final Instant DEADLINE = Instant.parse("2026-11-13T10:30:00Z");
+    private final ExecutionReconciler reconciler = reconciler(Duration.ZERO, Clock.systemUTC());
     private Execution execution;
 
     @BeforeEach
@@ -64,7 +68,6 @@ class ExecutionReconcilerTests {
     private void reserve(Workload load) {
         execution = new Execution(statelessScenario(load), Map.of(ComponentType.HTTP_SERVICE, 1));
         ReflectionTestUtils.setField(execution, "id", 12L);
-        ReflectionTestUtils.setField(execution, "createdAt", Instant.now());
         execution.attachPlan(planCompiler.compile(execution));
         when(repository.findForUpdateByReleasedAtIsNull())
                 .thenAnswer(invocation -> execution.isActive() ? Optional.of(execution) : Optional.empty());
@@ -143,7 +146,7 @@ class ExecutionReconcilerTests {
 
     @Test
     void waitsBeforeRetryingAFailedCleanup() {
-        ExecutionReconciler patient = reconciler(Duration.ofMinutes(30), Duration.ofHours(1));
+        ExecutionReconciler patient = reconciler(Duration.ofHours(1), Clock.systemUTC());
         patient.reconcile();
         execution.requestStop();
         engine.downFailure = new RuntimeEngineException("docker network rm failed: network has active endpoints");
@@ -271,15 +274,43 @@ class ExecutionReconcilerTests {
     }
 
     @Test
-    void stopsOnItsOwnWhenTheTimeLimitIsReached() {
-        ExecutionReconciler limited = reconciler(Duration.ZERO, Duration.ZERO);
+    void stopsTheLoadAndCleansUpAtTheTimeLimitCountedFromRunning() {
+        reserve(LOAD);
+        at(STARTED).reconcile();
+        at(DEADLINE.minusSeconds(1)).reconcile();
 
-        limited.reconcile();
-        limited.reconcile();
-        limited.reconcile();
+        assertThat(execution.getPhase()).isEqualTo(Phase.RUNNING);
+        assertThat(execution.getDeadlineAt()).isEqualTo(DEADLINE);
+        at(DEADLINE).reconcile();
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.TIME_LIMIT);
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
+        assertThat(execution.getWorkload().getSummary()).isEqualTo(SUMMARY);
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN);
+    }
+
+    @Test
+    void appliesTheTimeLimitEvenWhenDockerCannotReportTheNodes() {
+        at(STARTED).reconcile();
+        engine.statusFailure = new RuntimeEngineException("docker compose ps failed: Cannot connect");
+
+        at(DEADLINE).reconcile();
 
         assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
-        assertThat(engine.calls).containsExactly(UP, DOWN);
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.TIME_LIMIT);
+        assertThat(execution.getFailureReason()).isNull();
+    }
+
+    @Test
+    void keepsTheReservationWhenTheCleanupAtTheTimeLimitFails() {
+        at(STARTED).reconcile();
+        engine.downFailure = new RuntimeEngineException("docker network rm failed: network has active endpoints");
+
+        at(DEADLINE).reconcile();
+
+        assertThat(execution.getPhase()).isEqualTo(Phase.STOPPING);
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.TIME_LIMIT);
+        assertThat(execution.getCleanupFailures()).isEqualTo(1);
+        assertThat(execution.getReleasedAt()).isNull();
     }
 
     @Test
@@ -394,9 +425,13 @@ class ExecutionReconcilerTests {
         assertThat(engine.calls).isEmpty();
     }
 
-    private ExecutionReconciler reconciler(Duration maxDuration, Duration cleanupPause) {
-        return new ExecutionReconciler(repository, engine, planCompiler, observations, probe, maxDuration,
-                cleanupPause, mock(PlatformTransactionManager.class));
+    private ExecutionReconciler at(Instant now) {
+        return reconciler(Duration.ZERO, Clock.fixed(now, ZoneOffset.UTC));
+    }
+
+    private ExecutionReconciler reconciler(Duration cleanupPause, Clock clock) {
+        return new ExecutionReconciler(repository, engine, planCompiler, observations, probe, Duration.ofMinutes(30),
+                cleanupPause, clock, mock(PlatformTransactionManager.class));
     }
 
     private static Scenario statelessScenario(Workload load) {

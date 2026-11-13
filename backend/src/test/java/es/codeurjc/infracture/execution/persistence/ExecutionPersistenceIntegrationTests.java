@@ -20,6 +20,8 @@ import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.domain.Workload;
 import jakarta.persistence.EntityManager;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -175,7 +177,7 @@ class ExecutionPersistenceIntegrationTests {
         assertThat(repository.existsByIdAndStopCauseIsNotNull(stopping.getId())).isFalse();
         stopping.requestStop();
         stopping.beginStopping();
-        stopping.recordCleanupFailure("docker volume rm failed: volume is in use");
+        stopping.recordCleanupFailure("docker volume rm failed: volume is in use", Instant.now());
         repository.saveAndFlush(stopping);
         entityManager.clear();
 
@@ -186,6 +188,32 @@ class ExecutionPersistenceIntegrationTests {
         assertThat(repository.existsByIdAndStopCauseIsNotNull(stopping.getId())).isTrue();
         assertThatThrownBy(() -> repository.saveAndFlush(new Execution(queue, CONTRACTS)))
                 .hasMessageContaining("ux_executions_single_active");
+    }
+
+    @Test
+    void keepsTheDeadlineAndTheTimeLimitAsTheCause() {
+        Execution limited = new Execution(cache, CONTRACTS);
+        limited.startStarting();
+        limited.markRunning(Instant.parse("2026-11-13T10:00:00Z"), Duration.ofMinutes(30));
+        limited.reachTimeLimit();
+        limited.beginStopping();
+        repository.saveAndFlush(limited);
+        entityManager.clear();
+
+        Execution reopened = repository.findById(limited.getId()).orElseThrow();
+        assertThat(reopened.getDeadlineAt()).isEqualTo(Instant.parse("2026-11-13T10:30:00Z"));
+        assertThat(reopened.getStopCause()).isEqualTo(StopCause.TIME_LIMIT);
+        assertThat(repository.findByReleasedAtIsNull()).map(Execution::getId).contains(limited.getId());
+    }
+
+    @Test
+    void rejectsARunningRowWithoutDeadline() {
+        Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery(
+                "UPDATE executions SET phase = 'RUNNING' WHERE id = :id")
+                .setParameter("id", execution.getId()).executeUpdate())
+                .hasMessageContaining("ck_executions_running_deadline");
     }
 
     @Test

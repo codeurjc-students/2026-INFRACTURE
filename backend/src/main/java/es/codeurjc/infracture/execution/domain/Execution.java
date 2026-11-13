@@ -89,6 +89,10 @@ public class Execution {
     @Column(name = "cleanup_failed_at")
     private Instant cleanupFailedAt;
 
+    // Fixed once every node is healthy, so a later change of the limit or a reconnection never moves it.
+    @Column(name = "deadline_at")
+    private Instant deadlineAt;
+
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> plan;
 
@@ -148,9 +152,24 @@ public class Execution {
         phase = Phase.STARTING;
     }
 
-    public void markRunning() {
+    // The time limit counts from here: the start has a limit of its own.
+    public void markRunning(Instant now, Duration limit) {
         require(Phase.STARTING);
         phase = Phase.RUNNING;
+        deadlineAt = now.plus(limit);
+    }
+
+    public boolean isPastDeadline(Instant now) {
+        return deadlineAt != null && !now.isBefore(deadlineAt);
+    }
+
+    // Whole seconds until the time limit, or null when no countdown applies because it is not running
+    // or it is already stopping.
+    public Long secondsLeft(Instant now) {
+        if (phase != Phase.RUNNING || stopCause != null) {
+            return null;
+        }
+        return Math.max(0, Duration.between(now, deadlineAt).toSeconds());
     }
 
     // Stop during a failed cleanup asks for a new round of attempts at once. The last error stays
@@ -169,6 +188,10 @@ public class Execution {
         recordCause(StopCause.FAILURE);
     }
 
+    public void reachTimeLimit() {
+        recordCause(StopCause.TIME_LIMIT);
+    }
+
     public void interrupt() {
         recordCause(StopCause.INTERRUPTION);
     }
@@ -180,11 +203,11 @@ public class Execution {
         phase = Phase.STOPPING;
     }
 
-    public void recordCleanupFailure(String reason) {
+    public void recordCleanupFailure(String reason, Instant now) {
         require(Phase.STOPPING);
         cleanupFailures++;
         cleanupError = shorten(reason);
-        cleanupFailedAt = Instant.now();
+        cleanupFailedAt = now;
     }
 
     // The engine retries a failed cleanup on its own, each time after a longer pause, and then stops trying
@@ -290,5 +313,9 @@ public class Execution {
 
     public Instant getReleasedAt() {
         return releasedAt;
+    }
+
+    public Instant getDeadlineAt() {
+        return deadlineAt;
     }
 }

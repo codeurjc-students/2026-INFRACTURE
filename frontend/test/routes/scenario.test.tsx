@@ -4,6 +4,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import {
@@ -163,6 +164,8 @@ function execution(overrides: Partial<ExecutionDTO> = {}): ExecutionDTO {
     cleanupError: null,
     cleanupRetryNeeded: false,
     createdAt: "2026-11-07T10:00:00Z",
+    deadlineAt: null,
+    secondsLeft: null,
     releasedAt: null,
     components: [],
     workload: null,
@@ -1211,6 +1214,55 @@ describe("running the scenario", () => {
     expect(getCurrentExecution).toHaveBeenCalledTimes(3);
     // Two real polls and the check that no third one follows.
   }, 10_000);
+
+  // Reopening the canvas recovers the server's countdown instead of starting a new one.
+  it("counts down from the time the server gives and follows it on each poll", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution)
+      .mockResolvedValueOnce(
+        execution({
+          phase: "RUNNING",
+          deadlineAt: "2026-11-07T10:40:00Z",
+          secondsLeft: 600,
+        }),
+      )
+      .mockResolvedValue(
+        execution({
+          phase: "RUNNING",
+          deadlineAt: "2026-11-07T10:40:00Z",
+          secondsLeft: 300,
+        }),
+      );
+    renderScenario();
+
+    const timer = await screen.findByRole("timer", { name: "Time left" });
+    expect(timer).toHaveTextContent("10:00 left");
+    // Real timers: the poll after 2 s brings the server's figure back.
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole("timer", { name: "Time left" }),
+        ).toHaveTextContent("5:00 left"),
+      { timeout: 3000 },
+    );
+  }, 10_000);
+
+  it("says the experiment ended at its time limit", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({
+        phase: "RELEASED",
+        stopCause: "TIME_LIMIT",
+        outcome: "COMPLETED",
+        deadlineAt: "2026-11-07T10:40:00Z",
+      }),
+    );
+    renderScenario();
+
+    expect(await screen.findByText("Time limit reached")).toBeInTheDocument();
+    expect(screen.queryByRole("timer")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
+  });
 
   it("keeps the scenario read-only while the experiment holds it", async () => {
     vi.mocked(getGraph).mockResolvedValue(runnableGraph);

@@ -1,6 +1,7 @@
 // Shows the Execution of scenario A; scenario B only matters through the global reservation.
 const cleaning: Record<string, string> = {
   stop: "Limpiando tras Stop",
+  limit: "Limpiando tras el tiempo límite",
   failure: "Limpiando tras un fallo",
   crash: "Limpiando tras una caída",
 };
@@ -12,7 +13,10 @@ const label = (v: any) => {
   if (p === "none") return "Sin ejecución";
   if (p === "RESERVED") return v.desired.A === "STOPPED" ? "Reservada, Stop pedido" : "Reservada";
   if (p === "STARTING") return v.desired.A === "STOPPED" ? "Arrancando, Stop pedido" : "Arrancando";
-  if (p === "RUNNING") return v.desired.A === "STOPPED" ? "En marcha, Stop pedido" : "En marcha";
+  if (p === "RUNNING" && v.desired.A === "STOPPED") {
+    return v.cause.A === "limit" ? "En marcha, tiempo agotado" : "En marcha, Stop pedido";
+  }
+  if (p === "RUNNING") return "En marcha";
   if (p === "STOPPING") return cleaning[v.cause.A];
   if (p === "INTERRUPTED") return "Backend caído";
   return p === "COMPLETED" ? "Terminada con éxito" : "Terminada con fallo";
@@ -38,6 +42,7 @@ const labels: Record<string, string> = {
   UpSucceeds: "todo arranca sano",
   UpFails: "falla la descarga, el arranque o la salud",
   UserStop: "pulsas Stop",
+  TimeLimitReached: "se agota el tiempo",
   StartCancelled: "el arranque se cancela",
   CleanupBegins: "empieza la limpieza",
   CleanupSucceeds: "no queda nada con la etiqueta",

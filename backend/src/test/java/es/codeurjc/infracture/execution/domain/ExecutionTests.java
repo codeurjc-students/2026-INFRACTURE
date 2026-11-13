@@ -23,6 +23,8 @@ class ExecutionTests {
 
     private static final UUID ORDERS = UUID.fromString("3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10");
     private static final Map<ComponentType, Integer> CONTRACTS = Map.of(ComponentType.HTTP_SERVICE, 1);
+    private static final Instant STARTED = Instant.parse("2026-11-13T10:00:00Z");
+    private static final Duration LIMIT = Duration.ofMinutes(30);
 
     private final Scenario scenario = statelessScenario();
     private final Execution execution = new Execution(scenario, CONTRACTS);
@@ -81,7 +83,7 @@ class ExecutionTests {
     @Test
     void completesWhenTheOnlyCauseIsStop() {
         execution.startStarting();
-        execution.markRunning();
+        execution.markRunning(STARTED, LIMIT);
         execution.requestStop();
         execution.requestStop();
         execution.beginStopping();
@@ -119,7 +121,7 @@ class ExecutionTests {
     @Test
     void isInterruptedWhenTheBackendStopsDuringTheCleanupOfAStop() {
         execution.startStarting();
-        execution.markRunning();
+        execution.markRunning(STARTED, LIMIT);
         execution.requestStop();
         execution.beginStopping();
         execution.interrupt();
@@ -127,6 +129,50 @@ class ExecutionTests {
         execution.release();
 
         assertThat(execution.getOutcome()).isEqualTo(Outcome.INTERRUPTED);
+    }
+
+    @Test
+    void startsTheClockWhenRunningAndCompletesAtTheTimeLimit() {
+        execution.startStarting();
+        assertThat(execution.getDeadlineAt()).isNull();
+        assertThat(execution.isPastDeadline(STARTED.plus(Duration.ofDays(1)))).isFalse();
+
+        execution.markRunning(STARTED, LIMIT);
+
+        assertThat(execution.getDeadlineAt()).isEqualTo(Instant.parse("2026-11-13T10:30:00Z"));
+        assertThat(execution.isPastDeadline(Instant.parse("2026-11-13T10:29:59Z"))).isFalse();
+        assertThat(execution.isPastDeadline(Instant.parse("2026-11-13T10:30:00Z"))).isTrue();
+        execution.reachTimeLimit();
+        execution.beginStopping();
+        execution.release();
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.TIME_LIMIT);
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
+    }
+
+    @Test
+    void keepsTheTimeLimitAsTheCauseWhenStopFollowsButLetsAFailureWin() {
+        execution.startStarting();
+        execution.markRunning(STARTED, LIMIT);
+        execution.reachTimeLimit();
+        execution.requestStop();
+
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.TIME_LIMIT);
+        execution.fail("docker compose stop failed: Cannot connect");
+        execution.beginStopping();
+        execution.release();
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.FAILED);
+    }
+
+    @Test
+    void countsTheSecondsLeftOnlyWhileTheExperimentRuns() {
+        assertThat(execution.secondsLeft(STARTED)).isNull();
+        execution.startStarting();
+        execution.markRunning(STARTED, LIMIT);
+
+        assertThat(execution.secondsLeft(Instant.parse("2026-11-13T10:00:10.400Z"))).isEqualTo(1789);
+        assertThat(execution.secondsLeft(Instant.parse("2026-11-13T10:45:00Z"))).isZero();
+        execution.requestStop();
+        assertThat(execution.secondsLeft(STARTED)).isNull();
     }
 
     @Test
@@ -156,7 +202,7 @@ class ExecutionTests {
         execution.requestStop();
         execution.beginStopping();
 
-        execution.recordCleanupFailure("docker volume rm failed: " + "x".repeat(1200));
+        execution.recordCleanupFailure("docker volume rm failed: " + "x".repeat(1200), Instant.now());
         execution.release();
 
         assertThat(execution.getCleanupFailures()).isEqualTo(1);
@@ -173,17 +219,17 @@ class ExecutionTests {
         execution.beginStopping();
         assertThat(execution.isCleanupDue(Instant.now(), pause)).isTrue();
 
-        execution.recordCleanupFailure("first");
+        execution.recordCleanupFailure("first", Instant.now());
         Instant now = Instant.now();
         assertThat(execution.isCleanupDue(now, pause)).isFalse();
         assertThat(execution.isCleanupDue(now.plusSeconds(10), pause)).isTrue();
 
-        execution.recordCleanupFailure("second");
+        execution.recordCleanupFailure("second", Instant.now());
         now = Instant.now();
         assertThat(execution.isCleanupDue(now.plusSeconds(10), pause)).isFalse();
         assertThat(execution.isCleanupDue(now.plusSeconds(20), pause)).isTrue();
 
-        execution.recordCleanupFailure("third");
+        execution.recordCleanupFailure("third", Instant.now());
         assertThat(execution.isCleanupRetryNeeded()).isTrue();
         assertThat(execution.isCleanupDue(Instant.now().plus(Duration.ofDays(1)), pause)).isFalse();
     }
@@ -193,7 +239,7 @@ class ExecutionTests {
         execution.requestStop();
         execution.beginStopping();
         for (int attempt = 0; attempt < Execution.AUTOMATIC_CLEANUP_ATTEMPTS; attempt++) {
-            execution.recordCleanupFailure("docker network rm failed");
+            execution.recordCleanupFailure("docker network rm failed", Instant.now());
         }
 
         execution.requestStop();
@@ -205,7 +251,7 @@ class ExecutionTests {
 
     @Test
     void recordsCleanupFailuresOnlyWhileStopping() {
-        assertThatIllegalStateException().isThrownBy(() -> execution.recordCleanupFailure("too early"));
+        assertThatIllegalStateException().isThrownBy(() -> execution.recordCleanupFailure("too early", Instant.now()));
     }
 
     @Test
@@ -218,7 +264,7 @@ class ExecutionTests {
 
     @Test
     void rejectsTransitionsOutOfOrder() {
-        assertThatIllegalStateException().isThrownBy(execution::markRunning);
+        assertThatIllegalStateException().isThrownBy(() -> execution.markRunning(STARTED, LIMIT));
         assertThatIllegalStateException().isThrownBy(execution::beginStopping);
         assertThatIllegalStateException().isThrownBy(execution::release);
 

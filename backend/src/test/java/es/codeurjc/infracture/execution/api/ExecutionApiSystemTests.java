@@ -60,9 +60,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @Testcontainers
 class ExecutionApiSystemTests {
 
-    private static final String ORDERS = "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10";
+    static final String ORDERS = "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10";
     private static final String CACHE = "0b9c8d7e-6f5a-4b3c-8d2e-1f0a9b8c7d6e";
-    private static final String ANOTHER_RUNNING = "Another experiment is running. Run this scenario when it ends.";
+    static final String ANOTHER_RUNNING = "Another experiment is running. Run this scenario when it ends.";
 
     @Container
     @ServiceConnection
@@ -398,13 +398,13 @@ class ExecutionApiSystemTests {
             .path("plan.networks.exec.labels['io.infracture.instance']");
     }
 
-    private String statelessScenario(ApiSession session) {
+    static String statelessScenario(ApiSession session) {
         String scenario = createScenario(session);
         session.write().body(graph(1, http(ORDERS))).put(scenario + "/graph").then().statusCode(200);
         return scenario;
     }
 
-    private String createScenario(ApiSession session) {
+    static String createScenario(ApiSession session) {
         long project = session.write().body("{\"name\":\"Lab\"}").post("/api/v1/projects")
             .then().statusCode(201).extract().jsonPath().getLong("id");
         String path = "/api/v1/projects/" + project + "/scenarios";
@@ -413,7 +413,7 @@ class ExecutionApiSystemTests {
         return path + "/" + id;
     }
 
-    private static String run(int revision) {
+    static String run(int revision) {
         return "{\"revision\":" + revision + "}";
     }
 
