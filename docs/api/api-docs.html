@@ -867,19 +867,19 @@ font-style: italic;
   "scenarioRevision" : 1,
   "workload" : {
     "summary" : {
-      "droppedIterations" : 3,
-      "requests" : 7,
-      "failedRequests" : 9,
-      "p95LatencyMs" : 4.145608029883936,
-      "averageLatencyMs" : 2.027123023002322
+      "droppedIterations" : 2,
+      "requests" : 9,
+      "failedRequests" : 3,
+      "p95LatencyMs" : 7.386281948385884,
+      "averageLatencyMs" : 4.145608029883936
     },
     "summaryCollectedAt" : "2000-01-23T04:56:07.000+00:00",
-    "seed" : 2,
+    "seed" : 7,
     "profile" : "profile",
     "completed" : true,
     "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
     "parameters" : {
-      "key" : 5
+      "key" : 2
     }
   },
   "stopCause" : "STOP_REQUESTED",
@@ -888,6 +888,8 @@ font-style: italic;
   "failureReason" : "failureReason",
   "id" : 0,
   "cleanupFailures" : 5,
+  "deadlineAt" : "2000-01-23T04:56:07.000+00:00",
+  "secondsLeft" : 5,
   "scenarioId" : 6,
   "plan" : {
     "key" : ""
@@ -1014,19 +1016,19 @@ font-style: italic;
   "scenarioRevision" : 1,
   "workload" : {
     "summary" : {
-      "droppedIterations" : 3,
-      "requests" : 7,
-      "failedRequests" : 9,
-      "p95LatencyMs" : 4.145608029883936,
-      "averageLatencyMs" : 2.027123023002322
+      "droppedIterations" : 2,
+      "requests" : 9,
+      "failedRequests" : 3,
+      "p95LatencyMs" : 7.386281948385884,
+      "averageLatencyMs" : 4.145608029883936
     },
     "summaryCollectedAt" : "2000-01-23T04:56:07.000+00:00",
-    "seed" : 2,
+    "seed" : 7,
     "profile" : "profile",
     "completed" : true,
     "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
     "parameters" : {
-      "key" : 5
+      "key" : 2
     }
   },
   "stopCause" : "STOP_REQUESTED",
@@ -1035,6 +1037,8 @@ font-style: italic;
   "failureReason" : "failureReason",
   "id" : 0,
   "cleanupFailures" : 5,
+  "deadlineAt" : "2000-01-23T04:56:07.000+00:00",
+  "secondsLeft" : 5,
   "scenarioId" : 6,
   "plan" : {
     "key" : ""
@@ -1151,19 +1155,19 @@ font-style: italic;
   "scenarioRevision" : 1,
   "workload" : {
     "summary" : {
-      "droppedIterations" : 3,
-      "requests" : 7,
-      "failedRequests" : 9,
-      "p95LatencyMs" : 4.145608029883936,
-      "averageLatencyMs" : 2.027123023002322
+      "droppedIterations" : 2,
+      "requests" : 9,
+      "failedRequests" : 3,
+      "p95LatencyMs" : 7.386281948385884,
+      "averageLatencyMs" : 4.145608029883936
     },
     "summaryCollectedAt" : "2000-01-23T04:56:07.000+00:00",
-    "seed" : 2,
+    "seed" : 7,
     "profile" : "profile",
     "completed" : true,
     "targetKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
     "parameters" : {
-      "key" : 5
+      "key" : 2
     }
   },
   "stopCause" : "STOP_REQUESTED",
@@ -1172,6 +1176,8 @@ font-style: italic;
   "failureReason" : "failureReason",
   "id" : 0,
   "cleanupFailures" : 5,
+  "deadlineAt" : "2000-01-23T04:56:07.000+00:00",
+  "secondsLeft" : 5,
   "scenarioId" : 6,
   "plan" : {
     "key" : ""
@@ -2824,7 +2830,7 @@ font-style: italic;
         <div class="param-enum">RESERVED</div><div class="param-enum">STARTING</div><div class="param-enum">RUNNING</div><div class="param-enum">STOPPING</div><div class="param-enum">RELEASED</div>
 <div class="param">stopCause (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
         <div class="param-enum-header">Enum:</div>
-        <div class="param-enum">STOP_REQUESTED</div><div class="param-enum">FAILURE</div><div class="param-enum">INTERRUPTION</div>
+        <div class="param-enum">STOP_REQUESTED</div><div class="param-enum">TIME_LIMIT</div><div class="param-enum">FAILURE</div><div class="param-enum">INTERRUPTION</div>
 <div class="param">outcome (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
         <div class="param-enum-header">Enum:</div>
         <div class="param-enum">COMPLETED</div><div class="param-enum">FAILED</div><div class="param-enum">INTERRUPTED</div>
@@ -2833,6 +2839,8 @@ font-style: italic;
 <div class="param">cleanupError (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">cleanupRetryNeeded (optional)</div><div class="param-desc"><span class="param-type"><a href="#boolean">Boolean</a></span>  </div>
 <div class="param">createdAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+<div class="param">deadlineAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+<div class="param">secondsLeft (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
 <div class="param">releasedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
 <div class="param">components (optional)</div><div class="param-desc"><span class="param-type"><a href="#ExecutedComponentDTO">array[ExecutedComponentDTO]</a></span>  </div>
 <div class="param">workload (optional)</div><div class="param-desc"><span class="param-type"><a href="#ExecutedWorkloadDTO">ExecutedWorkloadDTO</a></span>  </div>

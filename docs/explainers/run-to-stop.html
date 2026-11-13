@@ -324,7 +324,6 @@
           <tr class="hl"><td>Solo el perfil de carga <code>CONSTANT_HTTP</code></td><td><code>WorkloadContract</code></td><td><b>Con los otros tres perfiles.</b> Cada uno añade su contrato, su script en <code>load-generator/scripts</code> y una línea en <code>run.sh</code>.</td></tr>
           <tr><td>Solo HTTP Service <code>STATELESS</code></td><td><code>ExecutionService</code></td><td><b>P07.</b> Con los drivers del resto de tipos, la comprobación pasa al <code>PlanCompiler</code>.</td></tr>
           <tr><td>Estado y respuesta en memoria; resumen de k6 solo al final</td><td><code>ExecutionObservations</code></td><td><b>P08.</b> Eventos y muestras por intervalo en la base de datos y SSE al navegador. Ahí entrarán también los contadores de k6 en directo.</td></tr>
-          <tr><td>Tiempo límite como Stop</td><td><code>ExecutionReconciler</code></td><td><b>Cuando la interfaz deba decir "se acabó el tiempo".</b> Se añade una causa propia.</td></tr>
         </tbody>
       </table>
     </div>

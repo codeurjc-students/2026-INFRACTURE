@@ -390,7 +390,7 @@ El `ExecutionReconciler` funciona como un bucle de control: compara **lo que se 
 | --- | --- |
 | El usuario pulsa `Run`. | `RUNNING` |
 | El usuario pulsa `Stop`. | `STOPPED` |
-| Se agota el tiempo máximo (30 minutos por defecto). | `STOPPED` |
+| Se agota el tiempo máximo (30 minutos por defecto, contados desde `RUNNING`). | `STOPPED` |
 | Falla Docker, una imagen o la salud. | `STOPPED` |
 | Se borra el escenario, el proyecto o la cuenta. | `STOPPED` |
 | El backend se reinicia y encuentra una ejecución inconclusa. | `STOPPED` |
@@ -473,35 +473,40 @@ stateDiagram-v2
     s7: Limpiando tras una caída
     s8: Limpiando tras un fallo
     s9: Limpiando tras Stop
-    s10: En marcha, Stop pedido
+    s10: En marcha, tiempo agotado
+    s11: En marcha, Stop pedido
+    s12: Limpiando tras el tiempo límite
   }
-  s11: Backend caído
-  s12: Terminada con éxito
-  s13: Terminada con fallo
+  s13: Backend caído
+  s14: Terminada con éxito
+  s15: Terminada con fallo
   [*] --> s0
   s0 --> s2: pulsas Run
   s2 --> s3: pulsas Stop
   s2 --> s4: el plan se compila
-  s11 --> s7: el backend arranca y reconcilia
+  s13 --> s7: el backend arranca y reconcilia
   s3 --> s9: empieza la limpieza
   s4 --> s5: todo arranca sano
   s4 --> s6: pulsas Stop
   s4 --> s8: falla la descarga, el arranque o la salud
-  s5 --> s10: pulsas Stop
+  s5 --> s10: se agota el tiempo
+  s5 --> s11: pulsas Stop
   s6 --> s8: falla la descarga, el arranque o la salud
-  s6 --> s10: todo arranca sano
+  s6 --> s11: todo arranca sano
   s6 --> s9: el arranque se cancela
-  s7 --> s13: no queda nada con la etiqueta
-  s8 --> s13: no queda nada con la etiqueta
-  s9 --> s12: no queda nada con la etiqueta
-  s12 --> s2: pulsas Run
-  s13 --> s2: pulsas Run
-  s10 --> s9: empieza la limpieza
-  s1 --> s11: el backend se cae
+  s7 --> s15: no queda nada con la etiqueta
+  s8 --> s15: no queda nada con la etiqueta
+  s9 --> s14: no queda nada con la etiqueta
+  s14 --> s2: pulsas Run
+  s15 --> s2: pulsas Run
+  s10 --> s12: empieza la limpieza
+  s11 --> s9: empieza la limpieza
+  s12 --> s14: no queda nada con la etiqueta
+  s1 --> s13: el backend se cae
 ```
 
 - **Stop corta el arranque (#88).** Mientras espera a Docker (descarga, creación o salud), el motor pregunta cada segundo si hay una causa de parada. Si la hay, termina `docker compose up` y la siguiente vuelta limpia lo que dejó. Cancelar no es un fallo: la causa sigue siendo Stop. Si el arranque ya había fallado o termina justo antes, manda lo que pasó primero según la regla de la peor causa.
-- **Toda salida pasa por la limpieza.** Stop, un fallo o una caída llevan a `Limpiando…`, y la reserva solo se libera cuando no queda nada con la etiqueta de la ejecución.
+- **Toda salida pasa por la limpieza.** Stop, el tiempo límite, un fallo o una caída llevan a `Limpiando…`, y la reserva solo se libera cuando no queda nada con la etiqueta de la ejecución.
 - **Una interrupción nunca es un éxito.** Tras una caída, la ejecución se reconcilia, conserva su snapshot y sus evidencias, y se limpia sin reanudarse.
 - **Cerrar el navegador no es Stop.** La ejecución sigue hasta que alguien la detiene o se agota el tiempo, y se puede volver a consultar.
 - **Una limpieza que no termina deja `Run` bloqueado.** Si Docker no deja retirar algo, la ejecución se queda limpiando y el escenario sigue en solo lectura. El motor lo reintenta solo tres veces, cada vez tras una pausa más larga (10 s, 20 s). Después espera a que el dueño pulse **Retry cleanup**, que es el mismo Stop. Es el estado sin salida que el ADR 0005 acepta: el problema queda visible y se puede reintentar sin efectos duplicados.
@@ -518,11 +523,12 @@ Así se guarda en `Execution` (#86). Las fases solo avanzan en orden; un método
 | `STOPPING` | `docker compose down -v` y limpieza por etiqueta. |
 | `RELEASED` | No queda nada; la reserva está libre y el escenario vuelve a ser editable. |
 
-Stop, un fallo y una interrupción no cambian la fase: solo registran una causa. Una causa nueva sustituye a la guardada **solo si es más grave**. En cuanto hay causa, la fase deseada de la [sección 9.5](#95-fase-deseada-y-limpieza-por-etiqueta) pasa a ser `STOPPED`.
+Stop, el tiempo límite, un fallo y una interrupción no cambian la fase: solo registran una causa. Una causa nueva sustituye a la guardada **solo si es más grave**; entre dos igual de graves se queda la primera. En cuanto hay causa, la fase deseada de la [sección 9.5](#95-fase-deseada-y-limpieza-por-etiqueta) pasa a ser `STOPPED`.
 
 | Causa (`stopCause`), de menos a más grave | La registra | Resultado al liberar (`outcome`) |
 | --- | --- | --- |
 | `STOP_REQUESTED` | El usuario pulsa Stop. | `COMPLETED` |
+| `TIME_LIMIT`, igual de grave que Stop | El servidor alcanza el plazo de la [sección 10.4](#104-tiempo-límite-y-esperas) (#89). | `COMPLETED` |
 | `FAILURE` | Falla la descarga, el arranque, la salud o un nodo en marcha. Se guarda el primer motivo. | `FAILED` |
 | `INTERRUPTION` | El backend se reinicia con la ejecución abierta (#90). | `INTERRUPTED` |
 
@@ -538,6 +544,26 @@ Por ejemplo, si pulsas Stop mientras arranca y después falla la salud, la causa
 
 No se guarda en qué paso iba la limpieza: cada intento repite `down -v` y la búsqueda por etiqueta, y solo libera la reserva cuando ya no queda nada.
 
+### 10.4 Tiempo límite y esperas
+
+El servidor termina cada experimento a los 30 minutos (#89), aunque no haya ningún navegador abierto.
+
+- **Cuándo empieza el reloj.** Cuando todos los nodos están sanos y la ejecución pasa a `RUNNING`. El arranque tiene su propia espera, así que una descarga lenta no quita tiempo al experimento.
+- **Plazo fijo.** En ese momento se guarda `deadlineAt` (columna `deadline_at`) y ya no cambia. Cerrar la pestaña, reconectar o cambiar la configuración no lo mueve. Al volver, la API devuelve la misma ejecución con el mismo plazo.
+- **Cómo termina.** En cada vuelta, el `ExecutionReconciler` compara el plazo con su `Clock` dentro de la transacción que bloquea la fila, antes de llamar a Docker. Si ha llegado, registra `TIME_LIMIT` y sigue el mismo camino que Stop: para k6 y guarda su resumen, ejecuta `down -v` y, si la limpieza falla, mantiene la reserva y la reintenta ([#88](#102-fase-causa-y-resultado)).
+- **Qué ve la interfaz.** La API devuelve `deadlineAt` y `secondsLeft`, los segundos que quedan según el reloj del servidor. El canvas solo los muestra; nunca decide cuándo parar.
+- **Configuración.** `infracture.execution.max-duration` (por defecto `30m`). Las pruebas lo reducen a un segundo para comprobar el final sin esperar 30 minutos.
+
+Cada paso de Docker tiene además su propia espera, independiente del tiempo límite:
+
+| Paso | Espera máxima | Si se agota |
+| --- | --- | --- |
+| Arranque de los nodos (`up --wait`) | 5 minutos | `FAILURE` y limpieza. |
+| Arranque de k6 | 5 minutos | `FAILURE` y limpieza. |
+| Parada de k6, `ps`, `logs` y `down -v` | 2 minutos cada uno | En la limpieza, fallo de limpieza que se reintenta. |
+| Comprobación de salud del HTTP Service | 2 s por intento, cada 2 s; 15 fallos seguidos tras 60 s de arranque | Docker marca el nodo `UNHEALTHY` y la ejecución falla. |
+| Petición de evidencia `GET /` | 2 s para conectar y 5 s en total | La respuesta queda vacía; la ejecución sigue. |
+
 ### 10.3 Cómo se comprobó el diseño con TLA+
 
 **Qué es TLA+.** Es un lenguaje para describir y comprobar diseños, no para programar. Lo creó Leslie Lamport y se usa en la industria, por ejemplo en Amazon Web Services, para revisar sistemas concurrentes antes de escribir el código. Se escribe un modelo pequeño (variables, acciones posibles y reglas que deben cumplirse siempre) y el verificador **TLC** recorre todos los estados alcanzables, en cualquier orden. Si una regla se rompe, devuelve el camino más corto hasta ese estado.
@@ -549,16 +575,16 @@ No se guarda en qué paso iba la limpieza: cada intento repite `down -v` y la b�
 | Parte | Contenido |
 | --- | --- |
 | Variables | Fase, fase deseada, causa, recursos en Docker, reserva liberada, revisión del escenario y del snapshot, si hubo problema, backend encendido. |
-| Acciones | Pulsar Run, guardar el grafo, compilar el plan, `up --wait` bien o mal, pulsar Stop, empezar y terminar la limpieza, caída y reinicio del backend. |
+| Acciones | Pulsar Run, guardar el grafo, compilar el plan, `up --wait` bien o mal, pulsar Stop, agotar el tiempo, empezar y terminar la limpieza, caída y reinicio del backend. |
 | Reglas (invariantes) | `OneActiveExecution`: como mucho una ejecución sin liberar. `ReleasedLeavesNothing`: liberada implica cero recursos con la etiqueta. `RunsTheSavedRevision`: mientras hay ejecución, el escenario no cambia de revisión. `TroubleIsNeverSuccess`: una ejecución con fallo o caída nunca acaba con éxito. |
 
 **El resultado.** La constante `FirstCauseWins` permite comparar las dos reglas posibles para la causa:
 
 | Configuración | Escenarios | Regla de la causa | Estados distintos | Resultado |
 | --- | --- | --- | --- | --- |
-| [`first-cause.cfg`](models/execution-lifecycle/first-cause.cfg) | 2 | Manda la primera | 2.232 | Se rompe `TroubleIsNeverSuccess` |
-| [`worst-cause.cfg`](models/execution-lifecycle/worst-cause.cfg) | 2 | Manda la peor | 1.400 | Se cumplen las cuatro reglas y no hay bloqueos |
-| [`worst-cause-one.cfg`](models/execution-lifecycle/worst-cause-one.cfg) | 1 | Manda la peor | 64 | Se cumplen; genera el diagrama de la sección 10.1 |
+| [`first-cause.cfg`](models/execution-lifecycle/first-cause.cfg) | 2 | Manda la primera | 4.160 | Se rompe `TroubleIsNeverSuccess` |
+| [`worst-cause.cfg`](models/execution-lifecycle/worst-cause.cfg) | 2 | Manda la peor | 2.160 | Se cumplen las cuatro reglas y no hay bloqueos |
+| [`worst-cause-one.cfg`](models/execution-lifecycle/worst-cause-one.cfg) | 1 | Manda la peor | 78 | Se cumplen; genera el diagrama de la sección 10.1 |
 
 Con la regla más natural, "manda la primera causa", TLC encontró este camino de cinco pasos:
 
@@ -574,7 +600,7 @@ Hay un segundo camino al mismo error: pulsas Stop, el backend se cae durante la 
 
 **Límites.**
 
-- El modelo no incluye el tiempo máximo de 30 minutos (#89) ni el borrado del escenario. Sí incluye la cancelación del arranque (#88), con la acción `StartCancelled`. Los reintentos de una limpieza fallida no se modelan, porque no cambian ni la fase ni la causa.
+- El modelo no incluye el borrado del escenario. Sí incluye la cancelación del arranque (#88), con la acción `StartCancelled`, y el tiempo límite (#89), con la acción `TimeLimitReached`, que pide la limpieza con una causa tan grave como Stop. Los reintentos de una limpieza fallida no se modelan, porque no cambian ni la fase ni la causa.
 - Dos reglas se cumplen porque el modelo copia las guardas del diseño (solo se libera tras limpiar y el guardado se rechaza con la reserva tomada). Lo que demuestra es que ninguna combinación de Stop, fallo y caída las salta.
 - El modelo agrupa fallo y caída en "terminada con fallo"; el código los distingue con `FAILED` e `INTERRUPTED`.
 
@@ -603,7 +629,7 @@ Así lo hace hoy el motor (#86):
 - **Estado de cada nodo.** Mientras la ejecución está en `RUNNING`, cada vuelta del `ExecutionReconciler` lee `docker compose ps` y guarda para cada nodo `STARTING`, `HEALTHY`, `UNHEALTHY` o `EXITED`. La API lo devuelve en `components[]`.
 - **Arrancar no es funcionar.** Si un nodo pasa a `UNHEALTHY` o desaparece estando en marcha, se registra `FAILURE` con su nombre (`orders-api is unhealthy`) y se limpia como cualquier otro fallo.
 - **Respuesta real.** Al llegar a `RUNNING`, el backend se une a la red `exec` y pide `GET /` a cada HTTP Service. Guarda la respuesta como evidencia. Solo funciona con el backend en contenedor; arrancado desde la máquina, la respuesta queda vacía.
-- **Tiempo límite.** A los 30 minutos (`infracture.execution.max-duration`), la ejecución se detiene como si se pulsara Stop.
+- **Tiempo límite.** A los 30 minutos desde `RUNNING`, la ejecución termina con la causa `TIME_LIMIT` ([sección 10.4](#104-tiempo-límite-y-esperas)).
 - **En memoria.** Estado y respuesta solo importan mientras el experimento corre, y un reinicio del backend lo termina. Se guardarán como eventos y muestras en P08.
 
 ### 11.2 Qué mide cada tipo
