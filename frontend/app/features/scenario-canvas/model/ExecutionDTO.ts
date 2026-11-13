@@ -8,7 +8,8 @@ export interface ExecutionDTO {
   scenarioId: number;
   scenarioRevision: number;
   phase: "RESERVED" | "STARTING" | "RUNNING" | "STOPPING" | "RELEASED";
-  stopCause: "STOP_REQUESTED" | "FAILURE" | "INTERRUPTION" | null;
+  stopCause:
+    "STOP_REQUESTED" | "TIME_LIMIT" | "FAILURE" | "INTERRUPTION" | null;
   outcome: "COMPLETED" | "FAILED" | "INTERRUPTED" | null;
   failureReason: string | null;
   // Failed cleanups in a row since the last Stop and the last error. They never change the outcome.
@@ -17,6 +18,10 @@ export interface ExecutionDTO {
   // The automatic attempts are spent: the cleanup waits until the owner presses Stop again.
   cleanupRetryNeeded: boolean;
   createdAt: string;
+  // Fixed when every node is healthy; the server ends the experiment at this time.
+  deadlineAt: string | null;
+  // Whole seconds until the deadline by the server's clock, or null when no countdown applies.
+  secondsLeft: number | null;
   releasedAt: string | null;
   components: ExecutedComponentDTO[];
   // null when the scenario had no load.

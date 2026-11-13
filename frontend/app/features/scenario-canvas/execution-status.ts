@@ -19,6 +19,9 @@ export function executionView(execution: ExecutionDTO): StatusView {
     if (execution.outcome === "INTERRUPTED") {
       return { label: "Interrupted", tone: "degraded" };
     }
+    if (execution.stopCause === "TIME_LIMIT") {
+      return { label: "Time limit reached", tone: "paused" };
+    }
     return { label: "Completed", tone: "paused" };
   }
   // A failed cleanup keeps the experiment, so it shows before the cause.
@@ -38,12 +41,22 @@ export function executionView(execution: ExecutionDTO): StatusView {
   if (execution.stopCause === "STOP_REQUESTED") {
     return { label: "Stopping", tone: "paused" };
   }
+  if (execution.stopCause === "TIME_LIMIT") {
+    return { label: "Time limit reached, stopping", tone: "paused" };
+  }
   if (execution.phase === "RUNNING")
     return { label: "Running", tone: "healthy" };
   return {
     label: execution.phase === "RESERVED" ? "Reserved" : "Starting",
     tone: "recovering",
   };
+}
+
+// The countdown to the time limit, as minutes and seconds.
+export function timeLeftLabel(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const rest = String(seconds % 60).padStart(2, "0");
+  return `${minutes}:${rest} left`;
 }
 
 // What Docker says about one node.

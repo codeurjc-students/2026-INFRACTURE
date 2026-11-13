@@ -25,6 +25,8 @@ export INFRACTURE_ADMIN_USERNAME="e2e_admin"
 export INFRACTURE_ADMIN_EMAIL="e2e.admin@example.test"
 export INFRACTURE_ADMIN_DISPLAY_NAME="Test admin"
 export INFRACTURE_ADMIN_PASSWORD="A disposable e2e admin password 2026!"
+# Long enough for every other test to Stop first, short enough to reach the limit in the browser test.
+export INFRACTURE_EXECUTION_MAX_DURATION="60s"
 
 COMPOSE=(docker compose -p "${PROJECT}" --project-directory "${REPOSITORY_ROOT}"
   -f "${REPOSITORY_ROOT}/compose.yaml" --profile app)
