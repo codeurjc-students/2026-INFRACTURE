@@ -564,6 +564,17 @@ Cada paso de Docker tiene además su propia espera, independiente del tiempo lí
 | Comprobación de salud del HTTP Service | 2 s por intento, cada 2 s; 15 fallos seguidos tras 60 s de arranque | Docker marca el nodo `UNHEALTHY` y la ejecución falla. |
 | Petición de evidencia `GET /` | 2 s para conectar y 5 s en total | La respuesta queda vacía; la ejecución sigue. |
 
+### 10.5 Reinicio del backend
+
+Si el backend se cae con un experimento abierto, al volver lo cierra como interrumpido y nunca lo reanuda (#90, [ADR 0005](adr/0005-recuperacion-sin-reanudacion-automatica.md)).
+
+- **Cómo sabe que es de antes.** Al arrancar, el `ExecutionReconciler` guarda su instante de inicio con su `Clock`. Solo hay un backend, así que una ejecución abierta creada antes de ese instante la dejó un proceso anterior. Lo comprueba en cada vuelta, dentro de la transacción que bloquea la fila. Así una reserva antigua nunca arranca, aunque la primera vuelta llegue antes de que la aplicación termine de arrancar.
+- **Qué guarda.** La causa `INTERRUPTION`, la más grave, y en `interrupted_at` e `interrupted_phase` cuándo la encontró y en qué fase estaba. La API los devuelve como `interruptedAt` e `interruptedPhase`.
+- **Qué hace después.** Lo mismo que Stop: para k6 si sigue vivo y guarda su resumen, ejecuta `down -v` por las etiquetas de instancia y ejecución, y libera la reserva. Los recursos con otra etiqueta de instancia no se tocan.
+- **Si Docker no responde.** La limpieza falla como en [#88](#102-fase-causa-y-resultado): el error queda visible, `Run` sigue bloqueado y el motor lo reintenta tres veces. Cada reinicio da una ronda nueva de reintentos.
+- **Un segundo reinicio no duplica nada.** Se conserva el primer instante y la primera fase, y lo que ya se hizo (el resumen de k6) no se repite.
+- **Límite conocido en Docker Desktop.** Si el contenedor del backend arranca todavía unido a la red del experimento, al salir de ella durante la limpieza Docker Desktop deja de reenviar su puerto publicado (8080), aunque el backend sigue sano por dentro. La recuperación termina igual; basta con reiniciar el contenedor otra vez con `docker restart infracture-backend`. Se acepta por sencillez: el backend sigue uniéndose a la red del experimento porque los fallos controlados de la [sección 15](#15-evolución-fuera-de-la-fase-3) la necesitarán.
+
 ### 10.3 Cómo se comprobó el diseño con TLA+
 
 **Qué es TLA+.** Es un lenguaje para describir y comprobar diseños, no para programar. Lo creó Leslie Lamport y se usa en la industria, por ejemplo en Amazon Web Services, para revisar sistemas concurrentes antes de escribir el código. Se escribe un modelo pequeño (variables, acciones posibles y reglas que deben cumplirse siempre) y el verificador **TLC** recorre todos los estados alcanzables, en cualquier orden. Si una regla se rompe, devuelve el camino más corto hasta ese estado.
