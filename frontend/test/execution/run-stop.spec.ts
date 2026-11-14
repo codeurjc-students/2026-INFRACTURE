@@ -406,3 +406,108 @@ test("ends the experiment at its time limit with the tab closed and shows why on
     await shot(reopened, "2-reopened");
   });
 });
+
+// The backend container is killed mid-run and started again, the way a crash and a restart look.
+// Its JWT key is new after the restart, so the owner signs in again.
+test("interrupts the experiment after a backend restart, removes only its containers and unlocks Run", async ({
+  page,
+}, testInfo) => {
+  const shot = (name: string) =>
+    page.screenshot({
+      path: testInfo.outputPath(`restart-${name}.png`),
+      fullPage: true,
+    });
+  const foreigner = `infracture-other-instance-${suffix}`;
+
+  try {
+    const scenario = await savedStatelessScenario(page, "restarter");
+    const canvas = page.url();
+
+    await test.step("Run it and add a container of another installation with the same execution id", async () => {
+      await page.getByRole("button", { name: "Run" }).click();
+      await expect(status(page)).toHaveText("Running", { timeout: 180_000 });
+      const { id } = await (
+        await page.request.get(`${scenario}/executions/current`)
+      ).json();
+      docker(
+        "container",
+        "run",
+        "-d",
+        "--name",
+        foreigner,
+        "--label",
+        "io.infracture.instance=other",
+        "--label",
+        `io.infracture.execution=${id}`,
+        "busybox:1.37",
+        "sleep",
+        "600",
+      );
+    });
+
+    await test.step("Kill the backend and start it again: it removes the experiment on its own", async () => {
+      docker("kill", "infracture-backend");
+      docker("start", "infracture-backend");
+      await expect
+        .poll(() => experimentResources(), {
+          timeout: 180_000,
+          intervals: [2_000],
+        })
+        .toEqual([]);
+    });
+
+    // Docker Desktop stops forwarding the published port once the restarted backend leaves the
+    // experiment network, so the test restarts it once more, as the documentation tells users.
+    await test.step("Restart the backend once more and wait until it answers", async () => {
+      docker("restart", "infracture-backend");
+      await expect
+        .poll(
+          () =>
+            page.request
+              .get("http://127.0.0.1:8080/actuator/health", { timeout: 5_000 })
+              .then((response) => response.status())
+              .catch(() => 0),
+          { timeout: 180_000, intervals: [2_000] },
+        )
+        .toBe(200);
+    });
+
+    await test.step("Sign in again: the canvas says the restart interrupted it and Run is back", async () => {
+      await page.goto("/login");
+      await page
+        .getByLabel("Email", { exact: true })
+        .fill(`restarter.${suffix}@example.test`);
+      await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await expect(page).toHaveURL("/");
+      await page.goto(canvas);
+      await expect(
+        page.getByText(
+          "The backend restarted while this experiment was running",
+        ),
+      ).toBeVisible({ timeout: 60_000 });
+      await expect(status(page)).toHaveText("Interrupted", { timeout: 60_000 });
+      await expect(
+        page.getByText("It was not resumed. Run starts a new experiment."),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: "Run" })).toBeEnabled();
+      const current = await page.request.get(`${scenario}/executions/current`);
+      expect(await current.json()).toMatchObject({
+        phase: "RELEASED",
+        stopCause: "INTERRUPTION",
+        outcome: "INTERRUPTED",
+        interruptedPhase: "RUNNING",
+      });
+      await shot("1-interrupted");
+    });
+
+    await test.step("Only this installation's containers are gone", async () => {
+      expect(experimentResources()).toEqual([]);
+      expect(
+        docker("container", "inspect", "-f", "{{.State.Running}}", foreigner),
+      ).toBe("true");
+    });
+  } finally {
+    removeQuietly("container", foreigner);
+  }
+});

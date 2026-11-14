@@ -12,6 +12,9 @@ export interface ExecutionDTO {
     "STOP_REQUESTED" | "TIME_LIMIT" | "FAILURE" | "INTERRUPTION" | null;
   outcome: "COMPLETED" | "FAILED" | "INTERRUPTED" | null;
   failureReason: string | null;
+  // When a backend restart found the execution open, and what it was doing; null when none did.
+  interruptedAt: string | null;
+  interruptedPhase: "RESERVED" | "STARTING" | "RUNNING" | "STOPPING" | null;
   // Failed cleanups in a row since the last Stop and the last error. They never change the outcome.
   cleanupFailures: number;
   cleanupError: string | null;
