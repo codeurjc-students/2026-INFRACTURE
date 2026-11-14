@@ -92,6 +92,17 @@ const isMac =
   /Mac|iPhone|iPad/.test(navigator.platform);
 // Shown when an error does not come from the backend (for example, no network).
 const GENERIC_ERROR = "Something went wrong. Try again in a moment.";
+
+// What the engine was doing when a backend restart found the experiment open.
+const interruptedDoing: Record<
+  NonNullable<ExecutionDTO["interruptedPhase"]>,
+  string
+> = {
+  RESERVED: "about to start",
+  STARTING: "starting",
+  RUNNING: "running",
+  STOPPING: "stopping",
+};
 // Tells React Flow to draw nodes of type "component" with ComponentNode.
 // Defined outside the component so React Flow does not get a new object on every render.
 const nodeTypes = { component: ComponentNode };
@@ -497,6 +508,16 @@ function Editor({
   const failure =
     experiment.execution?.stopCause === "FAILURE" &&
     experiment.execution.id !== dismissedFailure
+      ? experiment.execution
+      : null;
+
+  // A backend restart ended the experiment (#90). Shown while its containers go, then until dismissed.
+  const [dismissedInterruption, setDismissedInterruption] = useState<
+    number | null
+  >(null);
+  const interrupted =
+    experiment.execution?.interruptedPhase &&
+    experiment.execution.id !== dismissedInterruption
       ? experiment.execution
       : null;
 
@@ -1038,6 +1059,40 @@ function Editor({
                       Dismiss
                     </Button>
                   </span>
+                </AlertDescription>
+              </Alert>
+            )}
+            {interrupted?.interruptedPhase && (
+              <Alert role="status" className="bg-card shadow-lg">
+                <CircleAlertIcon />
+                <AlertTitle>
+                  The backend restarted while this experiment was{" "}
+                  {interruptedDoing[interrupted.interruptedPhase]}
+                </AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  {experiment.active ? (
+                    <span>
+                      Its containers are being removed. Run unlocks when that
+                      ends.
+                    </span>
+                  ) : (
+                    <>
+                      <span>
+                        It was not resumed. Run starts a new experiment.
+                      </span>
+                      <span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setDismissedInterruption(interrupted.id)
+                          }
+                        >
+                          Dismiss
+                        </Button>
+                      </span>
+                    </>
+                  )}
                 </AlertDescription>
               </Alert>
             )}

@@ -24,6 +24,7 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - If Docker cannot remove part of an experiment, the canvas shows the error and the scenario stays locked. The backend retries three times, then Retry cleanup tries again; a stopped experiment still ends as completed.
 - While an experiment runs, the canvas shows its state, each node's health and the service's real response, and the scenario is read-only. One experiment runs at a time per installation, and a node that falls over fails it.
 - An experiment ends on its own 30 minutes after its services are healthy, even with the browser closed. The canvas counts down by the server's clock and shows "Time limit reached"; `INFRACTURE_EXECUTION_MAX_DURATION` changes the limit.
+- If the backend restarts during an experiment, it ends it as interrupted instead of resuming it, stops the load and removes its containers. The canvas says so and Run unlocks; on Docker Desktop, run `docker restart infracture-backend` once more if it stops answering.
 - Light or dark theme following the system preference.
 - REST API under `/api/v1` for all of the above. Requests that change data must send the `X-XSRF-TOKEN` header, obtained with `GET /api/v1/auth/csrf`, and errors arrive as `application/problem+json`. The OpenAPI contract and the Postman collection are in [`docs/api`](docs/api).
 - A single administrator created on first start. Before starting, copy `.env.example` to `.env` in the repository root and fill it in, or define the `INFRACTURE_ADMIN_*` variables.

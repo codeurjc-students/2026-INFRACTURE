@@ -93,6 +93,14 @@ public class Execution {
     @Column(name = "deadline_at")
     private Instant deadlineAt;
 
+    // Set by the first backend restart that found the execution open (#90); later restarts keep it.
+    @Column(name = "interrupted_at")
+    private Instant interruptedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "interrupted_phase")
+    private Phase interruptedPhase;
+
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> plan;
 
@@ -192,8 +200,20 @@ public class Execution {
         recordCause(StopCause.TIME_LIMIT);
     }
 
-    public void interrupt() {
+    // A backend restart found the execution open. The first restart is kept: when, and what the engine
+    // was doing. Each restart gives a failed cleanup a new round of automatic attempts.
+    public void interrupt(Instant now) {
+        if (!isActive()) {
+            return;
+        }
+        if (interruptedAt == null) {
+            interruptedAt = now;
+            interruptedPhase = phase;
+        }
         recordCause(StopCause.INTERRUPTION);
+        if (phase == Phase.STOPPING) {
+            cleanupFailures = 0;
+        }
     }
 
     public void beginStopping() {
@@ -317,5 +337,13 @@ public class Execution {
 
     public Instant getDeadlineAt() {
         return deadlineAt;
+    }
+
+    public Instant getInterruptedAt() {
+        return interruptedAt;
+    }
+
+    public Phase getInterruptedPhase() {
+        return interruptedPhase;
     }
 }

@@ -207,6 +207,34 @@ class ExecutionPersistenceIntegrationTests {
     }
 
     @Test
+    void keepsTheInterruptionAndTheReservationUntilTheCleanupEnds() {
+        Execution interrupted = new Execution(cache, CONTRACTS);
+        interrupted.startStarting();
+        interrupted.interrupt(Instant.parse("2026-11-13T10:05:00Z"));
+        interrupted.beginStopping();
+        repository.saveAndFlush(interrupted);
+        entityManager.clear();
+
+        Execution reopened = repository.findById(interrupted.getId()).orElseThrow();
+        assertThat(reopened.getStopCause()).isEqualTo(StopCause.INTERRUPTION);
+        assertThat(reopened.getInterruptedAt()).isEqualTo(Instant.parse("2026-11-13T10:05:00Z"));
+        assertThat(reopened.getInterruptedPhase()).isEqualTo(Phase.STARTING);
+        assertThat(repository.findByReleasedAtIsNull()).map(Execution::getId).contains(interrupted.getId());
+    }
+
+    @Test
+    void rejectsAnInterruptionWithAnotherCause() {
+        Execution execution = new Execution(cache, CONTRACTS);
+        execution.requestStop();
+        repository.saveAndFlush(execution);
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery(
+                "UPDATE executions SET interrupted_at = now(), interrupted_phase = 'RESERVED' WHERE id = :id")
+                .setParameter("id", execution.getId()).executeUpdate())
+                .hasMessageContaining("ck_executions_interruption");
+    }
+
+    @Test
     void rejectsARunningRowWithoutDeadline() {
         Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
 

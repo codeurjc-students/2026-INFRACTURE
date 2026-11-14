@@ -15,6 +15,9 @@ public record ExecutionDTO(
         StopCause stopCause,
         Outcome outcome,
         String failureReason,
+        // When a backend restart found the execution open, and in which phase; null when none did.
+        Instant interruptedAt,
+        Phase interruptedPhase,
         // Failed cleanups in a row since the last Stop, and the last error. They never change the outcome.
         int cleanupFailures,
         String cleanupError,

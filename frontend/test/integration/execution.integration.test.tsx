@@ -154,6 +154,8 @@ describe("execution client against the real API", () => {
       // The deadline is set only once every node is healthy.
       deadlineAt: null,
       secondsLeft: null,
+      interruptedAt: null,
+      interruptedPhase: null,
       components: [{ name: "orders-api", type: "HTTP_SERVICE" }],
     });
     const again = await runScenario(projectId, scenarioId, saved.revision);

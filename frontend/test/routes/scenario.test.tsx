@@ -160,6 +160,8 @@ function execution(overrides: Partial<ExecutionDTO> = {}): ExecutionDTO {
     stopCause: null,
     outcome: null,
     failureReason: null,
+    interruptedAt: null,
+    interruptedPhase: null,
     cleanupFailures: 0,
     cleanupError: null,
     cleanupRetryNeeded: false,
@@ -1130,6 +1132,64 @@ describe("running the scenario", () => {
     expect(stopExecution).toHaveBeenCalledExactlyOnceWith("7", "3", 12);
     expect(
       screen.queryByText("The cleanup could not finish"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("says the backend restarted while the experiment ran and keeps Run blocked until its containers are gone", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({
+        phase: "STOPPING",
+        stopCause: "INTERRUPTION",
+        interruptedAt: "2026-11-07T10:05:00Z",
+        interruptedPhase: "RUNNING",
+      }),
+    );
+    renderScenario();
+
+    const title = await screen.findByText(
+      "The backend restarted while this experiment was running",
+    );
+    expect(title.closest('[role="status"]')).toHaveTextContent(
+      "Its containers are being removed. Run unlocks when that ends.",
+    );
+    expect(screen.getByText("Interrupted, cleaning up")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Run" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("explains an experiment interrupted while starting was not resumed, until dismissed", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({
+        phase: "RELEASED",
+        stopCause: "INTERRUPTION",
+        outcome: "INTERRUPTED",
+        interruptedAt: "2026-11-07T10:05:00Z",
+        interruptedPhase: "STARTING",
+        releasedAt: "2026-11-07T10:05:04Z",
+      }),
+    );
+    renderScenario();
+
+    const title = await screen.findByText(
+      "The backend restarted while this experiment was starting",
+    );
+    const notice = title.closest('[role="status"]')!;
+    expect(notice).toHaveTextContent(
+      "It was not resumed. Run starts a new experiment.",
+    );
+    expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
+
+    fireEvent.click(
+      within(notice as HTMLElement).getByRole("button", { name: "Dismiss" }),
+    );
+
+    expect(
+      screen.queryByText(
+        "The backend restarted while this experiment was starting",
+      ),
     ).not.toBeInTheDocument();
   });
 

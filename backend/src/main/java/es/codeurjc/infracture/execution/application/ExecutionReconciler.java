@@ -9,8 +9,10 @@ import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -36,6 +38,10 @@ public class ExecutionReconciler {
     private final Duration cleanupPause;
     private final Clock clock;
     private final TransactionTemplate transactions;
+    // Only one backend runs, so an open execution created before this process started was left by an
+    // earlier one (#90). Each one is interrupted once per process; the set only holds those leftovers.
+    private final Instant processStartedAt;
+    private final Set<Long> recovered = new HashSet<>();
 
     public ExecutionReconciler(ExecutionRepository repository, RuntimeEngine engine, PlanCompiler planCompiler,
             ExecutionObservations observations, ServiceProbe probe,
@@ -51,6 +57,7 @@ public class ExecutionReconciler {
         this.cleanupPause = cleanupPause;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactionManager);
+        this.processStartedAt = clock.instant();
     }
 
     // Spring runs scheduled methods on a single thread, so two ticks never overlap.
@@ -59,6 +66,10 @@ public class ExecutionReconciler {
         Execution execution = transactions.execute(status -> nextStep());
         if (execution == null) {
             return;
+        }
+        // Marked once the interruption is committed, so a failed transaction finds the leftover again.
+        if (isLeftover(execution)) {
+            recovered.add(execution.getId());
         }
         switch (execution.getPhase()) {
             case STARTING -> start(execution);
@@ -75,6 +86,10 @@ public class ExecutionReconciler {
         }
         Execution execution = active.get();
         Instant now = clock.instant();
+        // Checked here, on the locked row, so a leftover reservation never starts and no request races it.
+        if (isLeftover(execution)) {
+            execution.interrupt(now);
+        }
         // Checked before any Docker call, so the limit holds even when Docker cannot answer.
         if (execution.isPastDeadline(now)) {
             execution.reachTimeLimit();
@@ -84,8 +99,8 @@ public class ExecutionReconciler {
         } else if (execution.getPhase() == Phase.RESERVED) {
             execution.startStarting();
         } else if (execution.getPhase() == Phase.STARTING) {
-            // Only a backend restart leaves a start cut short. Stop cleans it up,
-            // and #90 will record the interruption on its own.
+            // A start of this process cut short by a database error waits for Stop. One left by an
+            // earlier process was interrupted above.
             return null;
         } else if (execution.getPhase() == Phase.STOPPING && !execution.isCleanupDue(now, cleanupPause)) {
             // A failed cleanup waits for its pause, or for the owner once the automatic attempts are spent.
@@ -206,6 +221,10 @@ public class ExecutionReconciler {
         } catch (DataAccessException _) {
             return false;
         }
+    }
+
+    private boolean isLeftover(Execution execution) {
+        return execution.getCreatedAt().isBefore(processStartedAt) && !recovered.contains(execution.getId());
     }
 
     private void update(Long id, Consumer<Execution> change) {

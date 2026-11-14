@@ -13,6 +13,8 @@ function running(secondsLeft: number | null): ExecutionDTO {
     stopCause: null,
     outcome: null,
     failureReason: null,
+    interruptedAt: null,
+    interruptedPhase: null,
     cleanupFailures: 0,
     cleanupError: null,
     cleanupRetryNeeded: false,
