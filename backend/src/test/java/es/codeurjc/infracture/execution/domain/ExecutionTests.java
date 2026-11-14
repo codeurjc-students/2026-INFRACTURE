@@ -25,6 +25,7 @@ class ExecutionTests {
     private static final Map<ComponentType, Integer> CONTRACTS = Map.of(ComponentType.HTTP_SERVICE, 1);
     private static final Instant STARTED = Instant.parse("2026-11-13T10:00:00Z");
     private static final Duration LIMIT = Duration.ofMinutes(30);
+    private static final Instant RESTARTED = Instant.parse("2026-11-13T10:05:00Z");
 
     private final Scenario scenario = statelessScenario();
     private final Execution execution = new Execution(scenario, CONTRACTS);
@@ -124,11 +125,44 @@ class ExecutionTests {
         execution.markRunning(STARTED, LIMIT);
         execution.requestStop();
         execution.beginStopping();
-        execution.interrupt();
+        execution.interrupt(RESTARTED);
         execution.requestStop();
         execution.release();
 
         assertThat(execution.getOutcome()).isEqualTo(Outcome.INTERRUPTED);
+    }
+
+    @Test
+    void recordsWhenAndInWhichPhaseTheFirstRestartFoundItAndKeepsThatOnLaterOnes() {
+        execution.startStarting();
+        execution.markRunning(STARTED, LIMIT);
+
+        execution.interrupt(RESTARTED);
+        execution.beginStopping();
+        execution.interrupt(RESTARTED.plusSeconds(60));
+
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.INTERRUPTION);
+        assertThat(execution.getInterruptedAt()).isEqualTo(RESTARTED);
+        assertThat(execution.getInterruptedPhase()).isEqualTo(Phase.RUNNING);
+        assertThat(execution.secondsLeft(RESTARTED)).isNull();
+        execution.release();
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.INTERRUPTED);
+    }
+
+    @Test
+    void givesAFailedCleanupNewAutomaticAttemptsAfterEachRestart() {
+        execution.requestStop();
+        execution.beginStopping();
+        for (int attempt = 0; attempt < Execution.AUTOMATIC_CLEANUP_ATTEMPTS; attempt++) {
+            execution.recordCleanupFailure("docker network rm failed", RESTARTED);
+        }
+
+        execution.interrupt(RESTARTED);
+
+        assertThat(execution.isCleanupRetryNeeded()).isFalse();
+        assertThat(execution.isCleanupDue(RESTARTED, Duration.ofSeconds(10))).isTrue();
+        assertThat(execution.getCleanupError()).isEqualTo("docker network rm failed");
+        assertThat(execution.getInterruptedPhase()).isEqualTo(Phase.STOPPING);
     }
 
     @Test
@@ -190,11 +224,12 @@ class ExecutionTests {
         execution.release();
 
         execution.fail("late");
-        execution.interrupt();
+        execution.interrupt(RESTARTED);
 
         assertThat(execution.getOutcome()).isEqualTo(Outcome.COMPLETED);
         assertThat(execution.getStopCause()).isEqualTo(StopCause.STOP_REQUESTED);
         assertThat(execution.getFailureReason()).isNull();
+        assertThat(execution.getInterruptedAt()).isNull();
     }
 
     @Test

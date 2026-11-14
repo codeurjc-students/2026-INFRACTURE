@@ -1738,6 +1738,17 @@ components:
           - INTERRUPTED
         failureReason:
           type: string
+        interruptedAt:
+          type: string
+          format: date-time
+        interruptedPhase:
+          type: string
+          enum:
+          - RESERVED
+          - STARTING
+          - RUNNING
+          - STOPPING
+          - RELEASED
         cleanupFailures:
           type: integer
           format: int32

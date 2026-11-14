@@ -850,6 +850,7 @@ font-style: italic;
     <pre class="example"><code>{
   "phase" : "RESERVED",
   "cleanupRetryNeeded" : true,
+  "interruptedPhase" : "RESERVED",
   "releasedAt" : "2000-01-23T04:56:07.000+00:00",
   "components" : [ {
     "response" : "response",
@@ -864,6 +865,7 @@ font-style: italic;
     "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
     "status" : "STARTING"
   } ],
+  "interruptedAt" : "2000-01-23T04:56:07.000+00:00",
   "scenarioRevision" : 1,
   "workload" : {
     "summary" : {
@@ -999,6 +1001,7 @@ font-style: italic;
     <pre class="example"><code>{
   "phase" : "RESERVED",
   "cleanupRetryNeeded" : true,
+  "interruptedPhase" : "RESERVED",
   "releasedAt" : "2000-01-23T04:56:07.000+00:00",
   "components" : [ {
     "response" : "response",
@@ -1013,6 +1016,7 @@ font-style: italic;
     "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
     "status" : "STARTING"
   } ],
+  "interruptedAt" : "2000-01-23T04:56:07.000+00:00",
   "scenarioRevision" : 1,
   "workload" : {
     "summary" : {
@@ -1138,6 +1142,7 @@ font-style: italic;
     <pre class="example"><code>{
   "phase" : "RESERVED",
   "cleanupRetryNeeded" : true,
+  "interruptedPhase" : "RESERVED",
   "releasedAt" : "2000-01-23T04:56:07.000+00:00",
   "components" : [ {
     "response" : "response",
@@ -1152,6 +1157,7 @@ font-style: italic;
     "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91",
     "status" : "STARTING"
   } ],
+  "interruptedAt" : "2000-01-23T04:56:07.000+00:00",
   "scenarioRevision" : 1,
   "workload" : {
     "summary" : {
@@ -2835,6 +2841,10 @@ font-style: italic;
         <div class="param-enum-header">Enum:</div>
         <div class="param-enum">COMPLETED</div><div class="param-enum">FAILED</div><div class="param-enum">INTERRUPTED</div>
 <div class="param">failureReason (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">interruptedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+<div class="param">interruptedPhase (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+        <div class="param-enum-header">Enum:</div>
+        <div class="param-enum">RESERVED</div><div class="param-enum">STARTING</div><div class="param-enum">RUNNING</div><div class="param-enum">STOPPING</div><div class="param-enum">RELEASED</div>
 <div class="param">cleanupFailures (optional)</div><div class="param-desc"><span class="param-type"><a href="#integer">Integer</a></span>  format: int32</div>
 <div class="param">cleanupError (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">cleanupRetryNeeded (optional)</div><div class="param-desc"><span class="param-type"><a href="#boolean">Boolean</a></span>  </div>

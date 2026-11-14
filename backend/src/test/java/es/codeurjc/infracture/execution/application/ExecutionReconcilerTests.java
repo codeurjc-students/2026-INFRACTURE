@@ -20,11 +20,11 @@ import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.domain.Workload;
+import es.codeurjc.infracture.security.MutableClock;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +57,10 @@ class ExecutionReconcilerTests {
     private final ServiceProbe probe = mock(ServiceProbe.class);
     private static final Instant STARTED = Instant.parse("2026-11-13T10:00:00Z");
     private static final Instant DEADLINE = Instant.parse("2026-11-13T10:30:00Z");
-    private final ExecutionReconciler reconciler = reconciler(Duration.ZERO, Clock.systemUTC());
+    private static final Instant RESTARTED = Instant.parse("2026-11-13T10:05:00Z");
+    // One reconciler is one backend process; a restart builds a new one later on the same clock.
+    private final MutableClock clock = new MutableClock(STARTED);
+    private final ExecutionReconciler reconciler = reconciler(Duration.ZERO, clock);
     private Execution execution;
 
     @BeforeEach
@@ -68,6 +71,8 @@ class ExecutionReconcilerTests {
     private void reserve(Workload load) {
         execution = new Execution(statelessScenario(load), Map.of(ComponentType.HTTP_SERVICE, 1));
         ReflectionTestUtils.setField(execution, "id", 12L);
+        // Created by the process under test unless a test restarts the backend.
+        ReflectionTestUtils.setField(execution, "createdAt", STARTED);
         execution.attachPlan(planCompiler.compile(execution));
         when(repository.findForUpdateByReleasedAtIsNull())
                 .thenAnswer(invocation -> execution.isActive() ? Optional.of(execution) : Optional.empty());
@@ -146,7 +151,7 @@ class ExecutionReconcilerTests {
 
     @Test
     void waitsBeforeRetryingAFailedCleanup() {
-        ExecutionReconciler patient = reconciler(Duration.ofHours(1), Clock.systemUTC());
+        ExecutionReconciler patient = reconciler(Duration.ofHours(1), clock);
         patient.reconcile();
         execution.requestStop();
         engine.downFailure = new RuntimeEngineException("docker network rm failed: network has active endpoints");
@@ -217,8 +222,9 @@ class ExecutionReconcilerTests {
         assertThat(execution.getFailureReason()).isEqualTo("docker compose up failed: pull access denied");
     }
 
+    // Only a database error after the start leaves this process's own execution in STARTING.
     @Test
-    void leavesAStartCutShortByARestartUntilStop() {
+    void leavesAStartThisProcessCutShortUntilStop() {
         execution.startStarting();
 
         reconciler.reconcile();
@@ -228,6 +234,66 @@ class ExecutionReconcilerTests {
         reconciler.reconcile();
         assertThat(execution.getPhase()).isEqualTo(Phase.RELEASED);
         assertThat(engine.calls).containsExactly(DOWN);
+    }
+
+    @Test
+    void neverStartsAReservationLeftByAnEarlierProcess() {
+        ExecutionReconciler restarted = restartAt(RESTARTED);
+
+        restarted.reconcile();
+
+        assertThat(engine.calls).containsExactly(DOWN);
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.INTERRUPTED);
+        assertThat(execution.getInterruptedAt()).isEqualTo(RESTARTED);
+        assertThat(execution.getInterruptedPhase()).isEqualTo(Phase.RESERVED);
+    }
+
+    @Test
+    void interruptsAStartCutShortByARestartAndCleansItUp() {
+        execution.startStarting();
+
+        restartAt(RESTARTED).reconcile();
+
+        assertThat(engine.calls).containsExactly(DOWN);
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.INTERRUPTED);
+        assertThat(execution.getInterruptedPhase()).isEqualTo(Phase.STARTING);
+    }
+
+    @Test
+    void stopsTheLoadAndKeepsItsSummaryWhenARestartFindsTheExperimentRunning() {
+        reserve(LOAD);
+        reconciler.reconcile();
+
+        restartAt(RESTARTED).reconcile();
+
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.INTERRUPTED);
+        assertThat(execution.getInterruptedPhase()).isEqualTo(Phase.RUNNING);
+        assertThat(execution.getWorkload().getSummary()).isEqualTo(SUMMARY);
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN);
+    }
+
+    // Each restart gives the cleanup new automatic attempts, but repeats nothing already done.
+    @Test
+    void keepsRunBlockedWhileDockerCannotCleanUpAfterARestartAndDuplicatesNothingOnTheNext() {
+        reserve(LOAD);
+        reconciler.reconcile();
+        engine.downFailure = new RuntimeEngineException("docker compose down failed: Cannot connect");
+
+        ExecutionReconciler first = restartAt(RESTARTED);
+        for (int tick = 0; tick < 5; tick++) {
+            first.reconcile();
+        }
+
+        assertThat(execution.getPhase()).isEqualTo(Phase.STOPPING);
+        assertThat(execution.getStopCause()).isEqualTo(StopCause.INTERRUPTION);
+        assertThat(execution.isCleanupRetryNeeded()).isTrue();
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN, DOWN, DOWN);
+        engine.downFailure = null;
+        restartAt(RESTARTED.plusSeconds(60)).reconcile();
+        assertThat(execution.getOutcome()).isEqualTo(Outcome.INTERRUPTED);
+        assertThat(execution.getInterruptedAt()).isEqualTo(RESTARTED);
+        assertThat(execution.getInterruptedPhase()).isEqualTo(Phase.RUNNING);
+        assertThat(engine.calls).containsExactly(UP, START_LOAD, STOP_LOAD, DOWN, DOWN, DOWN, DOWN);
     }
 
     @Test
@@ -426,7 +492,14 @@ class ExecutionReconcilerTests {
     }
 
     private ExecutionReconciler at(Instant now) {
-        return reconciler(Duration.ZERO, Clock.fixed(now, ZoneOffset.UTC));
+        clock.advance(Duration.between(clock.instant(), now));
+        return reconciler;
+    }
+
+    // A new backend process starts at that instant and finds what the earlier one left.
+    private ExecutionReconciler restartAt(Instant now) {
+        clock.advance(Duration.between(clock.instant(), now));
+        return reconciler(Duration.ZERO, clock);
     }
 
     private ExecutionReconciler reconciler(Duration cleanupPause, Clock clock) {
