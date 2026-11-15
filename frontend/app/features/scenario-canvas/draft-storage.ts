@@ -19,6 +19,17 @@ export interface GraphDraft {
   savedAt: string;
 }
 
+// The editor's graph as a draft. Built only here, so no copy can leave out a part of the graph.
+export function toDraft(state: CanvasState): GraphDraft {
+  return {
+    baseRevision: state.revision,
+    components: toComponents(state.nodes),
+    connections: state.edges.map(toConnection),
+    workload: state.workload,
+    savedAt: new Date().toISOString(),
+  };
+}
+
 // One draft per account and scenario, so another account on the same browser never sees it.
 export function draftKey(userId: number, scenarioId: number) {
   return `infracture:scenario-draft:${userId}:${scenarioId}`;
@@ -63,13 +74,7 @@ export function useGraphDraft(key: string | null, state: CanvasState) {
   useEffect(() => {
     if (!key || pending) return;
     if (state.dirty) {
-      writeDraft(key, {
-        baseRevision: state.revision,
-        components: toComponents(state.nodes),
-        connections: state.edges.map(toConnection),
-        workload: state.workload,
-        savedAt: new Date().toISOString(),
-      });
+      writeDraft(key, toDraft(state));
     } else if (state.status === "idle") {
       // Only once the server confirmed the save: a save in flight can still fail.
       clearDraft(key);

@@ -62,15 +62,18 @@ import {
   connectionId,
   connectionIssue,
   profileOf,
-  toConnection,
 } from "../connections";
-import { draftKey, useGraphDraft, type GraphDraft } from "../draft-storage";
+import {
+  draftKey,
+  toDraft,
+  useGraphDraft,
+  type GraphDraft,
+} from "../draft-storage";
 import {
   BOARD,
   graphReducer,
   MAX_COMPONENTS,
   toCanvasState,
-  toComponents,
   toSaveGraph,
   type CanvasState,
   type ComponentNode as ComponentNodeModel,
@@ -701,12 +704,7 @@ function Editor({
         await save(latest.revision);
       } else {
         // The discarded version stays in the browser and is offered back, so nothing is lost for good.
-        draft.keep({
-          baseRevision: state.revision,
-          components: toComponents(state.nodes),
-          connections: state.edges.map(toConnection),
-          savedAt: new Date().toISOString(),
-        });
+        draft.keep(toDraft(state));
         dispatch({ type: "reloaded", graph: latest });
       }
     } catch (error) {
