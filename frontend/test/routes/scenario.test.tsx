@@ -884,6 +884,36 @@ describe("scenario route", () => {
     expect(readDraft(draftKey(5, 3))?.components[0].templateKey).toBe("redis");
   });
 
+  it("keeps the load in the version discarded after a conflict", async () => {
+    vi.mocked(getProject).mockResolvedValue(project);
+    vi.mocked(getScenario).mockResolvedValue(scenario);
+    vi.mocked(saveGraph).mockRejectedValue(
+      new HttpError(409, "Saved after revision 1."),
+    );
+    renderScenario("3", 5);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Load" }));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    fireEvent.click(
+      within(inspector).getByRole("button", { name: "Add load" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    vi.mocked(getGraph).mockResolvedValueOnce(savedGraph);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Discard mine and reload" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Restore my changes" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(saveGraph).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(saveGraph).mock.calls[1][2].workload).toMatchObject({
+      profile: "CONSTANT_HTTP",
+      parameters: { requestsPerSecond: 5 },
+    });
+  });
+
   it("keeps local changes when the save fails and explains why", async () => {
     vi.mocked(getProject).mockResolvedValue(project);
     vi.mocked(getScenario).mockResolvedValue(scenario);
