@@ -56,6 +56,18 @@ class ComposeRuntimeEngineIntegrationTests {
         assertThat(engine.status(plan("true"))).containsExactly(Map.entry("probe", ComponentStatus.EXITED));
     }
 
+    // Compose would replace ${HOME} with the value from the backend's own environment, and reject "$5".
+    @Test
+    void passesTextWithDollarSignsToTheContainerAsWritten() {
+        Map<String, Object> plan = withEnvironment(Map.of("COMPONENT_NAME", "${HOME} costs $5"));
+
+        engine.up(plan, NEVER);
+
+        assertThat(docker("container", "inspect", "-f", "{{range .Config.Env}}{{println .}}{{end}}",
+                "infracture-" + instance + "-exec-1-probe-1")).contains("COMPONENT_NAME=${HOME} costs $5");
+        assertThat(engine.status(plan)).containsExactly(Map.entry("probe", ComponentStatus.HEALTHY));
+    }
+
     @Test
     void joinsTheBackendToTheNetworkAndLeavesItBeforeCleanup() {
         String backend = "infracture-" + instance + "-backend";
@@ -196,6 +208,15 @@ class ComposeRuntimeEngineIntegrationTests {
                 "name", "infracture-" + instance + "-exec-1",
                 "networks", Map.of(PlanCompiler.NETWORK, Map.of("labels", labels)),
                 "services", Map.of("probe", service));
+    }
+
+    private Map<String, Object> withEnvironment(Map<String, String> environment) {
+        Map<String, Object> plan = new HashMap<>(plan("true"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> probe = new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
+        probe.put("environment", environment);
+        plan.put("services", Map.of("probe", probe));
+        return plan;
     }
 
     // A shell stands in for k6: it prints the summary line when it ends, as the load scripts do.

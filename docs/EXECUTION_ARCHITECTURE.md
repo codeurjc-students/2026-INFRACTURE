@@ -371,6 +371,7 @@ services:
 - **Una imagen para servicio y Worker.** `infracture/demo-app` es un único programa. `APP_ROLE=http|worker` elige el papel y `APP_MODE` el perfil. Hay un solo build y un solo digest por release.
 - **Imágenes fijadas por digest.** Cada imagen se referencia por su digest, y el snapshot lo guarda. Así se sabe exactamente qué se ejecutó.
 - **Secretos fuera del plan guardado.** El plan que se guarda solo contiene referencias. Las contraseñas temporales se generan al aplicarlo y nunca se guardan ni se muestran.
+- **El texto del plan es literal.** Compose sustituye `${NOMBRE}` por variables de entorno de quien lo lanza, y el backend tiene ahí sus contraseñas. El plan incluye texto del usuario, como el nombre de un nodo, así que el motor escribe cada `$` como `$$` al pasarlo a Compose: un nodo llamado `${POSTGRES_PASSWORD}` recibe ese texto, no el valor.
 
 ### 9.4 Arranque ordenado por salud
 
