@@ -154,7 +154,23 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         command.addAll(profiles);
         command.add(verb);
         command.addAll(List.of(flags));
-        return execute("docker compose " + verb, command, jsonMapper.writeValueAsString(plan), timeout, cancelled);
+        return execute("docker compose " + verb, command, jsonMapper.writeValueAsString(literal(plan)), timeout,
+                cancelled);
+    }
+
+    // Compose replaces ${NAME} in every value with the backend's own environment, which holds secrets.
+    // The plan is literal text, part of it typed by the user, so each $ goes as $$: Compose reads one $.
+    private static Object literal(Object value) {
+        return switch (value) {
+            case String text -> text.replace("$", "$$");
+            case Map<?, ?> map -> {
+                Map<Object, Object> copy = new LinkedHashMap<>();
+                map.forEach((key, entry) -> copy.put(key, literal(entry)));
+                yield copy;
+            }
+            case List<?> list -> list.stream().map(ComposeRuntimeEngine::literal).toList();
+            case null, default -> value;
+        };
     }
 
     private void backendNetwork(Map<String, Object> plan, String... action) {
