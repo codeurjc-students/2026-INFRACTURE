@@ -11,6 +11,8 @@ interface RunButtonProps {
   pending: boolean;
   // Why Run cannot start now, or null when it can.
   blockedBy: string | null;
+  // Run saves the changes first.
+  unsaved: boolean;
   onRun: () => void;
   onStop: () => void;
 }
@@ -22,6 +24,7 @@ export function RunButton({
   retryCleanup,
   pending,
   blockedBy,
+  unsaved,
   onRun,
   onStop,
 }: Readonly<RunButtonProps>) {
@@ -73,7 +76,10 @@ export function RunButton({
       variant="outline"
       onClick={onRun}
       disabled={pending || blockedBy !== null}
-      title={blockedBy ?? "Run the saved scenario"}
+      title={
+        blockedBy ??
+        (unsaved ? "Save your changes and run them" : "Run the saved scenario")
+      }
       className="min-w-20 px-3"
     >
       {pending ? (

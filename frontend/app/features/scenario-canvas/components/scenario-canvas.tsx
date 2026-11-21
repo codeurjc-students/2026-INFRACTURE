@@ -643,7 +643,8 @@ function Editor({
     add(template, { x: event.clientX, y: event.clientY });
   }
 
-  // Sends the whole graph with the expected revision. A 409 means another tab saved first.
+  // Sends the whole graph with the expected revision and returns the saved graph, or null when it
+  // was not saved. A 409 means another tab saved first, or that an experiment now holds the scenario.
   async function save(revision = state.revision) {
     dispatch({ type: "saveStarted" });
     try {
@@ -653,23 +654,86 @@ function Editor({
         toSaveGraph(state.nodes, state.edges, revision, state.workload),
       );
       dispatch({ type: "saved", graph: saved });
+      return saved;
     } catch (error) {
       if (error instanceof HttpError && error.status === 409) {
-        dispatch({ type: "conflicted", message: error.message });
+        if (await reservedElsewhere()) {
+          // The effect below keeps the work in the draft and shows what the experiment uses.
+          dispatch({ type: "saveFailed", message: error.message });
+        } else {
+          dispatch({ type: "conflicted", message: error.message });
+        }
       } else if (error instanceof HttpError && error.status === 401) {
         // The session could not be renewed: the draft keeps the work until the user signs in again.
         dispatch({ type: "expired" });
       } else {
         dispatch({ type: "saveFailed", message: errorMessage(error) });
       }
+      return null;
     }
   }
 
-  // Run uses the saved revision, so it waits for the save and for the errors to be fixed.
+  // After a 409, asks whether an experiment started from another tab or session now holds the scenario.
+  async function reservedElsewhere() {
+    try {
+      const latest = await experiment.refresh();
+      return latest !== null && latest.phase !== "RELEASED";
+    } catch {
+      return false;
+    }
+  }
+
+  // Another tab or session reserved the scenario while this one had unsaved work: the work goes to
+  // the browser draft, offered back once the scenario is editable, and the canvas shows the saved
+  // graph the experiment uses.
+  const current = useRef(state);
+  current.current = state;
+  useEffect(() => {
+    if (!readOnly || !current.current.dirty) return;
+    draft.keep(toDraft(current.current));
+    getGraph(projectId, scenarioId).then(
+      (latest) => dispatch({ type: "reloaded", graph: latest }),
+      (error) => dispatch({ type: "saveFailed", message: errorMessage(error) }),
+    );
+    // Runs only when the lock starts; the ref carries the state of that moment.
+  }, [readOnly]);
+
+  // Run saves pending changes first and runs exactly the revision the server confirmed (ADR 0004).
+  async function run() {
+    let revision = state.revision;
+    if (state.dirty) {
+      const saved = await save();
+      if (!saved) return;
+      // The server validated the saved revision: its errors stay on screen and block Run.
+      if (saved.issues.some((issue) => issue.severity === "ERROR")) return;
+      revision = saved.revision;
+    }
+    const error = await experiment.run(revision);
+    if (!(error instanceof HttpError) || error.status !== 409) return;
+    if (await reservedElsewhere()) return;
+    // Another tab saved a newer revision. This tab shows it and never runs it without a new click.
+    try {
+      const latest = await getGraph(projectId, scenarioId);
+      if (latest.revision === revision) return;
+      dispatch({ type: "reloaded", graph: latest });
+      experiment.showError(
+        `Another tab saved revision ${latest.revision}, so revision ${revision} did not run. The canvas now shows revision ${latest.revision}: check it and press Run again.`,
+      );
+    } catch {
+      // The backend's message already explains the conflict.
+    }
+  }
+
+  // Run saves first, so it waits only for a save in flight, for a conflict or session to be
+  // resolved, and for the saved scenario's errors to be fixed.
   let runBlocker: string | null = null;
-  if (state.dirty || saving) {
-    runBlocker = "Save your changes first: Run uses the saved scenario";
-  } else if (errorCount > 0) {
+  if (saving) {
+    runBlocker = "Saving your changes";
+  } else if (state.status === "conflict") {
+    runBlocker = "Resolve the save conflict first";
+  } else if (state.status === "expired") {
+    runBlocker = "Sign in again first";
+  } else if (!state.dirty && errorCount > 0) {
     runBlocker = "Fix the errors first: they block Run";
   }
 
@@ -822,7 +886,8 @@ function Editor({
           retryCleanup={experiment.retryCleanup}
           pending={experiment.pending}
           blockedBy={runBlocker}
-          onRun={() => void experiment.run(state.revision)}
+          unsaved={state.dirty}
+          onRun={() => void run()}
           onStop={experiment.stop}
         />
       </header>

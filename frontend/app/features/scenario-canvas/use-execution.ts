@@ -21,15 +21,18 @@ export function useExecution(
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
 
+  // Returns the error the request failed with, or null when it succeeded or another one was in flight.
   async function send(request: () => Promise<ExecutionDTO>) {
-    if (inFlight.current) return;
+    if (inFlight.current) return null;
     inFlight.current = true;
     setPending(true);
     setError(null);
     try {
       setExecution(await request());
+      return null;
     } catch (caught) {
       setError(caught instanceof HttpError ? caught.message : GENERIC_ERROR);
+      return caught;
     } finally {
       inFlight.current = false;
       setPending(false);
@@ -59,6 +62,34 @@ export function useExecution(
     };
   }, [active, execution, retries, projectId, scenarioId]);
 
+  // Asks for the latest execution, which another tab or session may have started.
+  async function refresh() {
+    const latest = await getCurrentExecution(projectId, scenarioId);
+    if (latest) setExecution(latest);
+    return latest ?? null;
+  }
+
+  // Polling runs only while an experiment is active, so coming back to the tab is when this one
+  // learns that another tab or session reserved the scenario in the meantime.
+  const refreshOnReturn = useRef(refresh);
+  refreshOnReturn.current = refresh;
+  useEffect(() => {
+    if (active) return;
+    function onReturn() {
+      if (document.visibilityState === "visible") {
+        refreshOnReturn.current().catch(() => {
+          // Nothing changes on screen; the next return or save asks again.
+        });
+      }
+    }
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, [active]);
+
   return {
     execution,
     active,
@@ -76,6 +107,9 @@ export function useExecution(
         void send(() => stopExecution(projectId, scenarioId, execution.id));
       }
     },
+    refresh,
+    // Replaces the backend's message when the editor already acted on it.
+    showError: setError,
     dismissError: () => setError(null),
   };
 }

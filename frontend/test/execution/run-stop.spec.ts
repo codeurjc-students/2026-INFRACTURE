@@ -89,7 +89,11 @@ test("runs an HTTP Service from the canvas, watches it and stops it", async ({
     await page.goto(`/projects/${project.id}/scenarios/${scenario.id}`);
     await page.getByRole("button", { name: "Add HTTP Service" }).click();
     await inspector(page).getByLabel("Name").fill("orders-api");
-    await expect(page.getByRole("button", { name: "Run" })).toBeDisabled();
+    // Run would save these changes first; this step saves them by hand.
+    await expect(page.getByRole("button", { name: "Run" })).toHaveAttribute(
+      "title",
+      "Save your changes and run them",
+    );
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Saved", exact: true }),
@@ -258,6 +262,64 @@ test("stops an experiment that is still starting and leaves nothing behind", asy
   await page.screenshot({
     path: testInfo.outputPath("startup-2-completed.png"),
     fullPage: true,
+  });
+});
+
+test("runs the revision this tab saves and locks another tab without losing its work", async ({
+  page,
+}, testInfo) => {
+  const path = await savedStatelessScenario(page, "tabs");
+  const other = await page.context().newPage();
+  await other.goto(page.url());
+  await other.getByText("orders-api").click();
+  await inspector(other).getByLabel("Name").fill("orders-other-tab");
+
+  await test.step("Run saves this tab's change and runs exactly that revision", async () => {
+    await page.bringToFront();
+    await inspector(page).getByLabel("Name").fill("orders-v2");
+    await page.getByRole("button", { name: "Run" }).click();
+    await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
+    const graph = await (await page.request.get(`${path}/graph`)).json();
+    const execution = await (
+      await page.request.get(`${path}/executions/current`)
+    ).json();
+    expect(graph.revision).toBe(3);
+    expect(execution.scenarioRevision).toBe(3);
+    expect(
+      execution.components.map((node: { name: string }) => node.name),
+    ).toEqual(["orders-v2"]);
+  });
+
+  await test.step("The other tab keeps its change in the browser and turns read-only", async () => {
+    await other.bringToFront();
+    await other.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      other.getByText("The scenario is read-only while the experiment runs"),
+    ).toBeVisible();
+    await expect(
+      other.getByText("You have unsaved changes from earlier"),
+    ).toBeVisible();
+    await expect(
+      other.getByRole("button", { name: "Restore my changes" }),
+    ).toBeDisabled();
+    await expect(other.getByText("orders-v2")).toBeVisible();
+    await expect(
+      other.getByText("This scenario was saved somewhere else"),
+    ).toBeHidden();
+    await other.screenshot({
+      path: testInfo.outputPath("tabs-1-other-tab-locked.png"),
+      fullPage: true,
+    });
+  });
+
+  await test.step("After Stop both tabs unlock and nothing is left in Docker", async () => {
+    await page.bringToFront();
+    await page.getByRole("button", { name: "Stop" }).click();
+    await expect(status(page)).toHaveText("Completed", { timeout: 120_000 });
+    await expect(
+      other.getByRole("button", { name: "Restore my changes" }),
+    ).toBeEnabled({ timeout: 10_000 });
+    expect(experimentResources()).toEqual([]);
   });
 });
 

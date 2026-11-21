@@ -186,5 +186,17 @@ describe("execution client against the real API", () => {
     await expect(
       saveGraph(projectId, scenarioId, { ...graph, revision: saved.revision }),
     ).resolves.toMatchObject({ revision: saved.revision + 1 });
+
+    // Another tab saved since: the old revision no longer runs and nothing new starts.
+    const stale = await runScenario(
+      projectId,
+      scenarioId,
+      saved.revision,
+    ).catch((caught: unknown) => caught);
+    expect(stale).toBeInstanceOf(HttpError);
+    expect(stale).toMatchObject({ status: 409 });
+    await expect(
+      getCurrentExecution(projectId, scenarioId),
+    ).resolves.toMatchObject({ id: current.id, phase: "RELEASED" });
   }, 240_000);
 });
