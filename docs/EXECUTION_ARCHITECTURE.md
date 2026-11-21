@@ -326,8 +326,11 @@ Se llama *reconciler* y no *controller* porque en el repositorio el sufijo `Cont
 ![De Run a Docker](images/execution-architecture/11-de-run-a-docker.png)
 
 - **Una sola ejecución activa.** La instancia local admite una única `Execution` reservada, arrancando, activa o limpiándose. Un segundo `Run`, aunque sea de otro usuario, se rechaza. Es una decisión de 0.1.0 ([ADR 0015](adr/0015-una-ejecucion-por-instancia-en-local.md)); en Infracture Cloud pasará a una por usuario.
-- **Run es idempotente.** Un doble clic o un reintento tras un corte de red no crean otra ejecución ni recursos duplicados.
-- **El escenario queda en solo lectura** desde la reserva hasta que termina la limpieza.
+- **Run es idempotente mientras dura la reserva.** Un doble clic o un reintento tras un corte de red con la misma revisión devuelven la ejecución abierta, sin crear otra ni duplicar recursos. Cuando esa ejecución ya se liberó, un nuevo `Run` empieza otro experimento: el cliente nunca reintenta solo, así que no hace falta una clave de idempotencia.
+- **Guardar y Run van en orden.** Los dos bloquean la misma fila del escenario. Si gana Run, el guardado recibe `409` y el snapshot es la revisión que se pidió. Si gana el guardado, Run recibe `409` por revisión antigua y no arranca nada.
+- **El escenario queda en solo lectura** desde la reserva hasta que termina la limpieza, también desde otra pestaña o la API directa.
+- **El canvas guarda antes de ejecutar.** Con cambios sin guardar, Run guarda y ejecuta la revisión que confirmó el servidor. Si el guardado falla o la revisión guardada tiene errores, no hay Run y el trabajo sigue en el borrador local.
+- **Otras pestañas se enteran del bloqueo.** Al volver a la pestaña o al recibir un `409` al guardar, el canvas pregunta por la ejecución actual. Si otra pestaña reservó el escenario, guarda el trabajo sin guardar en el borrador y muestra el grafo que usa el experimento. Si otra pestaña guardó una revisión nueva, la muestra y espera un nuevo clic en Run.
 - **Sin transacciones abiertas esperando a Docker.** La reserva y el snapshot se confirman en la base de datos antes de llamar a Docker. Lo que ocurre después se registra como eventos.
 
 ### 9.3 El ExecutionPlan
