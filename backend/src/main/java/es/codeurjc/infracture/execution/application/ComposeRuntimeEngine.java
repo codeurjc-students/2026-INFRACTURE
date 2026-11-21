@@ -55,9 +55,10 @@ class ComposeRuntimeEngine implements RuntimeEngine {
 
     @Override
     public void up(Map<String, Object> plan, BooleanSupplier cancelled) {
-        // One minute more than --wait, so Compose names the unhealthy service.
+        // One minute more than --wait, so Compose names the unhealthy service. -d keeps Compose from
+        // attaching to the containers (/attach, /events), which docker-proxy forbids.
         compose(plan, START_TIMEOUT.plusMinutes(1), cancelled, List.of(),
-                "up", "--wait", "--wait-timeout", String.valueOf(START_TIMEOUT.toSeconds()));
+                "up", "-d", "--wait", "--wait-timeout", String.valueOf(START_TIMEOUT.toSeconds()));
         if (!backendContainer.isBlank()) {
             backendNetwork(plan, "connect");
         }
