@@ -1087,7 +1087,7 @@ describe("running the scenario", () => {
     expect(runScenario).toHaveBeenCalledExactlyOnceWith("7", "3", 2);
   });
 
-  it("waits for the save and for the errors to be fixed before Run", async () => {
+  it("saves before Run and runs nothing while the saved scenario has errors", async () => {
     vi.mocked(getGraph).mockResolvedValue(savedGraph);
     renderScenario();
 
@@ -1099,6 +1099,12 @@ describe("running the scenario", () => {
     );
 
     vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    let confirm!: (graph: ScenarioGraphDTO) => void;
+    vi.mocked(saveGraph).mockReturnValue(
+      new Promise((resolve) => {
+        confirm = resolve;
+      }),
+    );
     cleanup();
     renderScenario();
     fireEvent.click(
@@ -1106,8 +1112,172 @@ describe("running the scenario", () => {
     );
     expect(screen.getByRole("button", { name: "Run" })).toHaveAttribute(
       "title",
-      "Save your changes first: Run uses the saved scenario",
+      "Save your changes and run them",
     );
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    expect(screen.getByRole("button", { name: "Run" })).toHaveAttribute(
+      "title",
+      "Saving your changes",
+    );
+    confirm({ ...savedGraph, revision: 3 });
+
+    expect(await screen.findByText("Revision 3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toHaveAttribute(
+      "title",
+      "Fix the errors first: they block Run",
+    );
+    expect(runScenario).not.toHaveBeenCalled();
+  });
+
+  it("saves pending changes and runs exactly the revision the server confirmed", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(saveGraph).mockResolvedValue({ ...runnableGraph, revision: 3 });
+    vi.mocked(runScenario).mockResolvedValue(
+      execution({ scenarioRevision: 3 }),
+    );
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Redis" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+
+    expect(await screen.findByRole("button", { name: "Stop" })).toBeEnabled();
+    expect(vi.mocked(saveGraph).mock.calls[0][2].revision).toBe(2);
+    expect(runScenario).toHaveBeenCalledExactlyOnceWith("7", "3", 3);
+  });
+
+  it("does not run when saving the changes fails, and keeps them", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(saveGraph).mockRejectedValue(
+      new HttpError(409, "The scenario was saved after revision 2."),
+    );
+    vi.mocked(getCurrentExecution).mockResolvedValue(null);
+    renderScenario("3", 5);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Redis" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+
+    expect(
+      await screen.findByText("This scenario was saved somewhere else"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toHaveAttribute(
+      "title",
+      "Resolve the save conflict first",
+    );
+    expect(runScenario).not.toHaveBeenCalled();
+    expect(readDraft(draftKey(5, 3))?.components).toHaveLength(2);
+  });
+
+  it("starts nothing when the session expires on Run, nor after signing in again", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(saveGraph).mockRejectedValue(
+      new HttpError(401, "Authentication is required."),
+    );
+    renderScenario("3", 5);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Redis" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+
+    expect(
+      await screen.findByText("Your session has expired"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toHaveAttribute(
+      "title",
+      "Sign in again first",
+    );
+    expect(readDraft(draftKey(5, 3))?.components).toHaveLength(2);
+
+    // Back from the sign-in page: the draft is offered and nothing runs until Run is pressed.
+    activeRouters.splice(0).forEach((router) => router.dispose());
+    cleanup();
+    renderScenario("3", 5);
+    expect(
+      await screen.findByText("You have unsaved changes from earlier"),
+    ).toBeInTheDocument();
+    expect(runScenario).not.toHaveBeenCalled();
+  });
+
+  it("keeps the work in the draft and turns read-only when another tab started an experiment", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(saveGraph).mockRejectedValue(
+      new HttpError(
+        409,
+        "The scenario is read-only while an experiment uses it. Stop it to edit the scenario.",
+      ),
+    );
+    renderScenario("3", 5);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Redis" }));
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({ phase: "RUNNING" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText(
+        "The scenario is read-only while the experiment runs",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("You have unsaved changes from earlier"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Restore my changes" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByText("This scenario was saved somewhere else"),
+    ).toBeNull();
+    expect(screen.queryByText("orders-cache")).toBeNull();
+    expect(readDraft(draftKey(5, 3))?.components).toHaveLength(2);
+  });
+
+  it("learns on returning to the tab that another tab reserved the scenario", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    renderScenario("3", 5);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Redis" }));
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({ phase: "STARTING" }),
+    );
+    fireEvent.focus(window);
+
+    expect(
+      await screen.findByText(
+        "The scenario is read-only while the experiment runs",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("You have unsaved changes from earlier"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stop" })).toBeEnabled();
+    expect(saveGraph).not.toHaveBeenCalled();
+  });
+
+  it("shows the revision another tab saved instead of running it on its own", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(runScenario).mockRejectedValue(
+      new HttpError(
+        409,
+        "The scenario was saved after revision 2. Reload it to run revision 3.",
+      ),
+    );
+    vi.mocked(getCurrentExecution).mockResolvedValue(null);
+    renderScenario();
+
+    await screen.findByText("Revision 2");
+    vi.mocked(getGraph).mockResolvedValue({
+      ...runnableGraph,
+      revision: 3,
+      components: [{ ...runnableGraph.components[0], name: "Orders API v2" }],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Another tab saved revision 3, so revision 2 did not run.",
+    );
+    expect(screen.getByText("Revision 3")).toBeInTheDocument();
+    expect(screen.getByText("Orders API v2")).toBeInTheDocument();
+    expect(runScenario).toHaveBeenCalledExactlyOnceWith("7", "3", 2);
   });
 
   it("stops the running experiment and shows that it is stopping", async () => {
@@ -1286,7 +1456,9 @@ describe("running the scenario", () => {
       await screen.findByText("Running", {}, { timeout: 3000 }),
     ).toBeInTheDocument();
     const node = screen.getByRole("group", { name: /Orders API/ });
-    expect(within(node).getByText("Healthy")).toBeInTheDocument();
+    // React Flow copies the nodes into its store in an effect, so a node can show its state one
+    // render after the header.
+    expect(await within(node).findByText("Healthy")).toBeInTheDocument();
     fireEvent.click(within(node).getByText("Orders API"));
     const inspector = screen.getByRole("complementary", {
       name: "Inspector",

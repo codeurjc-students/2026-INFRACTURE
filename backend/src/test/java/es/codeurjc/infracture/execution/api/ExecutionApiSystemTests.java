@@ -393,6 +393,48 @@ class ExecutionApiSystemTests {
         assertThat(executions.count()).isEqualTo(1);
     }
 
+    // Save and Run of the same revision lock the same row, so one of them always sees the other:
+    // either Run reserves revision 2 and the save is rejected, or the save wins and Run is stale.
+    @Test
+    void ordersASaveAndARunOfTheSameRevisionSoTheSnapshotIsOneSavedRevision() throws Exception {
+        ApiSession alice = ApiSession.signUp(port);
+        String renamed = graph(2, http(ORDERS).replace("orders-api", "orders-v2"));
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            for (int round = 0; round < 5; round++) {
+                executions.deleteAllInBatch();
+                String scenario = statelessScenario(alice);
+                // Two tabs of one browser share the session and its CSRF token.
+                RequestSpecification sameCsrfToken = alice.write();
+                RequestSpecification save = given().spec(sameCsrfToken).body(renamed);
+                RequestSpecification reserve = given().spec(sameCsrfToken).body(run(2));
+                CountDownLatch start = new CountDownLatch(1);
+                Future<Integer> saved = executor.submit(() -> {
+                    start.await();
+                    return given().spec(save).put(scenario + "/graph").statusCode();
+                });
+                Future<Integer> ran = executor.submit(() -> {
+                    start.await();
+                    return given().spec(reserve).post(scenario + "/executions").statusCode();
+                });
+                start.countDown();
+
+                if (ran.get() == 202) {
+                    assertThat(saved.get()).isEqualTo(409);
+                    alice.read().get(scenario + "/executions/current").then()
+                        .body("scenarioRevision", equalTo(2)).body("components[0].name", equalTo("orders-api"));
+                    alice.read().get(scenario + "/graph").then().body("revision", equalTo(2));
+                } else {
+                    assertThat(ran.get()).isEqualTo(409);
+                    assertThat(saved.get()).isEqualTo(200);
+                    assertThat(executions.count()).isZero();
+                }
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     private static String instanceOf(ApiSession session, String scenario) {
         return session.read().get(scenario + "/executions/current").then().extract()
             .path("plan.networks.exec.labels['io.infracture.instance']");
