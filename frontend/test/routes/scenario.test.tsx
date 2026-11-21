@@ -1456,7 +1456,9 @@ describe("running the scenario", () => {
       await screen.findByText("Running", {}, { timeout: 3000 }),
     ).toBeInTheDocument();
     const node = screen.getByRole("group", { name: /Orders API/ });
-    expect(within(node).getByText("Healthy")).toBeInTheDocument();
+    // React Flow copies the nodes into its store in an effect, so a node can show its state one
+    // render after the header.
+    expect(await within(node).findByText("Healthy")).toBeInTheDocument();
     fireEvent.click(within(node).getByText("Orders API"));
     const inspector = screen.getByRole("complementary", {
       name: "Inspector",
