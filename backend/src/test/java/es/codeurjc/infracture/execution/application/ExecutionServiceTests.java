@@ -27,6 +27,9 @@ import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.domain.ValidationIssue;
 import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.NotFoundException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,10 +52,13 @@ class ExecutionServiceTests {
     private final ExecutionRepository repository = mock(ExecutionRepository.class);
     private final ScenarioService scenarioService = mock(ScenarioService.class);
     private final ContractCatalog contracts = ContractCatalogs.standard();
+    private static final Instant NOW = Instant.parse("2026-11-21T10:00:00Z");
+    private final InMemoryExecutionEvents events = new InMemoryExecutionEvents();
     private final ExecutionService service = new ExecutionService(repository, scenarioService,
             new ScenarioValidator(contracts), contracts,
             new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local",
-                    "infracture/load-generator:0.1.0"));
+                    "infracture/load-generator:0.1.0"),
+            new ExecutionJournal(events.repository, new LogRedactor("", "")), Clock.fixed(NOW, ZoneOffset.UTC));
     private final Project project = new Project(new User("alice", "hash", OWNER, "Alice", UserRole.USER), "Lab", null);
 
     @Test
@@ -66,9 +72,13 @@ class ExecutionServiceTests {
             return saved;
         });
 
-        Execution execution = service.run(OWNER, 5L, 3L, 2);
+        Execution execution = service.run(OWNER, 5L, 3L, 2).execution();
 
         assertThat(execution.getPhase()).isEqualTo(Phase.RESERVED);
+        assertThat(events.of(12L)).singleElement().satisfies(event -> {
+            assertThat(event.getPayload()).isEqualTo(Map.of("type", "PHASE", "phase", "RESERVED"));
+            assertThat(event.getAt()).isEqualTo(NOW);
+        });
         assertThat(execution.getScenarioRevision()).isEqualTo(2);
         assertThat(execution.getComponents()).singleElement()
                 .satisfies(component -> assertThat(component.getContractVersion())
@@ -83,7 +93,7 @@ class ExecutionServiceTests {
         when(scenarioService.lockOwnScenario(OWNER, 5L, 3L)).thenReturn(scenario);
         when(repository.findByReleasedAtIsNull()).thenReturn(Optional.of(active));
 
-        assertThat(service.run(OWNER, 5L, 3L, 2)).isSameAs(active);
+        assertThat(service.run(OWNER, 5L, 3L, 2).execution()).isSameAs(active);
         verify(repository, never()).saveAndFlush(any());
     }
 
@@ -172,13 +182,18 @@ class ExecutionServiceTests {
     void recordsStopWithoutTouchingDocker() {
         Scenario scenario = scenario(3L, stateless());
         Execution active = new Execution(scenario, Map.of(ComponentType.HTTP_SERVICE, 1));
+        ReflectionTestUtils.setField(active, "id", 12L);
         when(scenarioService.getScenario(OWNER, 5L, 3L)).thenReturn(scenario);
         when(repository.findForUpdateById(12L)).thenReturn(Optional.of(active));
 
-        Execution stopped = service.stop(OWNER, 5L, 3L, 12L);
+        Execution stopped = service.stop(OWNER, 5L, 3L, 12L).execution();
+        service.stop(OWNER, 5L, 3L, 12L);
 
         assertThat(stopped.getStopCause()).isEqualTo(StopCause.STOP_REQUESTED);
         assertThat(stopped.getPhase()).isEqualTo(Phase.RESERVED);
+        // A repeated Stop changes nothing, so it records nothing either.
+        assertThat(events.of(12L)).singleElement().extracting(event -> event.getPayload())
+                .isEqualTo(Map.of("type", "STOP", "cause", "STOP_REQUESTED"));
     }
 
     @Test
@@ -200,7 +215,7 @@ class ExecutionServiceTests {
         when(scenarioService.getScenario(OWNER, 5L, 3L)).thenReturn(scenario);
         when(repository.findFirstByScenarioIdOrderByCreatedAtDescIdDesc(3L)).thenReturn(Optional.of(latest));
 
-        assertThat(service.getCurrent(OWNER, 5L, 3L)).containsSame(latest);
+        assertThat(service.getCurrent(OWNER, 5L, 3L)).get().extracting(ExecutionView::execution).isSameAs(latest);
     }
 
     private Scenario scenario(Long id, ComponentDraft... nodes) {

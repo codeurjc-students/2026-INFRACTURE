@@ -19,6 +19,10 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public class JwtRequestFilter extends OncePerRequestFilter {
 
+    // When the access token of an authenticated request expires. A long-lived response, such as an event
+    // stream, ends at that time so a logged-out or expired session stops receiving data.
+    public static final String TOKEN_EXPIRES_AT = JwtRequestFilter.class.getName() + ".tokenExpiresAt";
+
     private static final Logger log = LoggerFactory.getLogger(JwtRequestFilter.class);
 
     private final UserDetailsService userDetailsService;
@@ -47,6 +51,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            request.setAttribute(TOKEN_EXPIRES_AT, claims.getExpiration().toInstant());
         } catch (Exception ex) {
             log.debug(ex.getMessage());
         }

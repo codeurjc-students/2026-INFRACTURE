@@ -6,6 +6,7 @@ import io.restassured.filter.cookie.CookieFilter;
 import io.restassured.http.ContentType;
 import io.restassured.specification.RequestSpecification;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public final class ApiSession {
 
@@ -30,6 +31,13 @@ public final class ApiSession {
                 {"email":"%s","password":"%s"}
                 """.formatted(email, PASSWORD)).post("/api/v1/auth/login").then().statusCode(200);
         return session;
+    }
+
+    // The session cookies as one Cookie header, for clients other than REST Assured.
+    public String cookieHeader() {
+        return cookies.getCookieStore().getCookies().stream()
+            .map(cookie -> cookie.getName() + "=" + cookie.getValue())
+            .collect(Collectors.joining("; "));
     }
 
     public RequestSpecification read() {

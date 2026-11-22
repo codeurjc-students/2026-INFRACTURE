@@ -2,6 +2,7 @@ package es.codeurjc.infracture.execution.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -69,22 +70,53 @@ class ComposeRuntimeEngineIntegrationTests {
     }
 
     @Test
+    void readsWhatEachServicePrintedWithItsTimeAndFromAGivenTime() throws InterruptedException {
+        Map<String, Object> plan = withCommand(List.of("sh", "-c", "echo first line; echo 'second | line'; sleep 300"));
+        engine.up(plan, NEVER);
+        List<LogLine> lines = engine.logs(plan, null);
+        for (int attempt = 0; attempt < 20 && lines.size() < 2; attempt++) {
+            Thread.sleep(250);
+            lines = engine.logs(plan, null);
+        }
+
+        assertThat(lines).extracting(LogLine::service, LogLine::text)
+                .containsExactly(tuple("probe", "first line"), tuple("probe", "second | line"));
+        assertThat(lines.getFirst().at()).isBeforeOrEqualTo(lines.getLast().at()).isAfter(Instant.now().minusSeconds(60));
+        assertThat(engine.logs(plan, lines.getLast().at().plusNanos(1))).isEmpty();
+    }
+
+    @Test
     void joinsTheBackendToTheNetworkAndLeavesItBeforeCleanup() {
         String backend = "infracture-" + instance + "-backend";
-        docker("container", "run", "-d", "--quiet", "--name", backend, "busybox:1.37", "sleep", "300");
+        // Named like the platform's network, which sorts after the experiment's: Docker would give the
+        // default route to the experiment's network unless the backend joins it with a lower priority.
+        String platform = "infracture-" + instance + "_default";
+        docker("network", "create", platform);
+        docker("container", "run", "-d", "--quiet", "--name", backend, "--network", platform, "busybox:1.37",
+                "sleep", "300");
         ComposeRuntimeEngine inContainer = new ComposeRuntimeEngine(JsonMapper.builder().build(), backend);
         try {
+            String defaultRoute = defaultRoute(backend);
             inContainer.up(plan("true"), NEVER);
             assertThat(docker("container", "inspect", "-f", "{{range $name, $n := .NetworkSettings.Networks}}"
                     + "{{$name}} {{end}}", backend).getFirst())
                     .contains("infracture-" + instance + "-exec-1_exec");
+            // A new default route would leave the backend's open connections, such as event streams,
+            // without their replies on Linux.
+            assertThat(defaultRoute(backend)).isEqualTo(defaultRoute);
 
             inContainer.down(plan("true"), labels);
 
             assertThat(labelled()).isEmpty();
         } finally {
             docker("container", "rm", "-f", backend);
+            docker("network", "rm", platform);
         }
+    }
+
+    private static String defaultRoute(String container) {
+        return docker("exec", container, "ip", "route").stream()
+                .filter(route -> route.startsWith("default")).findFirst().orElseThrow();
     }
 
     @Test
@@ -215,6 +247,15 @@ class ComposeRuntimeEngineIntegrationTests {
         @SuppressWarnings("unchecked")
         Map<String, Object> probe = new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
         probe.put("environment", environment);
+        plan.put("services", Map.of("probe", probe));
+        return plan;
+    }
+
+    private Map<String, Object> withCommand(List<String> command) {
+        Map<String, Object> plan = new HashMap<>(plan("true"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> probe = new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
+        probe.put("command", command);
         plan.put("services", Map.of("probe", probe));
         return plan;
     }

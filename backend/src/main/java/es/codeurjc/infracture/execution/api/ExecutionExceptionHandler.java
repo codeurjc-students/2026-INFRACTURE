@@ -36,4 +36,10 @@ class ExecutionExceptionHandler {
         problem.setProperty("issues", issues);
         return problem;
     }
+
+    @ExceptionHandler(TooManyStreamsException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    ProblemDetail handleTooManyStreams(TooManyStreamsException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage());
+    }
 }

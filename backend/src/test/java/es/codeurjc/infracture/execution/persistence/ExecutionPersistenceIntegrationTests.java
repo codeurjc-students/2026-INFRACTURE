@@ -2,12 +2,14 @@ package es.codeurjc.infracture.execution.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedWorkload;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionEvent;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
 import es.codeurjc.infracture.execution.domain.Outcome;
 import es.codeurjc.infracture.execution.domain.Phase;
@@ -53,6 +55,9 @@ class ExecutionPersistenceIntegrationTests {
 
     @Autowired
     private ExecutionRepository repository;
+
+    @Autowired
+    private ExecutionEventRepository events;
 
     private Scenario cache;
     private Scenario queue;
@@ -252,6 +257,48 @@ class ExecutionPersistenceIntegrationTests {
                 "UPDATE executions SET phase = 'RELEASED' WHERE id = :id")
                 .setParameter("id", execution.getId()).executeUpdate())
                 .hasMessageContaining("ck_executions_released");
+    }
+
+    @Test
+    void readsEachExecutionsEventsInOrderAfterACursorAndDropsThemWithTheExecution() {
+        Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
+        Instant at = Instant.parse("2026-11-21T10:00:00Z");
+        ExecutionEvent reserved = events.save(ExecutionEvent.event(execution.getId(), null, ExecutionEvent.PHASE,
+                Map.of("phase", "RESERVED"), at));
+        ExecutionEvent healthy = events.save(ExecutionEvent.state(execution.getId(), orders, "HEALTHY", at));
+        ExecutionEvent line = events.save(ExecutionEvent.log(execution.getId(), orders, "Started", at.plusMillis(5)));
+        events.save(ExecutionEvent.log(execution.getId(), null, "k6 running", at.plusMillis(9)));
+        events.flush();
+        entityManager.clear();
+
+        assertThat(events.findTop200ByExecutionIdAndIdGreaterThanOrderById(execution.getId(), reserved.getId()))
+                .extracting(ExecutionEvent::getKind, event -> event.getPayload().get("line"))
+                .containsExactly(tuple(ExecutionEvent.Kind.STATE, null), tuple(ExecutionEvent.Kind.LOG, "Started"),
+                        tuple(ExecutionEvent.Kind.LOG, "k6 running"));
+        assertThat(events.findByExecutionIdAndKindNotOrderById(execution.getId(), ExecutionEvent.Kind.LOG))
+                .extracting(ExecutionEvent::getId).containsExactly(reserved.getId(), healthy.getId());
+        assertThat(events.findFirstByExecutionIdAndKindOrderByAtDescIdDesc(execution.getId(), ExecutionEvent.Kind.LOG))
+                .map(ExecutionEvent::getAt).contains(at.plusMillis(9));
+        assertThat(events.countByExecutionIdAndComponentKeyAndKind(execution.getId(), orders, ExecutionEvent.Kind.LOG))
+                .isEqualTo(1);
+        assertThat(events.countByExecutionIdAndComponentKeyIsNullAndKind(execution.getId(), ExecutionEvent.Kind.LOG))
+                .isEqualTo(1);
+        assertThat(events.existsByIdAndExecutionId(line.getId(), execution.getId())).isTrue();
+        assertThat(events.existsByIdAndExecutionId(line.getId(), execution.getId() + 1)).isFalse();
+
+        entityManager.createNativeQuery("DELETE FROM executions WHERE id = :id")
+                .setParameter("id", execution.getId()).executeUpdate();
+        assertThat(events.findFirstByExecutionIdOrderByIdDesc(execution.getId())).isEmpty();
+    }
+
+    @Test
+    void rejectsAnEventOfAnUnknownKind() {
+        Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
+
+        assertThatThrownBy(() -> entityManager.createNativeQuery(
+                "INSERT INTO execution_events (execution_id, kind, at, payload) VALUES (:id, 'METRIC', now(), '{}')")
+                .setParameter("id", execution.getId()).executeUpdate())
+                .hasMessageContaining("ck_execution_events_kind");
     }
 
     private static Map<String, ComponentTemplate> catalogue() {

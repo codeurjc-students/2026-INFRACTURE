@@ -645,7 +645,7 @@ Así lo hace hoy el motor (#86):
 - **Arrancar no es funcionar.** Si un nodo pasa a `UNHEALTHY` o desaparece estando en marcha, se registra `FAILURE` con su nombre (`orders-api is unhealthy`) y se limpia como cualquier otro fallo.
 - **Respuesta real.** Al llegar a `RUNNING`, el backend se une a la red `exec` y pide `GET /` a cada HTTP Service. Guarda la respuesta como evidencia. Solo funciona con el backend en contenedor; arrancado desde la máquina, la respuesta queda vacía.
 - **Tiempo límite.** A los 30 minutos desde `RUNNING`, la ejecución termina con la causa `TIME_LIMIT` ([sección 10.4](#104-tiempo-límite-y-esperas)).
-- **En memoria.** Estado y respuesta solo importan mientras el experimento corre, y un reinicio del backend lo termina. Se guardarán como eventos y muestras en P08.
+- **Guardado como eventos.** Desde #92, estado y respuesta se guardan como `ExecutionEvent` ([sección 11.3](#113-muestras-eventos-y-sse)). Sobreviven a un reinicio del backend y cualquier proceso del backend los puede servir.
 
 ### 11.2 Qué mide cada tipo
 
@@ -662,13 +662,19 @@ Cada `ComponentDriver` declara sus métricas y de dónde se leen. Un único `Tel
 | Workload (k6) | Progreso de k6 | Peticiones, errores, latencia media y p95, rendimiento | Resultados agregados de k6. Hoy, solo el resumen final ([sección 7.3](#73-cómo-se-genera)); por intervalos en P08. |
 | Load Balancer | Comprobaciones de HAProxy | Tráfico y estado de cada backend | Endpoint Prometheus de HAProxy. |
 
-Para leer esas fuentes, el backend se une a la red de la ejecución. No hace falta publicar puertos en la máquina.
+Para leer esas fuentes, el backend se une a la red de la ejecución. No hace falta publicar puertos en la máquina. Se une con la prioridad de puerta de enlace más baja (`--gw-priority -1`). Si no, Docker puede pasar su ruta por defecto a esa red, y en Linux las conexiones ya abiertas, como los streams de eventos, dejan de recibir respuesta sin cerrarse.
 
 ### 11.3 Muestras, eventos y SSE
 
 - **`MetricSample`.** Valor agregado por intervalo y ligado a un `ExecutedComponent`. Nunca se guarda una fila por petición.
-- **`ExecutionEvent`.** Cambio significativo: arranque, salud alcanzada, fallo, `Stop`, limpieza.
-- **SSE.** El navegador recibe eventos y muestras en directo por Server-Sent Events autorizados. Si se corta la conexión, se reconecta y recupera lo que falta sin duplicar.
+- **`ExecutionEvent`.** Lo que pasa en una ejecución, en la tabla `execution_events` (#92). Hay tres tipos: `STATE`, cuando un nodo cambia de estado; `EVENT`, un paso del ciclo de vida (`PHASE`, `STOP`, `CLEANUP_FAILED`, `RESPONSE` o `LOGS_OMITTED`); y `LOG`, una línea que imprimió un nodo o la carga. El `ExecutionReconciler` y el servicio los escriben en la misma transacción que el cambio que describen. El `id` crece con cada evento y sirve de cursor.
+- **Logs acotados y limpios.** En cada vuelta con la ejecución en `RUNNING`, el motor lee `docker compose logs --timestamps --since` desde la última línea leída. Guarda como mucho 100 líneas por vuelta (el resto, en la siguiente, sin separar nunca las líneas de un mismo instante) y 1.000 por nodo y ejecución; lo que pase de ahí solo se cuenta en un `LOGS_OMITTED`. Antes de guardarla, cada línea pierde los secretos del propio backend, el valor tras `password=`, `token=` o `api_key=`, los tokens Bearer y los JWT, y se corta a 500 caracteres. Si Docker no da los logs, el experimento sigue: son evidencia, no salud.
+- **SSE.** `GET …/executions/{id}/events` envía los eventos en orden, cada uno con `id:` (el cursor), `event:` (`state`, `event` o `log`) y en `data:` el evento en JSON. Solo lo abre el propietario. Cada flujo lee la base de datos cuando PostgreSQL avisa de que su ejecución tiene eventos nuevos, y como mucho cada 15 s aunque no llegue ningún aviso. Cierra cuando la ejecución se libera y ya lo envió todo, o cuando el backend se apaga.
+- **Aviso de PostgreSQL ([ADR 0017](adr/0017-eventos-de-ejecucion-por-sse-con-aviso-de-postgresql.md)).** Un trigger de `execution_events` (V17) hace `pg_notify` con el id de la ejecución cuando la transacción hace commit. `ExecutionEventSignal` escucha con una conexión propia y despierta solo a los flujos de esa ejecución. El aviso solo dice «vuelve a leer»: los eventos salen siempre de la tabla tras el cursor, así que un aviso perdido retrasa los eventos, pero no los pierde. Si la escucha se cae, los flujos leen cada segundo hasta que vuelve, y al volver todos leen una vez.
+- **Reconexión sin pérdidas ni duplicados.** Tras un corte, el navegador reabre con `Last-Event-ID` y recibe solo lo posterior. Si ese cursor ya no existe (por ejemplo, purgado) o es de otra ejecución, recibe `reset` con el estado actual completo y sigue desde el último evento, sin inventar los que faltan.
+- **Sesión.** El flujo termina cuando caduca el token de acceso con el que se abrió (5 min): antes envía `renew` con su cursor, la página renueva la sesión y reabre con `?after=`. El usuario no ve ningún corte. Si la cuenta deja de estar activa, el flujo se corta en su siguiente lectura: en menos de 15 s. Un logout cierra el de esa pestaña; una copia robada de la cookie sirve como mucho hasta que caduca ([ADR 0007](adr/0007-revocacion-jwt-como-mejora-opcional.md)).
+- **Límites.** Como mucho 200 eventos por envío, un comentario de latido cada 15 s y cinco flujos abiertos por cuenta (el sexto recibe `429`; el contador es de cada proceso). Un flujo bloqueado nunca frena al reconciler ni a otras pestañas.
+- **Muestras.** Las métricas por intervalo (`MetricSample`) llegan con #93 y se recuperarán tras un corte del mismo modo.
 - **Ausente no es cero.** Una muestra que no se pudo recoger se muestra como ausente, y un resultado incompleto como incompleto.
 
 ```json
@@ -772,7 +778,8 @@ El backend es un monolito modular. Cada módulo sigue las capas `api`, `applicat
 | `ScenarioValidator`, `ValidationIssue` | `project` | Implementado (#81). |
 | `Workload`, `WorkloadContract`, `ExecutedWorkload` | `project`, `catalog`, `execution` | Implementado para `CONSTANT_HTTP` (#87), con su panel en el lienzo y `GET /api/v1/workload-profiles`. Los otros tres perfiles, pendientes. |
 | Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86). El resto de tipos, en P07. |
-| Observación e historial | `observation` | Pendiente (P08). |
+| Eventos, logs y SSE: `ExecutionEvent`, `ExecutionJournal`, `ExecutionEventStream` | `execution` | Implementado (#92). |
+| Métricas e historial | `observation` | Pendiente (P08). |
 | Load Balancer | `catalog`, `execution` | Pendiente (P07). |
 
 Los nombres de las piezas pendientes son los previstos y pueden ajustarse al implementarlas. Lo que hace cada clase que ya existe, y quién la usa, está en el [mapa del código](CODE_MAP.md).
@@ -792,6 +799,7 @@ Los nombres de las piezas pendientes son los previstos y pueden ajustarse al imp
 | [0013](adr/0013-motor-de-ejecucion-con-docker-compose.md) | Motor de ejecución con Docker Compose. |
 | [0015](adr/0015-una-ejecucion-por-instancia-en-local.md) | Una ejecución por instancia en Infracture Local. |
 | [0016](adr/0016-limites-de-la-carga-constant-http.md) | Límites de la carga `CONSTANT_HTTP`. |
+| [0017](adr/0017-eventos-de-ejecucion-por-sse-con-aviso-de-postgresql.md) | Eventos de ejecución por SSE con aviso de PostgreSQL. |
 
 ### Referencias para aprender
 

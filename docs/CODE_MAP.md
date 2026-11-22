@@ -55,7 +55,7 @@ api (controlador + DTO + mapper) → application (servicio) → domain (entidade
 1. `RunButton` → `scenario-canvas.tsx` (guarda antes si hay cambios) → `use-execution.ts` → `execution-service.runScenario` → `POST …/executions` con la revisión que confirmó el servidor.
 2. `ExecutionService.run` bloquea el escenario, comprueba que no hay otra ejecución, vuelve a validar, guarda la `Execution` en `RESERVED` con la copia congelada de nodos, conexiones y carga (`ExecutedWorkload`) y le adjunta el plan de `PlanCompiler`, que incluye a k6 con el perfil de Compose `load`. No toca Docker.
 3. `ExecutionReconciler`, cada 2 s, ve la reserva, pasa a `STARTING` y pide a `ComposeRuntimeEngine` un `docker compose up --wait` a través de `docker-proxy`, que arranca solo los nodos. Al estar sanos, `startLoad` lanza k6, la fase pasa a `RUNNING` y `ServiceProbe` pide la respuesta real del servicio.
-4. Mientras corre, cada vuelta lee `docker compose ps` y guarda el estado de cada nodo en `ExecutionObservations`; el front lo consulta con `GET …/executions/current` cada 2 s y lo muestra en `ExecutionBadge`, con la cuenta atrás hasta el tiempo límite, en los nodos, en el inspector y, para la carga, en el panel Load. El editor está en solo lectura. Al llegar el plazo que se fijó en `RUNNING`, el bucle registra `TIME_LIMIT` y limpia como en Stop.
+4. Mientras corre, cada vuelta lee `docker compose ps` y guarda en `execution_events`, con `ExecutionJournal`, el estado de cada nodo cuando cambia y las líneas nuevas de `docker compose logs`, limpias de secretos. El front abre `GET …/executions/{id}/events` (SSE), vuelve a leer `GET …/executions/current` con cada cambio de estado o de fase y lo muestra en `ExecutionBadge`, en el panel Activity, con la cuenta atrás hasta el tiempo límite, en los nodos, en el inspector y, para la carga, en el panel Load. El editor está en solo lectura. Al llegar el plazo que se fijó en `RUNNING`, el bucle registra `TIME_LIMIT` y limpia como en Stop.
 5. Stop solo apunta la causa (`POST …/executions/{id}/stop`); el bucle para k6 con `stopLoad` y guarda su resumen, hace `down -v`, borra lo que quede con las etiquetas y libera la reserva. Si k6 termina antes por sí solo, su resumen se guarda en cuanto la vigilancia lo ve parado. Si Stop llega mientras arranca, el motor corta el arranque y la siguiente vuelta limpia. Si la limpieza falla, la ejecución sigue en `STOPPING` con el error a la vista y se reintenta. Detalle completo en la [página De Run a Stop](explainers/run-to-stop.html).
 
 ## Backend
@@ -130,20 +130,24 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 
 | Clase | Qué hace | Quién la usa |
 | --- | --- | --- |
-| `ExecutionController` | Run (`POST …/executions`), Stop (`…/{id}/stop`) y la ejecución actual (`…/current`). | Front: `execution-service`. |
+| `ExecutionController` | Run (`POST …/executions`), Stop (`…/{id}/stop`), la ejecución actual (`…/current`) y su flujo de eventos (`…/{id}/events`, SSE). | Front: `execution-service`, `use-execution-events`. |
+| `ExecutionEventStream`, `TooManyStreamsException` | Envía los eventos de una ejecución a una pestaña, cada uno con su id como cursor, en un hilo virtual: lee la base de datos cuando `ExecutionEventSignal` avisa y como mucho cada 15 s (cada segundo si nadie escucha), manda `renew` al caducar el token, `reset` si el cursor ya no existe y un latido cada 15 s. Cinco flujos por cuenta como mucho (429). Al apagarse el backend, cierra todos. | `ExecutionController`. |
 | `ExecutionDTO`, `ExecutedComponentDTO`, `ExecutedWorkloadDTO`, `RunExecutionDTO`, `ExecutionMapper` | La ejecución en JSON con cada nodo, su estado y su respuesta, y la carga congelada con el resumen de k6. | `ExecutionController`. |
 | `ExecutionExceptionHandler` | Convierte un Run con errores en 422 con la lista de incidencias. | Spring. |
-| `ExecutionService` | Reserva la revisión exacta (idempotente, una sola activa), apunta Stop y lee la actual. No toca Docker. | `ExecutionController`. |
+| `ExecutionService`, `ExecutionView` | Reserva la revisión exacta (idempotente, una sola activa), apunta Stop y lee la actual o una del propietario. Devuelve la vista completa, leída dentro de su transacción, porque la capa web no tiene sesión de base de datos. No toca Docker. | `ExecutionController`. |
+| `ExecutionEventSignal` | Despierta a los flujos de una ejecución cuando PostgreSQL avisa de eventos nuevos (trigger de V17, `LISTEN execution_events`) con una conexión propia fuera del pool. Si la conexión se cae, reconecta cada segundo y, al volver, despierta a todos (ADR 0017). | `ExecutionEventStream`. |
+| `ExecutionFeed` | Lo siguiente que recibe un observador: hasta 200 eventos tras su cursor, si la ejecución terminó y si la cuenta sigue activa. | `ExecutionEventStream`. |
 | `ExecutionReservations` | Implementa `ScenarioReservations`: el escenario está reservado mientras haya una ejecución sin liberar. | `ScenarioService`. |
 | `PlanCompiler` | Convierte la ejecución en un plan de Compose endurecido, con etiquetas y límites, sin secretos. Añade el servicio `workload` de k6 con el perfil `load`. | `ExecutionService`, reconciler. |
 | `ComponentDriver`, `HttpServiceDriver` | Lo que cada tipo añade al plan: imagen, variables, salud, dónde pedir su respuesta y a qué URL envía la carga (`httpUrl`). | `PlanCompiler`. |
 | `ExecutionReconciler` | El bucle de cada 2 s: arranca los nodos y después k6 (y cancela el arranque si llega Stop), vigila cada nodo y la carga, aplica el tiempo límite, interrumpe lo que dejó abierto un proceso anterior del backend, para k6 y guarda su resumen, limpia y libera. Reintenta una limpieza fallida tres veces, con pausas, y luego espera a Stop. | Spring (`@Scheduled`). |
 | `ExecutionScheduling` | Enciende el bucle; los tests de API lo apagan con una propiedad. | Spring. |
-| `RuntimeEngine`, `ComposeRuntimeEngine` | Habla con Docker con el CLI: `up --wait`, `startLoad`, `stopLoad` (para k6 y lee su código y su resumen), `ps`, `down -v`, barrido por etiquetas y unirse a la red. Mientras arranca, pregunta cada segundo si debe parar y, si es así, termina el comando. | Reconciler. |
+| `RuntimeEngine`, `ComposeRuntimeEngine`, `LogLine` | Habla con Docker con el CLI: `up --wait`, `startLoad`, `stopLoad` (para k6 y lee su código y su resumen), `ps`, `logs --timestamps`, `down -v`, barrido por etiquetas y unirse a la red. Mientras arranca, pregunta cada segundo si debe parar y, si es así, termina el comando. | Reconciler. |
 | `LoadReport` | Lo que dejó k6: código de salida (0 terminó, 105 lo paró Stop, vacío si nunca arrancó) y resumen. | Motor, reconciler. |
 | `RuntimeEngineException`, `StartCancelledException` | Docker no pudo hacer algo; su mensaje acaba como motivo del fallo o de la limpieza fallida. La segunda dice que el arranque se canceló por Stop, que no es un fallo. | Motor, reconciler. |
-| `ComponentStatus` | Estado de un nodo según Docker: arrancando, sano, no sano o parado. | Motor, observaciones, DTO. |
-| `ExecutionObservations` | Lo último visto de cada nodo (estado y respuesta), en memoria. Atajo hasta P08. | Reconciler (escribe), mapper (lee). |
+| `ComponentStatus` | Estado de un nodo según Docker: arrancando, sano, no sano o parado. | Motor, diario, DTO. |
+| `ExecutionJournal` | Escribe los eventos en la misma transacción que el cambio que describen: fases, causa de parada, limpiezas fallidas, estados de nodo cuando cambian, respuestas y líneas de log (100 por vuelta, 1.000 por nodo y ejecución). Lee lo último visto de cada nodo. | Reconciler, servicio. |
+| `LogRedactor` | Limpia cada línea de log: los secretos del propio backend, el valor tras `password=` o `token=`, los tokens Bearer y los JWT, y corta a 500 caracteres. | `ExecutionJournal`. |
 | `ServiceProbe` | Una petición `GET /` al servicio como evidencia de que funciona. | Reconciler. |
 | `ScenarioNotRunnableException` | Run encontró errores; lleva las incidencias. | `ExecutionService`, handler. |
 | `Execution` | La entidad: fase, causa de parada (gana la más grave), resultado, plazo del tiempo límite, copia congelada y plan. Lleva aparte los fallos de limpieza, que no cambian el resultado. | Servicio, reconciler. |
@@ -151,6 +155,7 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | `ExecutedWorkload`, `LoadSummary` | Copia de la carga al reservar y el resumen agregado de k6 al terminar; lo que k6 no midió queda vacío. Se guarda el primer resumen. | `Execution`, reconciler, DTO. |
 | `Phase`, `StopCause`, `Outcome` | Qué hace el motor, por qué para y cómo acabó. | `Execution`, DTO. |
 | `ExecutionRepository` | La ejecución activa (con bloqueo y nodos), la última de un escenario y si un escenario está reservado. | Servicio, reconciler, reservas. |
+| `ExecutionEvent`, `ExecutionEventRepository` | Un hecho de la ejecución (`STATE`, `EVENT` o `LOG`), inmutable, con su id creciente como cursor; tabla `execution_events` (V16), que avisa de cada inserción (V17). Las consultas por cursor, por tipo y el recuento de líneas por nodo. | Diario, `ExecutionFeed`. |
 
 ### `shared` y arranque
 
@@ -198,9 +203,10 @@ Rutas relativas a `frontend/app/`. Los ficheros de `features/*/model/` son los t
 | `graph-reducer.ts` | El estado del grafo y todas sus acciones: añadir, mover, conectar, configurar, la carga, guardar y conflicto. |
 | `connections.ts` | Identidad de las flechas y si un puerto puede conectarse a un nodo. |
 | `draft-storage.ts` | El borrador sin guardar en `localStorage`, por cuenta y escenario, con la carga. |
-| `api/graph-service.ts`, `api/execution-service.ts` | Leer y guardar el grafo; Run, ejecución actual y Stop. |
+| `api/graph-service.ts`, `api/execution-service.ts` | Leer y guardar el grafo; Run, ejecución actual, Stop y la URL del flujo de eventos con su cursor. |
 | `component-catalogue/api/workload-profile-service.ts` | Lee los perfiles de carga con sus límites (`GET /api/v1/workload-profiles`). |
-| `use-execution.ts` | Estado de la ejecución, Run y Stop sin dobles envíos (Stop también reintenta una limpieza fallida), la consulta cada 2 s mientras está activa y otra al volver a la pestaña, por si otra la reservó. |
+| `use-execution.ts` | Estado de la ejecución, Run y Stop sin dobles envíos (Stop también reintenta una limpieza fallida). Vuelve a leer la ejecución con cada estado o evento del flujo, y al volver a la pestaña, por si otra la reservó. |
+| `use-execution-events.ts` | Sigue el flujo SSE de una ejecución con `EventSource`: guarda los últimos 500 eventos, renueva la sesión y reabre tras el último al recibir `renew`, y distingue conectado, reconectando y sin actualizaciones. Lo cierra al recibir la liberación. |
 | `execution-status.ts` | Palabra y tono de cada fase, de cada estado de nodo y de la carga, con el vocabulario de `DESIGN.md`, y el texto de la cuenta atrás. |
 | `components/component-palette.tsx` | Lista de plantillas para añadir con un clic o arrastrando. |
 | `components/component-node.tsx` | Cómo se dibuja un nodo: configuración, puertos, incidencias, estado en el experimento y el carril de tráfico si recibe la carga. |
@@ -211,6 +217,7 @@ Rutas relativas a `frontend/app/`. Los ficheros de `features/*/model/` son los t
 | `components/issue-list.tsx`, `issue-note.tsx` | Panel de incidencias y una incidencia en una línea. Las de la carga abren el panel Load. |
 | `components/scenario-details.tsx` | Nombre y descripción del escenario en el panel lateral. |
 | `components/run-button.tsx`, `execution-badge.tsx`, `status-icon.tsx` | Botón Run/Stop/Retry cleanup, estado del experimento en la barra e icono de cada estado. |
+| `components/execution-activity.tsx` | Panel Activity: lo que pasó en el experimento, con hora y origen (el experimento, un componente o la carga), y el estado del flujo. |
 | `components/component-icon.tsx` | Icono de cada tipo de componente. |
 
 ## Fuera de las aplicaciones

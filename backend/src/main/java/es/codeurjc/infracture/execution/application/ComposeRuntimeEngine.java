@@ -59,8 +59,11 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         // attaching to the containers (/attach, /events), which docker-proxy forbids.
         compose(plan, START_TIMEOUT.plusMinutes(1), cancelled, List.of(),
                 "up", "-d", "--wait", "--wait-timeout", String.valueOf(START_TIMEOUT.toSeconds()));
+        // The lowest priority keeps the backend's default route on its own network. Otherwise Docker may
+        // move it to the experiment's network, and on Linux the connections already open, such as event
+        // streams, stop getting their replies.
         if (!backendContainer.isBlank()) {
-            backendNetwork(plan, "connect");
+            backendNetwork(plan, "connect", "--gw-priority", "-1");
         }
     }
 
@@ -95,6 +98,47 @@ class ComposeRuntimeEngine implements RuntimeEngine {
             statuses.put(container.service(), ComponentStatus.of(container.state(), container.health()));
         }
         return statuses;
+    }
+
+    @Override
+    public List<LogLine> logs(Map<String, Object> plan, Instant since) {
+        List<String> flags = new ArrayList<>(List.of("--no-color", "--timestamps"));
+        if (since != null) {
+            flags.addAll(List.of("--since", since.toString()));
+        }
+        List<LogLine> lines = new ArrayList<>();
+        String output = compose(plan, STOP_TIMEOUT, WITH_LOAD, "logs", flags.toArray(String[]::new));
+        for (String line : output.split("\\R")) {
+            LogLine parsed = parseLogLine(line);
+            if (parsed != null) {
+                lines.add(parsed);
+            }
+        }
+        return lines;
+    }
+
+    // With --timestamps each line reads "<service>-<index>  | <time> <text>". The service keeps its own
+    // hyphens and only the last "-<index>" goes. Null for any other line. Plain index searches, not a regex,
+    // so a long line is read in one pass.
+    static LogLine parseLogLine(String line) {
+        int bar = line.indexOf(" | ");
+        if (bar < 0) {
+            return null;
+        }
+        String container = line.substring(0, bar).strip();
+        int dash = container.lastIndexOf('-');
+        String index = container.substring(dash + 1);
+        if (dash <= 0 || index.isEmpty() || !index.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        String rest = line.substring(bar + 3);
+        int space = rest.indexOf(' ');
+        String time = space < 0 ? rest : rest.substring(0, space);
+        if (time.isEmpty()) {
+            return null;
+        }
+        String text = space < 0 ? "" : rest.substring(space + 1);
+        return new LogLine(container.substring(0, dash), Instant.parse(time), text);
     }
 
     // Compose prints one JSON object per container and line.
@@ -187,7 +231,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         return plan.get("name") + "_" + PlanCompiler.NETWORK;
     }
 
-    //only docker comands not compose
+    // only docker comands not compose
     private static String docker(List<String> arguments) {
         List<String> command = new ArrayList<>(List.of("docker"));
         command.addAll(arguments);

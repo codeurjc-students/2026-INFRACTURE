@@ -58,7 +58,9 @@ public class SecurityConfig {
                         .accessDeniedHandler((request, response, exception) ->
                                 resolver.resolveException(request, response, null, exception)))
                 .authorizeHttpRequests(authorize -> authorize
-                        .dispatcherTypeMatchers(DispatcherType.ERROR)
+                        // The request that started an error page or an event stream was already authorized.
+                        // The stateless session cannot authenticate the later async dispatch on its own.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.ASYNC)
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",
                                 "/swagger-ui.html", "/swagger-ui/**")

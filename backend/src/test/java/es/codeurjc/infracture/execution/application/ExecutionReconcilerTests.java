@@ -7,8 +7,10 @@ import static org.mockito.Mockito.when;
 import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
-import es.codeurjc.infracture.execution.application.ExecutionObservations.Observation;
+import es.codeurjc.infracture.execution.application.ExecutionView.Node;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionEvent;
+import es.codeurjc.infracture.execution.domain.ExecutionEvent.Kind;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
 import es.codeurjc.infracture.execution.domain.Outcome;
 import es.codeurjc.infracture.execution.domain.Phase;
@@ -53,7 +55,9 @@ class ExecutionReconcilerTests {
     private final PlanCompiler planCompiler =
             new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local",
                     "infracture/load-generator:0.1.0");
-    private final ExecutionObservations observations = new ExecutionObservations();
+    private final InMemoryExecutionEvents events = new InMemoryExecutionEvents();
+    private final ExecutionJournal journal =
+            new ExecutionJournal(events.repository, new LogRedactor("db-password-2026", "admin-password-2026"));
     private final ServiceProbe probe = mock(ServiceProbe.class);
     private static final Instant STARTED = Instant.parse("2026-11-13T10:00:00Z");
     private static final Instant DEADLINE = Instant.parse("2026-11-13T10:30:00Z");
@@ -303,8 +307,8 @@ class ExecutionReconcilerTests {
         reconciler.reconcile();
         reconciler.reconcile();
 
-        assertThat(observations.of(12L, ORDERS))
-                .isEqualTo(new Observation(ComponentStatus.HEALTHY, "{\"component\":\"orders-api\"}"));
+        assertThat(journal.nodes(12L)).containsEntry(ORDERS,
+                new Node(ComponentStatus.HEALTHY, "{\"component\":\"orders-api\"}"));
     }
 
     @Test
@@ -316,7 +320,7 @@ class ExecutionReconcilerTests {
 
         assertThat(execution.getStopCause()).isEqualTo(StopCause.FAILURE);
         assertThat(execution.getFailureReason()).isEqualTo("orders-api is unhealthy");
-        assertThat(observations.of(12L, ORDERS).status()).isEqualTo(ComponentStatus.UNHEALTHY);
+        assertThat(journal.nodes(12L).get(ORDERS).status()).isEqualTo(ComponentStatus.UNHEALTHY);
     }
 
     @Test
@@ -380,14 +384,62 @@ class ExecutionReconcilerTests {
     }
 
     @Test
-    void forgetsWhatItSawOnceReleased() {
+    void recordsEachStepOfAFailedStartAsAnEvent() {
+        engine.upFailure = new RuntimeEngineException("docker compose up failed: container is unhealthy");
+
         reconciler.reconcile();
         reconciler.reconcile();
-        execution.requestStop();
+
+        assertThat(events.types(12L)).containsExactly("PHASE", "STOP", "PHASE", "PHASE");
+        assertThat(events.of(12L, Kind.EVENT)).extracting(ExecutionEvent::getPayload).containsExactly(
+                Map.of("type", "PHASE", "phase", "STARTING"),
+                Map.of("type", "STOP", "cause", "FAILURE",
+                        "reason", "docker compose up failed: container is unhealthy"),
+                Map.of("type", "PHASE", "phase", "STOPPING"),
+                Map.of("type", "PHASE", "phase", "RELEASED"));
+    }
+
+    @Test
+    void recordsTheStateOfANodeOnlyWhenItChanges() {
+        reconciler.reconcile();
+        reconciler.reconcile();
+        reconciler.reconcile();
+        engine.status = Map.of("c-" + ORDERS, ComponentStatus.UNHEALTHY);
+        reconciler.reconcile();
+
+        assertThat(events.of(12L, Kind.STATE)).extracting(event -> event.getPayload().get("status"))
+                .containsExactly("HEALTHY", "UNHEALTHY");
+    }
+
+    @Test
+    void keepsTheLinesTheNodesAndTheLoadPrintOnceAndCleaned() {
+        Instant printed = STARTED.plusSeconds(1);
+        engine.logLines.add(new LogLine("c-" + ORDERS, printed, "Started DemoApplication"));
+        engine.logLines.add(new LogLine("c-" + ORDERS, printed.plusMillis(1), "connecting with password=hunter2"));
+        engine.logLines.add(new LogLine(PlanCompiler.LOAD_SERVICE, printed.plusMillis(2), "running (01m00s)"));
+        engine.logLines.add(new LogLine("unknown", printed.plusMillis(3), "not part of the plan"));
+
+        reconciler.reconcile();
+        reconciler.reconcile();
+        reconciler.reconcile();
+
+        assertThat(events.of(12L, Kind.LOG)).extracting(ExecutionEvent::getComponentKey,
+                event -> event.getPayload().get("line"), ExecutionEvent::getAt).containsExactly(
+                org.assertj.core.groups.Tuple.tuple(ORDERS, "Started DemoApplication", printed),
+                org.assertj.core.groups.Tuple.tuple(ORDERS, "connecting with password=[redacted]",
+                        printed.plusMillis(1)),
+                org.assertj.core.groups.Tuple.tuple(null, "running (01m00s)", printed.plusMillis(2)));
+    }
+
+    @Test
+    void goesOnWhenDockerCannotGiveTheLogs() {
+        reconciler.reconcile();
+        engine.logsFailure = new RuntimeEngineException("docker compose logs failed: Cannot connect");
 
         reconciler.reconcile();
 
-        assertThat(observations.of(12L, ORDERS)).isEqualTo(new Observation(null, null));
+        assertThat(execution.getPhase()).isEqualTo(Phase.RUNNING);
+        assertThat(execution.getStopCause()).isNull();
     }
 
     @Test
@@ -503,7 +555,7 @@ class ExecutionReconcilerTests {
     }
 
     private ExecutionReconciler reconciler(Duration cleanupPause, Clock clock) {
-        return new ExecutionReconciler(repository, engine, planCompiler, observations, probe, Duration.ofMinutes(30),
+        return new ExecutionReconciler(repository, engine, planCompiler, journal, probe, Duration.ofMinutes(30),
                 cleanupPause, clock, mock(PlatformTransactionManager.class));
     }
 
@@ -526,6 +578,8 @@ class ExecutionReconcilerTests {
         private RuntimeEngineException statusFailure;
         private RuntimeEngineException startLoadFailure;
         private RuntimeEngineException stopLoadFailure;
+        private RuntimeEngineException logsFailure;
+        private final List<LogLine> logLines = new ArrayList<>();
         // What happens while the engine waits, such as a Stop from the owner.
         private Runnable duringUp = () -> { };
         private Runnable duringStartLoad = () -> { };
@@ -574,6 +628,15 @@ class ExecutionReconcilerTests {
                 throw statusFailure;
             }
             return status;
+        }
+
+        // Like Docker, a line printed exactly at since comes back again.
+        @Override
+        public List<LogLine> logs(Map<String, Object> plan, Instant since) {
+            if (logsFailure != null) {
+                throw logsFailure;
+            }
+            return logLines.stream().filter(line -> since == null || !line.at().isBefore(since)).toList();
         }
 
         @Override

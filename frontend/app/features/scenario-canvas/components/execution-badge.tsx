@@ -31,8 +31,8 @@ export function ExecutionBadge({
   );
 }
 
-// Counts down between polls from the server's figure. Each poll brings a new figure and remounts it,
-// so the server's clock always decides; the server, not this timer, ends the experiment.
+// Counts down from the server's figure. Each new reading of the execution brings a new figure and
+// remounts it, so the server's clock always decides; the server, not this timer, ends the experiment.
 function TimeLeft({ seconds }: Readonly<{ seconds: number }>) {
   const [left, setLeft] = useState(seconds);
 

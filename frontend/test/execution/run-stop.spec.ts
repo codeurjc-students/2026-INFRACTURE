@@ -130,10 +130,27 @@ test("runs an HTTP Service from the canvas, watches it and stops it", async ({
     expect(experimentResources().length).toBeGreaterThan(0);
   });
 
+  await test.step("Follow what happens and what the service prints in Activity", async () => {
+    await page.getByRole("button", { name: "Activity" }).click();
+    const activity = page.getByRole("region", { name: "Activity" });
+    await expect(activity.getByRole("status")).toHaveText("Live");
+    const events = activity.getByRole("list", { name: "Events" });
+    await expect(events).toContainText("Every component is healthy");
+    await expect(events.getByRole("listitem").filter({ hasText: "orders-api" }).first()).toBeVisible();
+    // The demo app's own Spring Boot log, read from Docker and shown as it was printed.
+    await expect(events).toContainText("Started DemoApplication", {
+      timeout: 30_000,
+    });
+    await shot("3b-activity");
+  });
+
   await test.step("Stop it and check that nothing is left in Docker", async () => {
     await page.getByRole("button", { name: "Stop" }).click();
     await expect(page.getByRole("button", { name: "Stopping…" })).toBeVisible();
     await expect(status(page)).toHaveText("Completed", { timeout: 120_000 });
+    await expect(
+      page.getByRole("region", { name: "Activity" }).getByRole("list", { name: "Events" }),
+    ).toContainText("Cleanup finished");
     await expect(page.getByRole("button", { name: "Run" })).toBeEnabled();
     await expect(
       page.getByRole("button", { name: "Add HTTP Service" }),

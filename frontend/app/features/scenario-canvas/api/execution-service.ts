@@ -27,6 +27,18 @@ export async function getCurrentExecution(
   return execution ?? null;
 }
 
+// The event stream of one execution. A stream reopened after renewing the session resumes after the
+// last event it received.
+export function executionEventsUrl(
+  projectId: string,
+  scenarioId: string,
+  executionId: number,
+  after?: number,
+) {
+  const url = `${executionsPath(projectId, scenarioId)}/${executionId}/events`;
+  return after ? `${url}?after=${after}` : url;
+}
+
 export function stopExecution(
   projectId: string,
   scenarioId: string,

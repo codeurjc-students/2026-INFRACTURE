@@ -9,7 +9,10 @@ import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -32,7 +35,7 @@ public class ExecutionReconciler {
     private final ExecutionRepository repository;
     private final RuntimeEngine engine;
     private final PlanCompiler planCompiler;
-    private final ExecutionObservations observations;
+    private final ExecutionJournal journal;
     private final ServiceProbe probe;
     private final Duration maxDuration;
     private final Duration cleanupPause;
@@ -42,16 +45,18 @@ public class ExecutionReconciler {
     // earlier one (#90). Each one is interrupted once per process; the set only holds those leftovers.
     private final Instant processStartedAt;
     private final Set<Long> recovered = new HashSet<>();
+    // Until when the logs of each running execution were read. Only the scheduler thread uses it.
+    private final Map<Long, Instant> logsReadUntil = new HashMap<>();
 
     public ExecutionReconciler(ExecutionRepository repository, RuntimeEngine engine, PlanCompiler planCompiler,
-            ExecutionObservations observations, ServiceProbe probe,
+            ExecutionJournal journal, ServiceProbe probe,
             @Value("${infracture.execution.max-duration:30m}") Duration maxDuration,
             @Value("${infracture.execution.cleanup-retry-pause:10s}") Duration cleanupPause,
             Clock clock, PlatformTransactionManager transactionManager) {
         this.repository = repository;
         this.engine = engine;
         this.planCompiler = planCompiler;
-        this.observations = observations;
+        this.journal = journal;
         this.probe = probe;
         this.maxDuration = maxDuration;
         this.cleanupPause = cleanupPause;
@@ -86,6 +91,16 @@ public class ExecutionReconciler {
         }
         Execution execution = active.get();
         Instant now = clock.instant();
+        ExecutionJournal.Mark before = ExecutionJournal.mark(execution);
+        boolean needsDocker = advance(execution, now);
+        journal.recordChanges(before, execution, now);
+        // The steps below run after this transaction ends, so the frozen load is read now.
+        execution.getWorkload();
+        return needsDocker ? execution : null;
+    }
+
+    // Takes the next phase on the locked row and tells whether that phase needs Docker now.
+    private boolean advance(Execution execution, Instant now) {
         // Checked here, on the locked row, so a leftover reservation never starts and no request races it.
         if (isLeftover(execution)) {
             execution.interrupt(now);
@@ -96,19 +111,19 @@ public class ExecutionReconciler {
         }
         if (execution.getStopCause() != null && execution.getPhase() != Phase.STOPPING) {
             execution.beginStopping();
-        } else if (execution.getPhase() == Phase.RESERVED) {
-            execution.startStarting();
-        } else if (execution.getPhase() == Phase.STARTING) {
-            // A start of this process cut short by a database error waits for Stop. One left by an
-            // earlier process was interrupted above.
-            return null;
-        } else if (execution.getPhase() == Phase.STOPPING && !execution.isCleanupDue(now, cleanupPause)) {
-            // A failed cleanup waits for its pause, or for the owner once the automatic attempts are spent.
-            return null;
+            return true;
         }
-        // The steps below run after this transaction ends, so the frozen load is read now.
-        execution.getWorkload();
-        return execution;
+        if (execution.getPhase() == Phase.RESERVED) {
+            execution.startStarting();
+            return true;
+        }
+        // A start of this process cut short by a database error waits for Stop. One left by an earlier
+        // process was interrupted above.
+        if (execution.getPhase() == Phase.STARTING) {
+            return false;
+        }
+        // A failed cleanup waits for its pause, or for the owner once the automatic attempts are spent.
+        return execution.getPhase() != Phase.STOPPING || execution.isCleanupDue(now, cleanupPause);
     }
 
     // A Stop pressed meanwhile cancels the start; the next tick cleans up what it left.
@@ -129,7 +144,11 @@ public class ExecutionReconciler {
         }
         update(execution.getId(), locked -> locked.markRunning(clock.instant(), maxDuration));
         for (Map.Entry<UUID, URI> target : planCompiler.evidence(execution).entrySet()) {
-            observations.recordResponse(execution.getId(), target.getKey(), probe.get(target.getValue()));
+            String response = probe.get(target.getValue());
+            if (response != null) {
+                transactions.executeWithoutResult(status ->
+                        journal.recordResponse(execution.getId(), target.getKey(), response, clock.instant()));
+            }
         }
     }
 
@@ -149,22 +168,42 @@ public class ExecutionReconciler {
         if (broken != null) {
             update(execution.getId(), locked -> locked.fail(broken));
         }
+        readLogs(execution);
     }
 
     // Returns why the execution fails when a node is down, or null when all are up.
     private String recordStatuses(Execution execution, Map<String, ComponentStatus> statuses) {
         String broken = null;
+        Map<UUID, ComponentStatus> byNode = new LinkedHashMap<>();
         for (ExecutedComponent component : execution.getComponents()) {
             ComponentStatus status =
                     statuses.getOrDefault(PlanCompiler.serviceName(component), ComponentStatus.EXITED);
-            observations.recordStatus(execution.getId(), component.getKey(), status);
+            byNode.put(component.getKey(), status);
             if (broken == null && status == ComponentStatus.UNHEALTHY) {
                 broken = component.getName() + " is unhealthy";
             } else if (broken == null && status == ComponentStatus.EXITED) {
                 broken = component.getName() + " stopped";
             }
         }
+        transactions.executeWithoutResult(status ->
+                journal.recordStates(execution.getId(), byNode, clock.instant()));
         return broken;
+    }
+
+    // Logs are evidence, not health: when Docker cannot give them, the experiment goes on without them.
+    private void readLogs(Execution execution) {
+        Long id = execution.getId();
+        Instant since = logsReadUntil.containsKey(id) ? logsReadUntil.get(id) : journal.lastLogAt(id);
+        List<LogLine> lines;
+        try {
+            lines = engine.logs(execution.getPlan(), since);
+        } catch (RuntimeEngineException _) {
+            return;
+        }
+        Instant readUntil = transactions.execute(status -> journal.recordLogs(execution, lines, since));
+        if (readUntil != null) {
+            logsReadUntil.put(id, readUntil);
+        }
     }
 
     // k6 exits on its own when its duration ends; the experiment keeps running until Stop or the time limit.
@@ -203,7 +242,7 @@ public class ExecutionReconciler {
             return;
         }
         update(execution.getId(), Execution::release);
-        observations.forget(execution.getId());
+        logsReadUntil.remove(execution.getId());
     }
 
     // A load that never started left no container and nothing to record.
@@ -227,7 +266,13 @@ public class ExecutionReconciler {
         return execution.getCreatedAt().isBefore(processStartedAt) && !recovered.contains(execution.getId());
     }
 
+    // Each change is recorded as events in its own transaction.
     private void update(Long id, Consumer<Execution> change) {
-        transactions.executeWithoutResult(status -> change.accept(repository.findForUpdateById(id).orElseThrow()));
+        transactions.executeWithoutResult(status -> {
+            Execution locked = repository.findForUpdateById(id).orElseThrow();
+            ExecutionJournal.Mark before = ExecutionJournal.mark(locked);
+            change.accept(locked);
+            journal.recordChanges(before, locked, clock.instant());
+        });
     }
 }
