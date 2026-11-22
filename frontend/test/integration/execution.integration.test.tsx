@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
+  executionEventsUrl,
   getCurrentExecution,
   runScenario,
   stopExecution,
@@ -79,6 +80,30 @@ afterAll(async () => {
   }
   vi.unstubAllGlobals();
 });
+
+// Reads a whole event stream with the session cookies and splits it into its messages.
+async function events(url: string) {
+  const response = await fetch(url, {
+    headers: { Accept: "text/event-stream" },
+  });
+  expect(response.status).toBe(200);
+  return (await response.text())
+    .split("\n\n")
+    .filter((message) => message.trim())
+    .map((message) => {
+      const fields = Object.fromEntries(
+        message.split("\n").map((line) => {
+          const colon = line.indexOf(":");
+          return [line.slice(0, colon), line.slice(colon + 1)];
+        }),
+      );
+      return {
+        id: Number(fields.id),
+        event: fields.event,
+        data: JSON.parse(fields.data),
+      };
+    });
+}
 
 function submit(path: string, fields: Record<string, string>) {
   const body = new FormData();
@@ -198,5 +223,26 @@ describe("execution client against the real API", () => {
     await expect(
       getCurrentExecution(projectId, scenarioId),
     ).resolves.toMatchObject({ id: current.id, phase: "RELEASED" });
+
+    // The stream of a released execution sends its whole history and ends, so the body is complete.
+    const history = await events(
+      executionEventsUrl(projectId, scenarioId, current.id),
+    );
+    expect(
+      history
+        .filter((message) => message.event === "event")
+        .map((message) => message.data.phase ?? message.data.cause),
+    ).toEqual(expect.arrayContaining(["RESERVED", "STOP_REQUESTED", "RELEASED"]));
+    expect(history.at(-1)?.data).toMatchObject({
+      executionId: current.id,
+      type: "PHASE",
+      phase: "RELEASED",
+    });
+    const resumed = await events(
+      executionEventsUrl(projectId, scenarioId, current.id, history[0].id),
+    );
+    expect(resumed.map((message) => message.id)).toEqual(
+      history.slice(1).map((message) => message.id),
+    );
   }, 240_000);
 });

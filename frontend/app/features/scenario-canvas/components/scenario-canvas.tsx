@@ -16,6 +16,7 @@ import {
   type NodeChange,
 } from "@xyflow/react";
 import {
+  ActivityIcon,
   CheckIcon,
   CircleAlertIcon,
   CircleXIcon,
@@ -56,6 +57,7 @@ import {
   type StatusView,
 } from "../execution-status";
 import { useExecution } from "../use-execution";
+import ExecutionActivity from "./execution-activity";
 import { ExecutionBadge } from "./execution-badge";
 import { RunButton } from "./run-button";
 import {
@@ -466,7 +468,7 @@ function Editor({
   const [resolving, setResolving] = useState(false);
   const [dragging, setDragging] = useState(false);
   // What the side panel shows when no node is selected.
-  const [panel, setPanel] = useState<"details" | "issues" | "load" | null>(
+  const [panel, setPanel] = useState<"details" | "issues" | "load" | "activity" | null>(
     null,
   );
   // Templates by key, to find a node's template quickly.
@@ -589,7 +591,7 @@ function Editor({
   }, [selected]);
 
   // Opens the details or the issues in the side panel, or closes them when already open.
-  function togglePanel(next: "details" | "issues" | "load") {
+  function togglePanel(next: "details" | "issues" | "load" | "activity") {
     if (selected) select(null);
     setPanel(panel === next && !selected ? null : next);
   }
@@ -866,6 +868,20 @@ function Editor({
         >
           <InfoIcon />
         </Button>
+        {experiment.execution && (
+          <Button
+            type="button"
+            variant="ghost"
+            aria-pressed={panel === "activity" && !selected}
+            onClick={() => togglePanel("activity")}
+            aria-label="Activity"
+            title="What happened in the experiment"
+            size="icon"
+            className="text-muted-foreground aria-pressed:bg-accent aria-pressed:text-foreground dark:aria-pressed:bg-accent"
+          >
+            <ActivityIcon />
+          </Button>
+        )}
         {experiment.execution && (
           <ExecutionBadge execution={experiment.execution} />
         )}
@@ -1303,6 +1319,14 @@ function Editor({
                 execution={experiment.execution}
                 readOnly={readOnly}
                 dispatch={dispatch}
+                onClose={() => setPanel(null)}
+              />
+            )}
+            {!selected && panel === "activity" && experiment.execution && (
+              <ExecutionActivity
+                execution={experiment.execution}
+                events={experiment.events}
+                stream={experiment.stream}
                 onClose={() => setPanel(null)}
               />
             )}

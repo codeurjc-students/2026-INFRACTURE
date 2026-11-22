@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { HttpError } from "~/shared/api/api-fetch";
 import {
   getCurrentExecution,
@@ -6,9 +6,9 @@ import {
   stopExecution,
 } from "./api/execution-service";
 import type { ExecutionDTO } from "./model/ExecutionDTO";
+import { useExecutionEvents } from "./use-execution-events";
 
 const GENERIC_ERROR = "Something went wrong. Try again in a moment.";
-export const POLL_INTERVAL_MS = 2000;
 
 // The scenario's latest execution and the Run and Stop requests.
 export function useExecution(
@@ -41,27 +41,6 @@ export function useExecution(
 
   // Reserved, starting, running or cleaning up: the experiment holds the scenario.
   const active = execution !== null && execution.phase !== "RELEASED";
-  // A failed poll changes nothing, so this counter schedules the next one anyway.
-  const [retries, setRetries] = useState(0);
-
-  // While the experiment is active, asks for its state again every 2 s
-  useEffect(() => {
-    if (!active) return;
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const latest = await getCurrentExecution(projectId, scenarioId);
-        if (!cancelled && latest) setExecution(latest);
-      } catch {
-        if (!cancelled) setRetries((count) => count + 1);
-      }
-    }, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [active, execution, retries, projectId, scenarioId]);
-
   // Asks for the latest execution, which another tab or session may have started.
   async function refresh() {
     const latest = await getCurrentExecution(projectId, scenarioId);
@@ -69,15 +48,40 @@ export function useExecution(
     return latest ?? null;
   }
 
-  // Polling runs only while an experiment is active, so coming back to the tab is when this one
-  // learns that another tab or session reserved the scenario in the meantime.
-  const refreshOnReturn = useRef(refresh);
-  refreshOnReturn.current = refresh;
+  // Each state or lifecycle event reads the execution again. Reads do not overlap: events that arrive
+  // during a read ask for one more read once it ends.
+  const reading = useRef<"idle" | "reading" | "again">("idle");
+  function readAgain() {
+    if (reading.current !== "idle") {
+      reading.current = "again";
+      return;
+    }
+    reading.current = "reading";
+    refresh()
+      .catch(() => {
+        // Nothing changes on screen; the next event reads it again.
+      })
+      .finally(() => {
+        const more = reading.current === "again";
+        reading.current = "idle";
+        if (more) readAgain();
+      });
+  }
+  const live = useExecutionEvents(
+    projectId,
+    scenarioId,
+    execution?.id ?? null,
+    readAgain,
+  );
+
+  // The stream only follows a known execution, so coming back to the tab is when this one learns that
+  // another tab or session reserved the scenario in the meantime.
+  const refreshOnReturn = useEffectEvent(refresh);
   useEffect(() => {
     if (active) return;
     function onReturn() {
       if (document.visibilityState === "visible") {
-        refreshOnReturn.current().catch(() => {
+        refreshOnReturn().catch(() => {
           // Nothing changes on screen; the next return or save asks again.
         });
       }
@@ -93,6 +97,9 @@ export function useExecution(
   return {
     execution,
     active,
+    // What happened in the execution and whether the page is still receiving it.
+    events: live.events,
+    stream: live.state,
     // The backend is cleaning up on its own, so Stop has nothing to add.
     stopping:
       active && execution.stopCause !== null && !execution.cleanupRetryNeeded,

@@ -46,7 +46,8 @@ import ScenarioRoute, {
   clientLoader,
   ErrorBoundary,
 } from "~/routes/scenario";
-import { HttpError } from "~/shared/api/api-fetch";
+import { HttpError, renewSession } from "~/shared/api/api-fetch";
+import { FakeEventSource } from "../event-source-mock";
 import {
   constantHttp,
   httpService,
@@ -56,7 +57,17 @@ import {
 vi.mock("~/features/projects/api/project-service");
 vi.mock("~/features/projects/api/scenario-service");
 vi.mock("~/features/scenario-canvas/api/graph-service");
-vi.mock("~/features/scenario-canvas/api/execution-service");
+// The stream URL stays real, so a test reads which cursor the page resumes from.
+vi.mock("~/features/scenario-canvas/api/execution-service", async (original) => ({
+  ...(await original()),
+  getCurrentExecution: vi.fn(),
+  runScenario: vi.fn(),
+  stopExecution: vi.fn(),
+}));
+vi.mock("~/shared/api/api-fetch", async (original) => ({
+  ...(await original()),
+  renewSession: vi.fn(),
+}));
 vi.mock("~/features/component-catalogue/api/component-template-service");
 vi.mock("~/features/component-catalogue/api/workload-profile-service");
 
@@ -172,6 +183,19 @@ function execution(overrides: Partial<ExecutionDTO> = {}): ExecutionDTO {
     components: [],
     workload: null,
     ...overrides,
+  };
+}
+
+// A lifecycle event of execution 12, as the stream sends it.
+function phase(id: number, value: string) {
+  return {
+    id,
+    executionId: 12,
+    componentKey: null,
+    kind: "EVENT",
+    at: "2026-11-07T10:00:00Z",
+    type: "PHASE",
+    phase: value,
   };
 }
 
@@ -1422,25 +1446,24 @@ describe("running the scenario", () => {
     expect(screen.getByRole("button", { name: "Stopping…" })).toBeDisabled();
   });
 
-  it("follows the experiment every 2 s until it is released", async () => {
+  it("follows the experiment through its events until it is released", async () => {
     vi.mocked(getGraph).mockResolvedValue(runnableGraph);
     const key = runnableGraph.components[0].key;
+    const running = execution({
+      phase: "RUNNING",
+      components: [
+        {
+          key,
+          name: "Orders API",
+          type: "HTTP_SERVICE",
+          status: "HEALTHY",
+          response: '{"component":"orders-api"}',
+        },
+      ],
+    });
     vi.mocked(getCurrentExecution)
       .mockResolvedValueOnce(execution({ phase: "STARTING" }))
-      .mockResolvedValueOnce(
-        execution({
-          phase: "RUNNING",
-          components: [
-            {
-              key,
-              name: "Orders API",
-              type: "HTTP_SERVICE",
-              status: "HEALTHY",
-              response: '{"component":"orders-api"}',
-            },
-          ],
-        }),
-      )
+      .mockResolvedValueOnce(running)
       .mockResolvedValue(
         execution({
           phase: "RELEASED",
@@ -1451,34 +1474,152 @@ describe("running the scenario", () => {
     renderScenario();
 
     expect(await screen.findByText("Starting")).toBeInTheDocument();
-    // Real timers: each poll waits the real 2 s.
-    expect(
-      await screen.findByText("Running", {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    const stream = FakeEventSource.latest();
+    expect(stream.url).toBe("/api/v1/projects/7/scenarios/3/executions/12/events");
+    stream.open();
+    stream.emit("event", phase(1, "RUNNING"));
+    expect(await screen.findByText("Running")).toBeInTheDocument();
     const node = screen.getByRole("group", { name: /Orders API/ });
     // React Flow copies the nodes into its store in an effect, so a node can show its state one
     // render after the header.
     expect(await within(node).findByText("Healthy")).toBeInTheDocument();
     fireEvent.click(within(node).getByText("Orders API"));
-    const inspector = screen.getByRole("complementary", {
-      name: "Inspector",
-    });
     expect(
-      within(inspector).getByRole("figure", { name: "Response" }),
+      within(
+        screen.getByRole("complementary", { name: "Inspector" }),
+      ).getByRole("figure", { name: "Response" }),
     ).toHaveTextContent('{"component":"orders-api"}');
 
-    expect(
-      await screen.findByText("Completed", {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    // A log line only joins the activity; it does not read the execution again.
+    stream.emit("log", {
+      id: 2,
+      executionId: 12,
+      componentKey: key,
+      kind: "LOG",
+      at: "2026-11-07T10:00:05Z",
+      line: "Started DemoApplication",
+    });
+    expect(getCurrentExecution).toHaveBeenCalledTimes(2);
+    stream.emit("event", phase(3, "RELEASED"));
+
+    expect(await screen.findByText("Completed")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
     expect(screen.queryByText("Healthy")).not.toBeInTheDocument();
-    await new Promise((resolve) => setTimeout(resolve, 2100));
-    expect(getCurrentExecution).toHaveBeenCalledTimes(3);
-    // Two real polls and the check that no third one follows.
-  }, 10_000);
+    expect(stream.readyState).toBe(FakeEventSource.CLOSED);
+    expect(FakeEventSource.instances).toHaveLength(1);
+  });
+
+  it("lists what happened in the experiment, newest last, with its source", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    const key = runnableGraph.components[0].key;
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({
+        phase: "RUNNING",
+        components: [
+          {
+            key,
+            name: "Orders API",
+            type: "HTTP_SERVICE",
+            status: "HEALTHY",
+            response: null,
+          },
+        ],
+      }),
+    );
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    const panel = screen.getByRole("region", { name: "Activity" });
+    expect(within(panel).getByRole("status")).toHaveTextContent("Connecting…");
+    const stream = FakeEventSource.latest();
+    stream.open();
+    stream.emit("event", phase(1, "RUNNING"));
+    stream.emit("state", {
+      id: 2,
+      executionId: 12,
+      componentKey: key,
+      kind: "STATE",
+      at: "2026-11-07T10:00:02Z",
+      status: "HEALTHY",
+    });
+    stream.emit("log", {
+      id: 3,
+      executionId: 12,
+      componentKey: null,
+      kind: "LOG",
+      at: "2026-11-07T10:00:03Z",
+      line: "running (00m05s), 2/2 VUs",
+    });
+    stream.emit("state", {
+      id: 2,
+      executionId: 12,
+      componentKey: key,
+      kind: "STATE",
+      at: "2026-11-07T10:00:02Z",
+      status: "HEALTHY",
+    });
+
+    const items = within(
+      await within(panel).findByRole("list", { name: "Events" }),
+    ).getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      expect.stringContaining("ExperimentEvery component is healthy"),
+      expect.stringContaining("Orders APIHealthy"),
+      expect.stringContaining("Loadrunning (00m05s), 2/2 VUs"),
+    ]);
+    expect(within(panel).getByRole("status")).toHaveTextContent("Live");
+  });
+
+  it("renews the session and resumes the stream after the last event without showing a reconnection", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({ phase: "RUNNING" }),
+    );
+    vi.mocked(renewSession).mockResolvedValue(true);
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    const first = FakeEventSource.latest();
+    first.open();
+    first.emit("event", phase(4, "RUNNING"));
+    first.emit("renew", { after: 4 });
+
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+    expect(first.readyState).toBe(FakeEventSource.CLOSED);
+    expect(FakeEventSource.latest().url).toBe(
+      "/api/v1/projects/7/scenarios/3/executions/12/events?after=4",
+    );
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Reconnecting…")).not.toBeInTheDocument();
+  });
+
+  it("says when the stream is cut and when it cannot be resumed", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({ phase: "RUNNING" }),
+    );
+    vi.mocked(renewSession).mockResolvedValue(false);
+    renderScenario();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    const panel = screen.getByRole("region", { name: "Activity" });
+    const stream = FakeEventSource.latest();
+    stream.open();
+    stream.fail(false);
+    expect(await within(panel).findByRole("status")).toHaveTextContent(
+      "Reconnecting…",
+    );
+    stream.fail(true);
+
+    expect(await within(panel).findByRole("status")).toHaveTextContent(
+      "Not receiving updates. Reload the page to try again.",
+    );
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(screen.getByText("Running")).toBeInTheDocument();
+  });
 
   // Reopening the canvas recovers the server's countdown instead of starting a new one.
-  it("counts down from the time the server gives and follows it on each poll", async () => {
+  it("counts down from the time the server gives and takes its figure again on each event", async () => {
     vi.mocked(getGraph).mockResolvedValue(runnableGraph);
     vi.mocked(getCurrentExecution)
       .mockResolvedValueOnce(
@@ -1499,15 +1640,13 @@ describe("running the scenario", () => {
 
     const timer = await screen.findByRole("timer", { name: "Time left" });
     expect(timer).toHaveTextContent("10:00 left");
-    // Real timers: the poll after 2 s brings the server's figure back.
-    await waitFor(
-      () =>
-        expect(
-          screen.getByRole("timer", { name: "Time left" }),
-        ).toHaveTextContent("5:00 left"),
-      { timeout: 3000 },
+    FakeEventSource.latest().emit("event", phase(1, "RUNNING"));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("timer", { name: "Time left" }),
+      ).toHaveTextContent("5:00 left"),
     );
-  }, 10_000);
+  });
 
   it("says the experiment ended at its time limit", async () => {
     vi.mocked(getGraph).mockResolvedValue(runnableGraph);

@@ -47,7 +47,8 @@ async function csrfToken() {
 
 let renewal: Promise<boolean> | null = null;
 
-function renewSession(): Promise<boolean> {
+// Asks for a new access token with the refresh cookie. Concurrent callers share one request.
+export function renewSession(): Promise<boolean> {
   renewal ??= send(REFRESH_PATH, { method: "POST" })
     .then((response) => response.ok)
     .finally(() => {
