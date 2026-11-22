@@ -662,7 +662,7 @@ Cada `ComponentDriver` declara sus métricas y de dónde se leen. Un único `Tel
 | Workload (k6) | Progreso de k6 | Peticiones, errores, latencia media y p95, rendimiento | Resultados agregados de k6. Hoy, solo el resumen final ([sección 7.3](#73-cómo-se-genera)); por intervalos en P08. |
 | Load Balancer | Comprobaciones de HAProxy | Tráfico y estado de cada backend | Endpoint Prometheus de HAProxy. |
 
-Para leer esas fuentes, el backend se une a la red de la ejecución. No hace falta publicar puertos en la máquina.
+Para leer esas fuentes, el backend se une a la red de la ejecución. No hace falta publicar puertos en la máquina. Se une con la prioridad de puerta de enlace más baja (`--gw-priority -1`). Si no, Docker puede pasar su ruta por defecto a esa red, y en Linux las conexiones ya abiertas, como los streams de eventos, dejan de recibir respuesta sin cerrarse.
 
 ### 11.3 Muestras, eventos y SSE
 

@@ -88,20 +88,35 @@ class ComposeRuntimeEngineIntegrationTests {
     @Test
     void joinsTheBackendToTheNetworkAndLeavesItBeforeCleanup() {
         String backend = "infracture-" + instance + "-backend";
-        docker("container", "run", "-d", "--quiet", "--name", backend, "busybox:1.37", "sleep", "300");
+        // Named like the platform's network, which sorts after the experiment's: Docker would give the
+        // default route to the experiment's network unless the backend joins it with a lower priority.
+        String platform = "infracture-" + instance + "_default";
+        docker("network", "create", platform);
+        docker("container", "run", "-d", "--quiet", "--name", backend, "--network", platform, "busybox:1.37",
+                "sleep", "300");
         ComposeRuntimeEngine inContainer = new ComposeRuntimeEngine(JsonMapper.builder().build(), backend);
         try {
+            String defaultRoute = defaultRoute(backend);
             inContainer.up(plan("true"), NEVER);
             assertThat(docker("container", "inspect", "-f", "{{range $name, $n := .NetworkSettings.Networks}}"
                     + "{{$name}} {{end}}", backend).getFirst())
                     .contains("infracture-" + instance + "-exec-1_exec");
+            // A new default route would leave the backend's open connections, such as event streams,
+            // without their replies on Linux.
+            assertThat(defaultRoute(backend)).isEqualTo(defaultRoute);
 
             inContainer.down(plan("true"), labels);
 
             assertThat(labelled()).isEmpty();
         } finally {
             docker("container", "rm", "-f", backend);
+            docker("network", "rm", platform);
         }
+    }
+
+    private static String defaultRoute(String container) {
+        return docker("exec", container, "ip", "route").stream()
+                .filter(route -> route.startsWith("default")).findFirst().orElseThrow();
     }
 
     @Test

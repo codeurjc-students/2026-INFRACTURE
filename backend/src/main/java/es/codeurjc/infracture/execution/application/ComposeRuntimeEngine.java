@@ -62,8 +62,11 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         // attaching to the containers (/attach, /events), which docker-proxy forbids.
         compose(plan, START_TIMEOUT.plusMinutes(1), cancelled, List.of(),
                 "up", "-d", "--wait", "--wait-timeout", String.valueOf(START_TIMEOUT.toSeconds()));
+        // The lowest priority keeps the backend's default route on its own network. Otherwise Docker may
+        // move it to the experiment's network, and on Linux the connections already open, such as event
+        // streams, stop getting their replies.
         if (!backendContainer.isBlank()) {
-            backendNetwork(plan, "connect");
+            backendNetwork(plan, "connect", "--gw-priority", "-1");
         }
     }
 
