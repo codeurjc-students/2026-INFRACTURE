@@ -14,6 +14,7 @@ import es.codeurjc.infracture.project.domain.ValidationIssue.Severity;
 import es.codeurjc.infracture.project.domain.ValidationIssue.Target;
 import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.NotFoundException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -34,14 +35,19 @@ public class ExecutionService {
     private final ScenarioValidator validator;
     private final ContractCatalog contracts;
     private final PlanCompiler planCompiler;
+    private final ExecutionJournal journal;
+    private final Clock clock;
 
     public ExecutionService(ExecutionRepository repository, ScenarioService scenarioService,
-            ScenarioValidator validator, ContractCatalog contracts, PlanCompiler planCompiler) {
+            ScenarioValidator validator, ContractCatalog contracts, PlanCompiler planCompiler,
+            ExecutionJournal journal, Clock clock) {
         this.repository = repository;
         this.scenarioService = scenarioService;
         this.validator = validator;
         this.contracts = contracts;
         this.planCompiler = planCompiler;
+        this.journal = journal;
+        this.clock = clock;
     }
 
     // Reserves the exact revision the client saved. Docker is not touched here: the
@@ -49,14 +55,14 @@ public class ExecutionService {
     // reserved execution after this transaction commits, so no database transaction
     // waits for Docker.
     @Transactional
-    public Execution run(String ownerEmail, Long projectId, Long scenarioId, int revision) {
+    public ExecutionView run(String ownerEmail, Long projectId, Long scenarioId, int revision) {
         Scenario scenario = scenarioService.lockOwnScenario(ownerEmail, projectId, scenarioId);
         Optional<Execution> active = repository.findByReleasedAtIsNull();
         // Checks if a scenario is already running and if it is the same revision that
         // the user wants to run. If it is not the same revision, it throws a conflict
         // exception.
         if (active.isPresent()) {
-            return sameRun(active.get(), scenario, revision);
+            return view(sameRun(active.get(), scenario, revision));
         }
         // if not active but you press Run with a different revision, it throws a
         // conflict exception.
@@ -86,28 +92,49 @@ public class ExecutionService {
         }
         // Saved with the reservation when the transaction commits.
         execution.attachPlan(planCompiler.compile(execution));
-        return execution;
+        journal.recordReserved(execution, clock.instant());
+        return view(execution);
     }
 
     @Transactional(readOnly = true)
-    public Optional<Execution> getCurrent(String ownerEmail, Long projectId, Long scenarioId) {
+    public Optional<ExecutionView> getCurrent(String ownerEmail, Long projectId, Long scenarioId) {
         Scenario scenario = scenarioService.getScenario(ownerEmail, projectId, scenarioId);
-        return repository.findFirstByScenarioIdOrderByCreatedAtDescIdDesc(scenario.getId());
+        return repository.findFirstByScenarioIdOrderByCreatedAtDescIdDesc(scenario.getId()).map(this::view);
+    }
+
+    // One execution of the owner's scenario; another account's, or one of another scenario, is not found.
+    @Transactional(readOnly = true)
+    public ExecutionView getOwn(String ownerEmail, Long projectId, Long scenarioId, Long executionId) {
+        return view(ownExecution(ownerEmail, projectId, scenarioId, executionId, false));
     }
 
     // Stop only records the cause; the reconciler cleans up afterwards, so the
     // request returns at once.
     // Repeating it changes nothing, including after the execution was released.
     @Transactional
-    public Execution stop(String ownerEmail, Long projectId, Long scenarioId, Long executionId) {
+    public ExecutionView stop(String ownerEmail, Long projectId, Long scenarioId, Long executionId) {
+        Execution execution = ownExecution(ownerEmail, projectId, scenarioId, executionId, true);
+        ExecutionJournal.Mark before = ExecutionJournal.mark(execution);
+        execution.requestStop();
+        journal.recordChanges(before, execution, clock.instant());
+        return view(execution);
+    }
+
+    private Execution ownExecution(String ownerEmail, Long projectId, Long scenarioId, Long executionId,
+            boolean lock) {
         Scenario scenario = scenarioService.getScenario(ownerEmail, projectId, scenarioId);
-        Optional<Execution> found = repository.findForUpdateById(executionId);
+        Optional<Execution> found = lock ? repository.findForUpdateById(executionId) : repository.findById(executionId);
         if (found.isEmpty() || !found.get().getScenario().getId().equals(scenario.getId())) {
             throw new NotFoundException("Execution not found");
         }
-        Execution execution = found.get();
-        execution.requestStop();
-        return execution;
+        return found.get();
+    }
+
+    // Read inside the transaction: the frozen nodes and load are lazy, and the web layer has no session.
+    private ExecutionView view(Execution execution) {
+        execution.getComponents().size();
+        execution.getWorkload();
+        return new ExecutionView(execution, journal.nodes(execution.getId()), execution.secondsLeft(clock.instant()));
     }
 
     // A double click or a retry after a lost response gets the execution it already

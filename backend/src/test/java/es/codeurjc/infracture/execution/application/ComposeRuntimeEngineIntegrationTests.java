@@ -2,6 +2,7 @@ package es.codeurjc.infracture.execution.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -66,6 +67,22 @@ class ComposeRuntimeEngineIntegrationTests {
         assertThat(docker("container", "inspect", "-f", "{{range .Config.Env}}{{println .}}{{end}}",
                 "infracture-" + instance + "-exec-1-probe-1")).contains("COMPONENT_NAME=${HOME} costs $5");
         assertThat(engine.status(plan)).containsExactly(Map.entry("probe", ComponentStatus.HEALTHY));
+    }
+
+    @Test
+    void readsWhatEachServicePrintedWithItsTimeAndFromAGivenTime() throws InterruptedException {
+        Map<String, Object> plan = withCommand(List.of("sh", "-c", "echo first line; echo 'second | line'; sleep 300"));
+        engine.up(plan, NEVER);
+        List<LogLine> lines = engine.logs(plan, null);
+        for (int attempt = 0; attempt < 20 && lines.size() < 2; attempt++) {
+            Thread.sleep(250);
+            lines = engine.logs(plan, null);
+        }
+
+        assertThat(lines).extracting(LogLine::service, LogLine::text)
+                .containsExactly(tuple("probe", "first line"), tuple("probe", "second | line"));
+        assertThat(lines.getFirst().at()).isBeforeOrEqualTo(lines.getLast().at()).isAfter(Instant.now().minusSeconds(60));
+        assertThat(engine.logs(plan, lines.getLast().at().plusNanos(1))).isEmpty();
     }
 
     @Test
@@ -215,6 +232,15 @@ class ComposeRuntimeEngineIntegrationTests {
         @SuppressWarnings("unchecked")
         Map<String, Object> probe = new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
         probe.put("environment", environment);
+        plan.put("services", Map.of("probe", probe));
+        return plan;
+    }
+
+    private Map<String, Object> withCommand(List<String> command) {
+        Map<String, Object> plan = new HashMap<>(plan("true"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> probe = new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
+        probe.put("command", command);
         plan.put("services", Map.of("probe", probe));
         return plan;
     }

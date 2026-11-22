@@ -3,6 +3,7 @@ package es.codeurjc.infracture.execution.api;
 import static es.codeurjc.infracture.shared.api.ProblemResponses.problem;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.startsWith;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.when;
 import es.codeurjc.infracture.execution.application.ComponentStatus;
 import es.codeurjc.infracture.execution.application.ExecutionReconciler;
 import es.codeurjc.infracture.execution.application.LoadReport;
+import es.codeurjc.infracture.execution.application.LogLine;
 import es.codeurjc.infracture.execution.application.RuntimeEngine;
 import es.codeurjc.infracture.execution.application.RuntimeEngineException;
 import es.codeurjc.infracture.execution.application.ServiceProbe;
@@ -31,7 +33,15 @@ import es.codeurjc.infracture.project.api.ApiSession;
 import es.codeurjc.infracture.project.persistence.ProjectRepository;
 import es.codeurjc.infracture.project.persistence.ScenarioRepository;
 import io.restassured.specification.RequestSpecification;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -39,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.BooleanSupplier;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -56,7 +67,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @TestPropertySource(locations = "classpath:admin-test.properties",
         properties = {"infracture.execution.reconciler.enabled=false",
-            "infracture.execution.cleanup-retry-pause=0s"})
+            "infracture.execution.cleanup-retry-pause=0s",
+            "infracture.execution.events.poll-interval=1h"})
 @Testcontainers
 class ExecutionApiSystemTests {
 
@@ -299,6 +311,65 @@ class ExecutionApiSystemTests {
     }
 
     @Test
+    void streamsTheExecutionEventsToItsOwnerAndResumesAfterACursor() {
+        ApiSession alice = ApiSession.signUp(port);
+        ApiSession bob = ApiSession.signUp(port);
+        String scenario = statelessScenario(alice);
+        long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+            .extract().jsonPath().getLong("id");
+        String events = scenario + "/executions/" + id + "/events";
+        when(engine.logs(anyMap(), any())).thenReturn(List.of(new LogLine("c-" + ORDERS,
+            Instant.parse("2026-11-21T10:00:00Z"), "connected with password=hunter2")));
+        reconciler.reconcile();
+        reconciler.reconcile();
+        alice.write().post(scenario + "/executions/" + id + "/stop").then().statusCode(202);
+        reconciler.reconcile();
+
+        String all = alice.read().accept("text/event-stream").get(events).then().statusCode(200)
+            .contentType(startsWith("text/event-stream")).extract().asString();
+        List<String> sent = messages(all);
+        assertThat(sent).extracting(message -> message.replaceAll("^id:\\d+\\n", "").lines().findFirst()
+            .orElseThrow()).containsExactly("event:event", "event:event", "event:event", "event:state",
+                "event:log", "event:event", "event:event", "event:event");
+        assertThat(all).contains("\"phase\":\"RESERVED\"", "\"cause\":\"STOP_REQUESTED\"",
+                "\"phase\":\"RELEASED\"", "\"status\":\"HEALTHY\"",
+                "\"line\":\"connected with password=[redacted]\"", "\"componentKey\":\"" + ORDERS + "\"")
+            .doesNotContain("hunter2");
+
+        String cursor = sent.get(4).lines().findFirst().orElseThrow().substring("id:".length());
+        String rest = alice.read().accept("text/event-stream").header("Last-Event-ID", cursor).get(events)
+            .then().statusCode(200).extract().asString();
+        assertThat(messages(rest)).hasSize(3).allSatisfy(message -> assertThat(message).contains("event:event"));
+        assertThat(alice.read().accept("text/event-stream").queryParam("after", 999_999).get(events).then()
+            .statusCode(200).extract().asString()).startsWith("event:reset").contains("\"phase\":\"RELEASED\"");
+
+        bob.read().accept("text/event-stream").get(events).then().statusCode(404);
+        given().port(port).accept("text/event-stream").get(events).then().statusCode(401);
+    }
+
+    // Nothing polls here (poll interval 1h, heartbeat 15s): only the database notice can wake the stream.
+    @Test
+    void sendsANewEventToAnOpenStreamAsSoonAsItCommits() throws Exception {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = statelessScenario(alice);
+        long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+            .extract().jsonPath().getLong("id");
+        HttpRequest request = HttpRequest.newBuilder(
+                URI.create("http://localhost:" + port + scenario + "/executions/" + id + "/events"))
+            .header("Accept", "text/event-stream").header("Cookie", alice.cookieHeader()).build();
+
+        try (HttpClient client = HttpClient.newHttpClient();
+                Stream<String> body = client.send(request, BodyHandlers.ofLines()).body()) {
+            Iterator<String> lines = body.iterator();
+            assertTimeoutPreemptively(Duration.ofSeconds(10), () -> readUntil(lines, "\"phase\":\"RESERVED\""));
+            alice.write().post(scenario + "/executions/" + id + "/stop").then().statusCode(202);
+
+            assertTimeoutPreemptively(Duration.ofSeconds(10),
+                () -> readUntil(lines, "\"cause\":\"STOP_REQUESTED\""));
+        }
+    }
+
+    @Test
     void hidesStopFromOtherUsers() {
         ApiSession alice = ApiSession.signUp(port);
         ApiSession bob = ApiSession.signUp(port);
@@ -435,6 +506,11 @@ class ExecutionApiSystemTests {
         }
     }
 
+    // One entry per SSE message, without the blank line that ends it.
+    private static List<String> messages(String stream) {
+        return Arrays.stream(stream.split("\\n\\n")).filter(message -> !message.isBlank()).toList();
+    }
+
     private static String instanceOf(ApiSession session, String scenario) {
         return session.read().get(scenario + "/executions/current").then().extract()
             .path("plan.networks.exec.labels['io.infracture.instance']");
@@ -475,5 +551,14 @@ class ExecutionApiSystemTests {
                 {"key":"%s","templateKey":"redis","name":"cache","position":{"x":0,"y":0},
                  "profile":"DEFAULT","parameters":{}}
                 """.formatted(key);
+    }
+
+    private static void readUntil(Iterator<String> lines, String text) {
+        while (lines.hasNext()) {
+            if (lines.next().contains(text)) {
+                return;
+            }
+        }
+        throw new AssertionError("The stream ended before sending " + text);
     }
 }

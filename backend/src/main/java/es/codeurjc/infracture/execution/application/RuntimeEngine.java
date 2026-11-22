@@ -1,5 +1,7 @@
 package es.codeurjc.infracture.execution.application;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
 
@@ -21,6 +23,10 @@ public interface RuntimeEngine {
     // The status of each service of the plan, by service name. A service whose
     // container no longer exists is missing from the result.
     Map<String, ComponentStatus> status(Map<String, Object> plan);
+
+    // What the plan's services printed, oldest first, from since on (everything when since is null). Docker
+    // includes lines printed exactly at since, so the caller drops what it already has.
+    List<LogLine> logs(Map<String, Object> plan, Instant since);
 
     // Removes the plan's project and anything else carrying all the given labels. Calling it again
     // after a partial cleanup is safe. Returns only when nothing with those labels is left.
