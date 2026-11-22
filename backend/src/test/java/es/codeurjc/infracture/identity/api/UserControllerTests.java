@@ -44,8 +44,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @WebMvcTest(UserController.class)
-@Import({SecurityConfig.class, EncoderConfig.class, JwtTokenProvider.class,
-        UnauthorizedHandlerJwt.class, UserMapperImpl.class})
+@Import({ SecurityConfig.class, EncoderConfig.class, JwtTokenProvider.class,
+        UnauthorizedHandlerJwt.class, UserMapperImpl.class })
 class UserControllerTests {
 
     private static final String REGISTRATION = """
@@ -70,17 +70,17 @@ class UserControllerTests {
         User account = new User("alice", "stored-password-hash", "ALICE@EXAMPLE.COM", "Alice", UserRole.USER);
         account.setId(7L);
         var authenticated = org.springframework.security.core.userdetails.User
-            .withUsername(account.getEmail()).password(account.getEncodedPassword()).roles("USER").build();
+                .withUsername(account.getEmail()).password(account.getEncodedPassword()).roles("USER").build();
         when(userDetailsService.loadUserByUsername(account.getEmail())).thenReturn(authenticated);
         when(userService.getUserByEmail(account.getEmail())).thenReturn(account);
 
         mvc.perform(get("/api/v1/users/me")
                 .cookie(new Cookie("AuthToken", jwtTokenProvider.generateAccessToken(authenticated))))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id").value(7))
-            .andExpect(jsonPath("$.username").value("alice"))
-            .andExpect(jsonPath("$.email").value("ALICE@EXAMPLE.COM"))
-            .andExpect(jsonPath("$.encodedPassword").doesNotExist());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7))
+                .andExpect(jsonPath("$.username").value("alice"))
+                .andExpect(jsonPath("$.email").value("ALICE@EXAMPLE.COM"))
+                .andExpect(jsonPath("$.encodedPassword").doesNotExist());
 
         verify(userService).getUserByEmail(account.getEmail());
     }
@@ -88,7 +88,7 @@ class UserControllerTests {
     @Test
     void rejectsIdentityRequestsWithoutAuthentication() throws Exception {
         mvc.perform(get("/api/v1/users/me"))
-            .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(userService);
     }
@@ -108,18 +108,18 @@ class UserControllerTests {
         });
 
         mvc.perform(registrationRequest())
-            .andExpect(status().isCreated())
-            .andExpect(header().string("Location", "http://localhost/api/v1/users/1"))
-            .andExpect(jsonPath("$.id").value(1))
-            .andExpect(jsonPath("$.username").value("alice"))
-            .andExpect(jsonPath("$.displayName").value("Alice"))
-            .andExpect(jsonPath("$.email").value("alice@example.com"))
-            .andExpect(jsonPath("$.role").value("USER"))
-            .andExpect(jsonPath("$.active").value(true))
-            .andExpect(jsonPath("$.createdAt").value(createdAt.toString()))
-            .andExpect(jsonPath("$.updatedAt").value(createdAt.toString()))
-            .andExpect(jsonPath("$.password").doesNotExist())
-            .andExpect(jsonPath("$.encodedPassword").doesNotExist());
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "http://localhost/api/v1/users/1"))
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.username").value("alice"))
+                .andExpect(jsonPath("$.displayName").value("Alice"))
+                .andExpect(jsonPath("$.email").value("alice@example.com"))
+                .andExpect(jsonPath("$.role").value("USER"))
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.createdAt").value(createdAt.toString()))
+                .andExpect(jsonPath("$.updatedAt").value(createdAt.toString()))
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(jsonPath("$.encodedPassword").doesNotExist());
     }
 
     @ParameterizedTest
@@ -128,10 +128,10 @@ class UserControllerTests {
         when(userService.registerUser(any(User.class))).thenThrow(failure);
 
         mvc.perform(registrationRequest())
-            .andExpect(status().is(expectedStatus))
-            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.status").value(expectedStatus))
-            .andExpect(jsonPath("$.detail").value(failure.getMessage()));
+                .andExpect(status().is(expectedStatus))
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(expectedStatus))
+                .andExpect(jsonPath("$.detail").value(failure.getMessage()));
     }
 
     static Stream<Arguments> registrationFailures() {
@@ -145,7 +145,7 @@ class UserControllerTests {
     void rejectsRegistrationWithoutCsrfBeforeCallingService() throws Exception {
         mvc.perform(post("/api/v1/users")
                 .contentType(MediaType.APPLICATION_JSON).content(REGISTRATION))
-            .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden());
 
         verifyNoInteractions(userService);
     }
@@ -153,22 +153,22 @@ class UserControllerTests {
     @Test
     void hidesUnexpectedFailuresBehindGenericProblemDetail() throws Exception {
         when(userService.registerUser(any(User.class)))
-            .thenThrow(new DataAccessResourceFailureException("Database unavailable"));
+                .thenThrow(new DataAccessResourceFailureException("Database unavailable"));
 
         mvc.perform(registrationRequest())
-            .andExpect(status().isInternalServerError())
-            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.status").value(500))
-            .andExpect(jsonPath("$.detail").value("An unexpected error occurred."))
-            .andExpect(content().string(not(containsString("Database unavailable"))));
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.detail").value("An unexpected error occurred."))
+                .andExpect(content().string(not(containsString("Database unavailable"))));
     }
 
     private MockHttpServletRequestBuilder registrationRequest() throws Exception {
         Cookie token = mvc.perform(get("/api/v1/component-templates"))
-            .andExpect(cookie().exists("XSRF-TOKEN"))
-            .andReturn().getResponse().getCookie("XSRF-TOKEN");
+                .andExpect(cookie().exists("XSRF-TOKEN"))
+                .andReturn().getResponse().getCookie("XSRF-TOKEN");
 
         return post("/api/v1/users").cookie(token).header("X-XSRF-TOKEN", token.getValue())
-            .contentType(MediaType.APPLICATION_JSON).content(REGISTRATION);
+                .contentType(MediaType.APPLICATION_JSON).content(REGISTRATION);
     }
 }

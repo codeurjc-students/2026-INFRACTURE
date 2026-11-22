@@ -111,7 +111,8 @@ class ExecutionPersistenceIntegrationTests {
     void reopensTheFrozenLoadOnItsExecutedTarget() {
         cache.replaceGraph(2, List.of(
                 new ComponentDraft(orders, "http-service", "orders-api", 0, 0,
-                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 50)))), List.of(),
+                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 50)))),
+                List.of(),
                 new Workload(orders, "CONSTANT_HTTP",
                         Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42),
                 catalogue());

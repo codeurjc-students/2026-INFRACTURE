@@ -78,7 +78,7 @@ class AuthenticationApiSystemTests {
     @Test
     void exposesHealthWithoutAuthenticationForStartupScripts() {
         given().port(port).get("/actuator/health")
-            .then().statusCode(200).body("status", equalTo("UP"));
+                .then().statusCode(200).body("status", equalTo("UP"));
     }
 
     @Test
@@ -86,7 +86,7 @@ class AuthenticationApiSystemTests {
         CookieFilter cookies = new CookieFilter();
         String csrf = csrf(cookies);
         write(cookies, csrf).body(registration("expiryuser", "expiry@example.com"))
-            .post("/api/v1/users").then().statusCode(201);
+                .post("/api/v1/users").then().statusCode(201);
         write(cookies, csrf).body("""
                 {"email":"expiry@example.com","password":"%s"}
                 """.formatted(PASSWORD)).post("/api/v1/auth/login").then().statusCode(200);
@@ -97,7 +97,7 @@ class AuthenticationApiSystemTests {
 
         write(cookies, csrf(cookies)).post("/api/v1/auth/refresh").then().statusCode(200);
         given().port(port).filter(cookies).get("/api/v1/users/me").then().statusCode(200)
-            .body("username", equalTo("expiryuser"));
+                .body("username", equalTo("expiryuser"));
     }
 
     @Test
@@ -105,15 +105,15 @@ class AuthenticationApiSystemTests {
         CookieFilter cookies = new CookieFilter();
         String csrf = csrf(cookies);
         Response registration = write(cookies, csrf).body(registration("flowuser", "FlowUser@example.com"))
-            .post("/api/v1/users");
+                .post("/api/v1/users");
         registration.then().statusCode(201).body("role", equalTo("USER"))
-            .body("password", nullValue()).body("encodedPassword", nullValue());
+                .body("password", nullValue()).body("encodedPassword", nullValue());
         Long id = registration.jsonPath().getLong("id");
         User saved = repository.findById(id).orElseThrow();
         assertThat(saved.getEncodedPassword()).startsWith("$argon2id$").isNotEqualTo(PASSWORD);
         assertThat(passwordEncoder.matches(PASSWORD, saved.getEncodedPassword())).isTrue();
         write(cookies, csrf).body(registration("otherflow", "flowuser@EXAMPLE.COM"))
-            .post("/api/v1/users").then().statusCode(409);
+                .post("/api/v1/users").then().statusCode(409);
         write(cookies, csrf).body("""
                 {"email":"FlowUser@example.com","password":"Incorrect password 2026!"}
                 """).post("/api/v1/auth/login").then().statusCode(401);
@@ -126,26 +126,26 @@ class AuthenticationApiSystemTests {
         assertThat(login.getDetailedCookie("AuthToken").isHttpOnly()).isTrue();
         assertThat(login.getDetailedCookie("RefreshToken").isHttpOnly()).isTrue();
         given().port(port).filter(cookies).get("/api/v1/users/me").then().statusCode(200)
-            .body("id", equalTo(id.intValue())).body("email", equalTo("FlowUser@example.com"))
-            .body("role", equalTo("USER")).body("password", nullValue()).body("encodedPassword", nullValue());
+                .body("id", equalTo(id.intValue())).body("email", equalTo("FlowUser@example.com"))
+                .body("role", equalTo("USER")).body("password", nullValue()).body("encodedPassword", nullValue());
 
         csrf = csrf(cookies);
         write(cookies, csrf).post("/api/v1/auth/refresh").then().statusCode(200);
         csrf = csrf(cookies);
         Response logout = write(cookies, csrf).post("/api/v1/auth/logout");
         logout.then().statusCode(204);
-        assertThat(logout.getHeaders().getValues("Set-Cookie")).anySatisfy(value ->
-            assertThat(value).startsWith("AuthToken=;").contains("Expires=").contains("Path=/"));
-        assertThat(logout.getHeaders().getValues("Set-Cookie")).anySatisfy(value ->
-            assertThat(value).startsWith("RefreshToken=;").contains("Expires=").contains("Path=/"));
+        assertThat(logout.getHeaders().getValues("Set-Cookie")).anySatisfy(
+                value -> assertThat(value).startsWith("AuthToken=;").contains("Expires=").contains("Path=/"));
+        assertThat(logout.getHeaders().getValues("Set-Cookie")).anySatisfy(
+                value -> assertThat(value).startsWith("RefreshToken=;").contains("Expires=").contains("Path=/"));
         assertThat(cookies.getCookieStore().getCookies())
-            .noneMatch(cookie -> cookie.getName().equals("AuthToken") || cookie.getName().equals("RefreshToken"));
+                .noneMatch(cookie -> cookie.getName().equals("AuthToken") || cookie.getName().equals("RefreshToken"));
         given().port(port).filter(cookies).get("/api/v1/users/me").then().statusCode(401);
         write(cookies, csrf(cookies)).post("/api/v1/auth/refresh").then().statusCode(401);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"role", "id", "active", "encodedPassword", "avatarKey", "createdAt", "updatedAt"})
+    @ValueSource(strings = { "role", "id", "active", "encodedPassword", "avatarKey", "createdAt", "updatedAt" })
     void rejectsFieldsControlledByTheServerWithoutCreatingAnAccount(String field) {
         CookieFilter cookies = new CookieFilter();
         String username = "tamper_" + field.toLowerCase(Locale.ROOT).substring(0, Math.min(field.length(), 12));
@@ -156,7 +156,7 @@ class AuthenticationApiSystemTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"username", "email"})
+    @ValueSource(strings = { "username", "email" })
     void returnsConflictForConcurrentRegistrationsWithTheSameIdentifier(String identifier) throws Exception {
         // Both requests must pass duplicate prechecks before either can insert its user.
         CyclicBarrier beforeInsert = new CyclicBarrier(2);
@@ -174,20 +174,21 @@ class AuthenticationApiSystemTests {
         String secondCsrf = csrf(secondCookies);
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             Future<Response> first = executor.submit(() -> write(firstCookies, firstCsrf)
-                .body(registration(firstUsername, firstEmail)).post("/api/v1/users"));
+                    .body(registration(firstUsername, firstEmail)).post("/api/v1/users"));
             Future<Response> second = executor.submit(() -> write(secondCookies, secondCsrf)
-                .body(registration(secondUsername, secondEmail)).post("/api/v1/users"));
+                    .body(registration(secondUsername, secondEmail)).post("/api/v1/users"));
             Response firstResponse = first.get(20, TimeUnit.SECONDS);
             Response secondResponse = second.get(20, TimeUnit.SECONDS);
-            assertThat(new int[] {firstResponse.statusCode(), secondResponse.statusCode()})
-                .containsExactlyInAnyOrder(201, 409);
+            assertThat(new int[] { firstResponse.statusCode(), secondResponse.statusCode() })
+                    .containsExactlyInAnyOrder(201, 409);
             Response conflict = firstResponse.statusCode() == 409 ? firstResponse : secondResponse;
             assertThat(conflict.jsonPath().getString("detail")).isEqualTo(identifier.equals("username")
-                ? "Username is already in use" : "Email is already in use");
+                    ? "Username is already in use"
+                    : "Email is already in use");
         }
         assertThat(repository.findAll().stream().filter(user -> identifier.equals("username")
-            ? user.getUsername().equalsIgnoreCase(firstUsername)
-            : user.getEmail().equalsIgnoreCase(firstEmail))).hasSize(1);
+                ? user.getUsername().equalsIgnoreCase(firstUsername)
+                : user.getEmail().equalsIgnoreCase(firstEmail))).hasSize(1);
     }
 
     @Test
@@ -196,7 +197,7 @@ class AuthenticationApiSystemTests {
         String body = registration("weakpassword", "weak@example.com").replace(PASSWORD, "Short 1!");
 
         write(cookies, csrf(cookies)).body(body).post("/api/v1/users")
-            .then().spec(problem(400, "Password must contain between 15 and 128 characters"));
+                .then().spec(problem(400, "Password must contain between 15 and 128 characters"));
     }
 
     @Test
@@ -204,40 +205,40 @@ class AuthenticationApiSystemTests {
         CookieFilter cookies = new CookieFilter();
         String csrf = csrf(cookies);
         write(cookies, csrf).body(registration("badlogin", "badlogin@example.com"))
-            .post("/api/v1/users").then().statusCode(201);
+                .post("/api/v1/users").then().statusCode(201);
 
         write(cookies, csrf).body("""
                 {"email":"badlogin@example.com","password":"Incorrect password 2026!"}
                 """).post("/api/v1/auth/login")
-            .then().spec(problem(401, "Invalid email or password."));
+                .then().spec(problem(401, "Invalid email or password."));
     }
 
     @Test
     void returnsMissingExpiredOrInvalidAuthenticationAsProblemDetail() {
         CookieFilter cookies = new CookieFilter();
         given().port(port).get("/api/v1/users/me")
-            .then().spec(problem(401, "Authentication is required."));
+                .then().spec(problem(401, "Authentication is required."));
 
         String csrf = csrf(cookies);
         write(cookies, csrf).body(registration("expireduser", "expired@example.com"))
-            .post("/api/v1/users").then().statusCode(201);
+                .post("/api/v1/users").then().statusCode(201);
         write(cookies, csrf).body("""
                 {"email":"expired@example.com","password":"%s"}
                 """.formatted(PASSWORD)).post("/api/v1/auth/login").then().statusCode(200);
         clock.advance(TokenType.ACCESS.duration.plus(Duration.ofSeconds(1)));
         given().port(port).filter(cookies).get("/api/v1/users/me")
-            .then().spec(problem(401, "Authentication is required."));
+                .then().spec(problem(401, "Authentication is required."));
 
         CookieFilter anonymous = new CookieFilter();
         write(anonymous, csrf(anonymous)).post("/api/v1/auth/refresh")
-            .then().spec(problem(401, "Authentication is required."));
+                .then().spec(problem(401, "Authentication is required."));
     }
 
     @Test
     void returnsMissingCsrfAsProblemDetail() {
         given().port(port).contentType(ContentType.JSON).body(registration("nocsrf", "nocsrf@example.com"))
-            .post("/api/v1/users")
-            .then().spec(problem(403, "You do not have permission to perform this action."));
+                .post("/api/v1/users")
+                .then().spec(problem(403, "You do not have permission to perform this action."));
         assertThat(repository.existsByUsernameIgnoreCase("nocsrf")).isFalse();
     }
 
@@ -246,17 +247,17 @@ class AuthenticationApiSystemTests {
         CookieFilter cookies = new CookieFilter();
         String csrf = csrf(cookies);
         write(cookies, csrf).body(registration("duplicate", "duplicate@example.com"))
-            .post("/api/v1/users").then().statusCode(201);
+                .post("/api/v1/users").then().statusCode(201);
 
         write(cookies, csrf).body(registration("DUPLICATE", "another@example.com"))
-            .post("/api/v1/users").then().spec(problem(409, "Username is already in use"));
+                .post("/api/v1/users").then().spec(problem(409, "Username is already in use"));
     }
 
     private String csrf(CookieFilter cookies) {
         given().port(port).filter(cookies).get("/api/v1/auth/csrf").then().statusCode(204);
         return cookies.getCookieStore().getCookies().stream()
-            .filter(cookie -> cookie.getName().equals("XSRF-TOKEN"))
-            .findFirst().orElseThrow().getValue();
+                .filter(cookie -> cookie.getName().equals("XSRF-TOKEN"))
+                .findFirst().orElseThrow().getValue();
     }
 
     private RequestSpecification write(CookieFilter cookies, String csrf) {

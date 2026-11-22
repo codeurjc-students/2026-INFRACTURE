@@ -142,7 +142,8 @@ class ScenarioServiceTests {
 
     @Test
     void rejectsInvalidRenameWithoutSaving() {
-        when(repository.findForUpdateByIdAndProjectId(3L, 5L)).thenReturn(Optional.of(new Scenario(project, "Lab", null)));
+        when(repository.findForUpdateByIdAndProjectId(3L, 5L))
+                .thenReturn(Optional.of(new Scenario(project, "Lab", null)));
 
         assertThatThrownBy(() -> service.updateScenario(OWNER_EMAIL, 5L, 3L, "", null))
                 .isInstanceOf(ConstraintViolationException.class);
@@ -155,10 +156,12 @@ class ScenarioServiceTests {
         UUID key = UUID.randomUUID();
         when(repository.findForUpdateByIdAndProjectId(3L, 5L)).thenReturn(Optional.of(existing));
         when(templateService.getTemplatesByKey(Set.of("redis"))).thenReturn(
-                Map.of("redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of()))));
+                Map.of("redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true,
+                        new ComponentConfiguration("DEFAULT", Map.of()))));
 
         ScenarioGraph saved = service.saveGraph(OWNER_EMAIL, 5L, 3L, 1, List.of(new ComponentDraft(
-                key, "redis", "  cache  ", 10, 20, new ComponentConfiguration("CACHE_ASIDE", Map.of()))), List.of(), null);
+                key, "redis", "  cache  ", 10, 20, new ComponentConfiguration("CACHE_ASIDE", Map.of()))), List.of(),
+                null);
 
         assertThat(saved.scenario().getRevision()).isEqualTo(2);
         assertThat(saved.scenario().getComponents()).singleElement()

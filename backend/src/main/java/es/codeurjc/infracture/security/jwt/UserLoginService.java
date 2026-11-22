@@ -27,7 +27,8 @@ public class UserLoginService {
     private final UserDetailsService userDetailsService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    public UserLoginService(AuthenticationManager authenticationManager, UserDetailsService userDetailsService, JwtTokenProvider jwtTokenProvider) {
+    public UserLoginService(AuthenticationManager authenticationManager, UserDetailsService userDetailsService,
+            JwtTokenProvider jwtTokenProvider) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtTokenProvider = jwtTokenProvider;
@@ -48,7 +49,6 @@ public class UserLoginService {
         }
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-
 
         String username = loginRequest.getEmail();
         UserDetails user = userDetailsService.loadUserByUsername(username);
@@ -102,7 +102,7 @@ public class UserLoginService {
         return cookie;
     }
 
-    private Cookie removeTokenCookie(TokenType type){
+    private Cookie removeTokenCookie(TokenType type) {
         Cookie cookie = new Cookie(type.cookieName, "");
         cookie.setMaxAge(0);
         cookie.setHttpOnly(true);

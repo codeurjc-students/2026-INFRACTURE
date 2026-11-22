@@ -81,7 +81,8 @@ class ComposeRuntimeEngineIntegrationTests {
 
         assertThat(lines).extracting(LogLine::service, LogLine::text)
                 .containsExactly(tuple("probe", "first line"), tuple("probe", "second | line"));
-        assertThat(lines.getFirst().at()).isBeforeOrEqualTo(lines.getLast().at()).isAfter(Instant.now().minusSeconds(60));
+        assertThat(lines.getFirst().at()).isBeforeOrEqualTo(lines.getLast().at())
+                .isAfter(Instant.now().minusSeconds(60));
         assertThat(engine.logs(plan, lines.getLast().at().plusNanos(1))).isEmpty();
     }
 
@@ -245,7 +246,8 @@ class ComposeRuntimeEngineIntegrationTests {
     private Map<String, Object> withEnvironment(Map<String, String> environment) {
         Map<String, Object> plan = new HashMap<>(plan("true"));
         @SuppressWarnings("unchecked")
-        Map<String, Object> probe = new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
+        Map<String, Object> probe =
+                new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
         probe.put("environment", environment);
         plan.put("services", Map.of("probe", probe));
         return plan;
@@ -254,7 +256,8 @@ class ComposeRuntimeEngineIntegrationTests {
     private Map<String, Object> withCommand(List<String> command) {
         Map<String, Object> plan = new HashMap<>(plan("true"));
         @SuppressWarnings("unchecked")
-        Map<String, Object> probe = new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
+        Map<String, Object> probe =
+                new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
         probe.put("command", command);
         plan.put("services", Map.of("probe", probe));
         return plan;

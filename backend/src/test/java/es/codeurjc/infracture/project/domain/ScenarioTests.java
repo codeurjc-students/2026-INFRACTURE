@@ -25,7 +25,8 @@ class ScenarioTests {
 
     private final ComponentTemplate http = new ComponentTemplate("http-service", "HTTP Service",
             ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)));
-    private final ComponentTemplate redis = new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of()));
+    private final ComponentTemplate redis = new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true,
+            new ComponentConfiguration("DEFAULT", Map.of()));
     private final ComponentTemplate disabled = new ComponentTemplate("old-worker", "Old worker",
             ComponentType.WORKER, false, new ComponentConfiguration("CONSUMER", Map.of()));
     private final Map<String, ComponentTemplate> templates = Map.of(
@@ -67,7 +68,8 @@ class ScenarioTests {
 
     @Test
     void updatesNodesByKeyAndRemovesTheMissingOnes() {
-        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), redisNode(SECOND)), List.of(), null, templates);
+        scenario.replaceGraph(1, List.of(httpNode(FIRST, "orders-api", 0), redisNode(SECOND)), List.of(), null,
+                templates);
         Component orders = component(FIRST);
 
         scenario.replaceGraph(2, List.of(new ComponentDraft(FIRST, "http-service", "orders", 300.5, -20,
@@ -129,7 +131,8 @@ class ScenarioTests {
         scenario.replaceGraph(1, List.of(
                 httpNode(FIRST, "orders-api", 9000),
                 new ComponentDraft(SECOND, "redis", "cache", 0, 0,
-                        new ComponentConfiguration("CACHE_ASIDE", Map.of("maxmemory", 64)))), List.of(), null, templates);
+                        new ComponentConfiguration("CACHE_ASIDE", Map.of("maxmemory", 64)))),
+                List.of(), null, templates);
 
         assertThat(scenario.getRevision()).isEqualTo(2);
         assertThat(component(FIRST).getConfiguration()).isEqualTo(stateless(9000));
@@ -146,7 +149,8 @@ class ScenarioTests {
 
     @Test
     void rejectsRepeatedKeys() {
-        assertThatThrownBy(() -> scenario.replaceGraph(1, List.of(redisNode(FIRST), redisNode(FIRST)), List.of(), null, templates))
+        assertThatThrownBy(
+                () -> scenario.replaceGraph(1, List.of(redisNode(FIRST), redisNode(FIRST)), List.of(), null, templates))
                 .isInstanceOf(InvalidDataException.class)
                 .hasMessage("Component " + FIRST + " appears more than once");
     }

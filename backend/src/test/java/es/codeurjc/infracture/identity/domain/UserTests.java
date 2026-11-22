@@ -13,8 +13,8 @@ class UserTests {
         User admin = new User("admin", "hash", "admin@example.com", "Admin", UserRole.ADMIN);
 
         assertThatThrownBy(admin::checkCanDeactivateOrDelete)
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("The administrator cannot be deactivated or deleted");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("The administrator cannot be deactivated or deleted");
 
         admin.setDisplayName("Updated Admin");
         assertThat(admin.getDisplayName()).isEqualTo("Updated Admin");

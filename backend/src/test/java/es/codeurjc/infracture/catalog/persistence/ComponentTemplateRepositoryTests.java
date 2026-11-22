@@ -96,11 +96,16 @@ class ComponentTemplateRepositoryTests {
     void filtersBeforePaginatingVariantsWithEqualNamesByKey() {
         repository.deleteAllInBatch();
         repository.saveAllAndFlush(List.of(
-                new ComponentTemplate("http-b", "HTTP Service", ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
-                new ComponentTemplate("http-a", "HTTP Service", ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
-                new ComponentTemplate("worker", "HTTP Service", ComponentType.WORKER, true, new ComponentConfiguration("CONSUMER", Map.of())),
-                new ComponentTemplate("other-http", "Other Service", ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
-                new ComponentTemplate("http-disabled", "HTTP Service", ComponentType.HTTP_SERVICE, false, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)))));
+                new ComponentTemplate("http-b", "HTTP Service", ComponentType.HTTP_SERVICE, true,
+                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
+                new ComponentTemplate("http-a", "HTTP Service", ComponentType.HTTP_SERVICE, true,
+                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
+                new ComponentTemplate("worker", "HTTP Service", ComponentType.WORKER, true,
+                        new ComponentConfiguration("CONSUMER", Map.of())),
+                new ComponentTemplate("other-http", "Other Service", ComponentType.HTTP_SERVICE, true,
+                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
+                new ComponentTemplate("http-disabled", "HTTP Service", ComponentType.HTTP_SERVICE, false,
+                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)))));
 
         Page<ComponentTemplate> firstPage = service.getEnabledTemplates(
                 PageRequest.of(0, 1), "  hTtP  ", ComponentType.HTTP_SERVICE);

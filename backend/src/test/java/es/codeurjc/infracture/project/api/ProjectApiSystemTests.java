@@ -53,8 +53,8 @@ class ProjectApiSystemTests {
                 {"name":"  Cache lab  ","description":"Redis in front of PostgreSQL"}
                 """).post("/api/v1/projects");
         created.then().statusCode(201)
-            .body("name", equalTo("Cache lab"))
-            .body("description", equalTo("Redis in front of PostgreSQL"));
+                .body("name", equalTo("Cache lab"))
+                .body("description", equalTo("Redis in front of PostgreSQL"));
         String location = created.header("Location");
         long id = created.jsonPath().getLong("id");
         assertThat(location).endsWith("/api/v1/projects/" + id);
@@ -64,9 +64,9 @@ class ProjectApiSystemTests {
         alice.write().body("""
                 {"name":"Renamed lab","description":""}
                 """).put("/api/v1/projects/" + id)
-            .then().statusCode(200).body("name", equalTo("Renamed lab")).body("description", nullValue());
+                .then().statusCode(200).body("name", equalTo("Renamed lab")).body("description", nullValue());
         alice.read().get("/api/v1/projects/" + id).then().statusCode(200)
-            .body("name", equalTo("Renamed lab")).body("description", nullValue());
+                .body("name", equalTo("Renamed lab")).body("description", nullValue());
     }
 
     @Test
@@ -75,19 +75,19 @@ class ProjectApiSystemTests {
         ApiSession bob = signUp();
         for (int number = 1; number <= 11; number++) {
             alice.write().body("{\"name\":\"Alice lab " + number + "\"}").post("/api/v1/projects")
-                .then().statusCode(201);
+                    .then().statusCode(201);
         }
         bob.write().body("{\"name\":\"Bob lab\"}").post("/api/v1/projects").then().statusCode(201);
 
         alice.read().get("/api/v1/projects").then().statusCode(200)
-            .body("content", hasSize(10))
-            .body("content[0].name", equalTo("Alice lab 11"))
-            .body("page.totalElements", equalTo(11))
-            .body("page.totalPages", equalTo(2));
+                .body("content", hasSize(10))
+                .body("content[0].name", equalTo("Alice lab 11"))
+                .body("page.totalElements", equalTo(11))
+                .body("page.totalPages", equalTo(2));
         alice.read().queryParam("page", 1).get("/api/v1/projects").then().statusCode(200)
-            .body("content.name", equalTo(java.util.List.of("Alice lab 1")));
+                .body("content.name", equalTo(java.util.List.of("Alice lab 1")));
         bob.read().get("/api/v1/projects").then().statusCode(200)
-            .body("content.name", equalTo(java.util.List.of("Bob lab")));
+                .body("content.name", equalTo(java.util.List.of("Bob lab")));
         alice.read().queryParam("size", 101).get("/api/v1/projects").then().statusCode(400);
     }
 
@@ -96,7 +96,7 @@ class ProjectApiSystemTests {
         ApiSession alice = signUp();
         ApiSession bob = signUp();
         long id = alice.write().body("{\"name\":\"Private lab\"}").post("/api/v1/projects")
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
 
         bob.read().get("/api/v1/projects/" + id).then().statusCode(404);
         bob.write().body("{\"name\":\"Taken over\"}").put("/api/v1/projects/" + id).then().statusCode(404);
@@ -107,12 +107,12 @@ class ProjectApiSystemTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"id", "ownerId", "owner", "createdAt", "visibility"})
+    @ValueSource(strings = { "id", "ownerId", "owner", "createdAt", "visibility" })
     void rejectsFieldsControlledByTheServerWithoutCreatingProject(String field) {
         ApiSession alice = signUp();
 
         alice.write().body("{\"name\":\"Tampered\",\"" + field + "\":1}").post("/api/v1/projects")
-            .then().statusCode(400);
+                .then().statusCode(400);
         assertThat(repository.count()).isZero();
     }
 
@@ -121,13 +121,14 @@ class ProjectApiSystemTests {
         ApiSession alice = signUp();
 
         alice.write().body("{\"name\":\"   \"}").post("/api/v1/projects")
-            .then().statusCode(400).body("detail", org.hamcrest.Matchers.containsString("Project name is required"));
+                .then().statusCode(400)
+                .body("detail", org.hamcrest.Matchers.containsString("Project name is required"));
         alice.write().body("{\"name\":\"" + "n".repeat(31) + "\"}").post("/api/v1/projects")
-            .then().statusCode(400);
+                .then().statusCode(400);
         long id = alice.write().body("{\"name\":\"Valid lab\"}").post("/api/v1/projects")
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
         alice.write().body("{\"name\":\"Valid lab\",\"description\":\"" + "d".repeat(281) + "\"}")
-            .put("/api/v1/projects/" + id).then().statusCode(400);
+                .put("/api/v1/projects/" + id).then().statusCode(400);
         alice.read().get("/api/v1/projects/" + id).then().body("description", nullValue());
     }
 
@@ -136,7 +137,7 @@ class ProjectApiSystemTests {
         ApiSession alice = signUp();
 
         alice.write().body("{\"name\":\"   \"}").post("/api/v1/projects")
-            .then().spec(problem(400, "Project name is required"));
+                .then().spec(problem(400, "Project name is required"));
     }
 
     @Test
@@ -144,13 +145,13 @@ class ProjectApiSystemTests {
         ApiSession alice = signUp();
 
         alice.read().queryParam("size", 101).get("/api/v1/projects")
-            .then().spec(problem(400, not(emptyOrNullString())));
+                .then().spec(problem(400, not(emptyOrNullString())));
         alice.read().get("/api/v1/projects/not-a-number")
-            .then().spec(problem(400, not(emptyOrNullString())));
+                .then().spec(problem(400, not(emptyOrNullString())));
         alice.write().body("{\"name\":").post("/api/v1/projects")
-            .then().spec(problem(400, not(emptyOrNullString())));
+                .then().spec(problem(400, not(emptyOrNullString())));
         alice.write().body("{\"name\":\"Tampered\",\"ownerId\":1}").post("/api/v1/projects")
-            .then().spec(problem(400, not(emptyOrNullString())));
+                .then().spec(problem(400, not(emptyOrNullString())));
     }
 
     @Test
@@ -158,7 +159,7 @@ class ProjectApiSystemTests {
         ApiSession alice = signUp();
         ApiSession bob = signUp();
         long id = alice.write().body("{\"name\":\"Private lab\"}").post("/api/v1/projects")
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
 
         bob.read().get("/api/v1/projects/" + id).then().spec(problem(404, "Project not found"));
         alice.read().get("/api/v1/projects/" + (id + 1000)).then().spec(problem(404, "Project not found"));
@@ -169,14 +170,14 @@ class ProjectApiSystemTests {
         ApiSession alice = signUp();
 
         alice.read().get("/api/v1/unknown-resource")
-            .then().spec(problem(404, "The requested resource does not exist."));
+                .then().spec(problem(404, "The requested resource does not exist."));
     }
 
     @Test
     void returnsMethodNotAllowedAsProblemDetail() {
         ApiSession alice = signUp();
         long id = alice.write().body("{\"name\":\"Kept lab\"}").post("/api/v1/projects")
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
 
         alice.write().delete("/api/v1/projects/" + id).then().spec(problem(405, not(emptyOrNullString())));
         assertThat(repository.existsById(id)).isTrue();

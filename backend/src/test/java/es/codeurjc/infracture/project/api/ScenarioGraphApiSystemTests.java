@@ -65,35 +65,35 @@ class ScenarioGraphApiSystemTests {
         String scenario = createScenario(alice);
 
         alice.read().get(scenario + "/graph").then().statusCode(200)
-            .body("revision", equalTo(1)).body("components", hasSize(0));
+                .body("revision", equalTo(1)).body("components", hasSize(0));
 
         alice.write().body(graph(1,
                 http(ORDERS, "  orders-api  ", 120.5, -40, 0),
                 http(USERS, "users-api", 400, 80, 250),
                 redis(CACHE)))
-            .put(scenario + "/graph").then().statusCode(200)
-            .body("revision", equalTo(2))
-            .body("components", hasSize(3))
-            .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
+                .put(scenario + "/graph").then().statusCode(200)
+                .body("revision", equalTo(2))
+                .body("components", hasSize(3))
+                .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
 
         alice.read().get(scenario + "/graph").then().statusCode(200)
-            .body("revision", equalTo(2))
-            .body("components.key", equalTo(List.of(ORDERS, USERS, CACHE)))
-            .body("components[0].templateKey", equalTo("http-service"))
-            .body("components[0].type", equalTo("HTTP_SERVICE"))
-            .body("components[0].name", equalTo("orders-api"))
-            .body("components[0].position.x", equalTo(120.5f))
-            .body("components[0].position.y", equalTo(-40.0f))
-            .body("components[0].profile", equalTo("STATELESS"))
-            .body("components[0].parameters.responseDelayMs", equalTo(0))
-            .body("components[1].parameters.responseDelayMs", equalTo(250))
-            .body("components[2].profile", equalTo("DEFAULT"))
-            .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
+                .body("revision", equalTo(2))
+                .body("components.key", equalTo(List.of(ORDERS, USERS, CACHE)))
+                .body("components[0].templateKey", equalTo("http-service"))
+                .body("components[0].type", equalTo("HTTP_SERVICE"))
+                .body("components[0].name", equalTo("orders-api"))
+                .body("components[0].position.x", equalTo(120.5f))
+                .body("components[0].position.y", equalTo(-40.0f))
+                .body("components[0].profile", equalTo("STATELESS"))
+                .body("components[0].parameters.responseDelayMs", equalTo(0))
+                .body("components[1].parameters.responseDelayMs", equalTo(250))
+                .body("components[2].profile", equalTo("DEFAULT"))
+                .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
         alice.read().get(scenario).then().statusCode(200).body("revision", equalTo(2));
 
         alice.write().body("{\"name\":\"Renamed\"}").put(scenario).then().statusCode(200).body("revision", equalTo(2));
         alice.write().body(graph(2)).put(scenario + "/graph").then().statusCode(200)
-            .body("revision", equalTo(3)).body("components", hasSize(0));
+                .body("revision", equalTo(3)).body("components", hasSize(0));
     }
 
     @Test
@@ -101,14 +101,14 @@ class ScenarioGraphApiSystemTests {
         ApiSession alice = ApiSession.signUp(port);
         String scenario = createScenario(alice);
         alice.write().body(graph(1, http(ORDERS, "first tab", 0, 0, 0))).put(scenario + "/graph")
-            .then().statusCode(200);
+                .then().statusCode(200);
 
         alice.write().body(graph(1, http(USERS, "second tab", 0, 0, 0))).put(scenario + "/graph")
-            .then().spec(problem(409,
-                "The scenario was saved after revision 1. Reload it to continue from revision 2."));
+                .then().spec(problem(409,
+                        "The scenario was saved after revision 1. Reload it to continue from revision 2."));
 
         alice.read().get(scenario + "/graph").then()
-            .body("revision", equalTo(2)).body("components.name", equalTo(List.of("first tab")));
+                .body("revision", equalTo(2)).body("components.name", equalTo(List.of("first tab")));
     }
 
     @Test
@@ -118,8 +118,8 @@ class ScenarioGraphApiSystemTests {
         int tabs = 6;
         RequestSpecification sameCsrfToken = alice.write();
         List<RequestSpecification> requests = IntStream.range(0, tabs)
-            .mapToObj(tab -> given().spec(sameCsrfToken).body(graph(1, http(ORDERS, "tab " + tab, 0, 0, 0))))
-            .toList();
+                .mapToObj(tab -> given().spec(sameCsrfToken).body(graph(1, http(ORDERS, "tab " + tab, 0, 0, 0))))
+                .toList();
         CountDownLatch start = new CountDownLatch(1);
         List<Callable<Integer>> saves = requests.stream().<Callable<Integer>>map(request -> () -> {
             start.await();
@@ -151,19 +151,19 @@ class ScenarioGraphApiSystemTests {
         String scenario = createScenario(alice);
 
         alice.write().body(graph(1, http(ORDERS, "orders-api", 0, 0, 9000))).put(scenario + "/graph")
-            .then().statusCode(200)
-            .body("revision", equalTo(2))
-            .body("issues", hasSize(2))
-            .body("issues[0].severity", equalTo("ERROR"))
-            .body("issues[0].code", equalTo("PARAMETER_OUT_OF_RANGE"))
-            .body("issues[0].message", equalTo("responseDelayMs must be between 0 and 5000"))
-            .body("issues[0].target.kind", equalTo("COMPONENT"))
-            .body("issues[0].target.key", equalTo(ORDERS))
-            .body("issues[0].field", equalTo("responseDelayMs"));
+                .then().statusCode(200)
+                .body("revision", equalTo(2))
+                .body("issues", hasSize(2))
+                .body("issues[0].severity", equalTo("ERROR"))
+                .body("issues[0].code", equalTo("PARAMETER_OUT_OF_RANGE"))
+                .body("issues[0].message", equalTo("responseDelayMs must be between 0 and 5000"))
+                .body("issues[0].target.kind", equalTo("COMPONENT"))
+                .body("issues[0].target.key", equalTo(ORDERS))
+                .body("issues[0].field", equalTo("responseDelayMs"));
 
         alice.read().get(scenario + "/graph").then()
-            .body("components[0].parameters.responseDelayMs", equalTo(9000))
-            .body("issues.code", equalTo(List.of("PARAMETER_OUT_OF_RANGE", "NO_WORKLOAD")));
+                .body("components[0].parameters.responseDelayMs", equalTo(9000))
+                .body("issues.code", equalTo(List.of("PARAMETER_OUT_OF_RANGE", "NO_WORKLOAD")));
     }
 
     @Test
@@ -176,29 +176,29 @@ class ScenarioGraphApiSystemTests {
         String database = node(USERS, "postgresql", "orders-db", "DEFAULT", "{}");
         alice.write().body(graph(1, List.of(cacheAside, redis(CACHE), database),
                 connection(ORDERS, "cache", CACHE), connection(ORDERS, "database", USERS)))
-            .put(scenario + "/graph").then().statusCode(200)
-            .body("connections", hasSize(2))
-            .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
+                .put(scenario + "/graph").then().statusCode(200)
+                .body("connections", hasSize(2))
+                .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
         alice.read().get(scenario + "/graph").then()
-            .body("connections[0].sourceKey", equalTo(ORDERS))
-            .body("connections[0].port", equalTo("cache"))
-            .body("connections[0].targetKey", equalTo(CACHE));
+                .body("connections[0].sourceKey", equalTo(ORDERS))
+                .body("connections[0].port", equalTo("cache"))
+                .body("connections[0].targetKey", equalTo(CACHE));
 
         alice.write().body(graph(2, List.of(stateless, redis(CACHE)), connection(ORDERS, "cache", CACHE)))
-            .put(scenario + "/graph").then().statusCode(200)
-            .body("connections", hasSize(1))
-            .body("issues", hasSize(2))
-            .body("issues[0].code", equalTo("UNKNOWN_PORT"))
-            .body("issues[0].message", equalTo("orders-api has no port cache in profile STATELESS"))
-            .body("issues[0].target.kind", equalTo("CONNECTION"))
-            .body("issues[0].target.key", equalTo(ORDERS + ":cache:" + CACHE))
-            .body("issues[0].field", equalTo("cache"));
+                .put(scenario + "/graph").then().statusCode(200)
+                .body("connections", hasSize(1))
+                .body("issues", hasSize(2))
+                .body("issues[0].code", equalTo("UNKNOWN_PORT"))
+                .body("issues[0].message", equalTo("orders-api has no port cache in profile STATELESS"))
+                .body("issues[0].target.kind", equalTo("CONNECTION"))
+                .body("issues[0].target.key", equalTo(ORDERS + ":cache:" + CACHE))
+                .body("issues[0].field", equalTo("cache"));
 
         alice.write().body(graph(3, List.of(stateless)))
-            .put(scenario + "/graph").then().statusCode(200)
-            .body("components", hasSize(1))
-            .body("connections", hasSize(0))
-            .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
+                .put(scenario + "/graph").then().statusCode(200)
+                .body("components", hasSize(1))
+                .body("connections", hasSize(0))
+                .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
     }
 
     @Test
@@ -210,24 +210,24 @@ class ScenarioGraphApiSystemTests {
         String broker = node(BROKER, "rabbitmq", "tasks", "DEFAULT", "{}");
 
         alice.read().get(scenario + "/graph").then().statusCode(200)
-            .body("issues.code", equalTo(List.of("EMPTY_SCENARIO")))
-            .body("issues[0].target.kind", equalTo("SCENARIO"));
+                .body("issues.code", equalTo(List.of("EMPTY_SCENARIO")))
+                .body("issues[0].target.kind", equalTo("SCENARIO"));
 
         alice.write().body(graph(1, List.of(gateway, producer, broker), connection(ORDERS, "downstream", ORDERS)))
-            .put(scenario + "/graph").then().statusCode(200)
-            .body("revision", equalTo(2))
-            .body("issues.code", equalTo(List.of("MISSING_CONNECTION", "DEPENDENCY_CYCLE", "NO_WORKLOAD")))
-            .body("issues.severity", equalTo(List.of("ERROR", "ERROR", "WARNING")))
-            .body("issues[0].target.key", equalTo(USERS))
-            .body("issues[0].field", equalTo("queue"))
-            .body("issues[1].target.key", equalTo(ORDERS + ":downstream:" + ORDERS));
+                .put(scenario + "/graph").then().statusCode(200)
+                .body("revision", equalTo(2))
+                .body("issues.code", equalTo(List.of("MISSING_CONNECTION", "DEPENDENCY_CYCLE", "NO_WORKLOAD")))
+                .body("issues.severity", equalTo(List.of("ERROR", "ERROR", "WARNING")))
+                .body("issues[0].target.key", equalTo(USERS))
+                .body("issues[0].field", equalTo("queue"))
+                .body("issues[1].target.key", equalTo(ORDERS + ":downstream:" + ORDERS));
 
         alice.write().body(graph(2, List.of(gateway, producer, broker),
                 connection(ORDERS, "downstream", USERS), connection(USERS, "queue", BROKER)))
-            .put(scenario + "/graph").then().statusCode(200)
-            .body("issues.code", equalTo(List.of("NO_CONSUMER", "NO_WORKLOAD")))
-            .body("issues[0].severity", equalTo("WARNING"))
-            .body("issues[0].target.key", equalTo(BROKER));
+                .put(scenario + "/graph").then().statusCode(200)
+                .body("issues.code", equalTo(List.of("NO_CONSUMER", "NO_WORKLOAD")))
+                .body("issues[0].severity", equalTo("WARNING"))
+                .body("issues[0].target.key", equalTo(BROKER));
     }
 
     @Test
@@ -239,14 +239,14 @@ class ScenarioGraphApiSystemTests {
 
         alice.write().body(graph(1, List.of(http(ORDERS, "orders-api", 0, 0, 0)),
                 connection(ORDERS, "downstream", USERS), connection(ORDERS, "downstream", USERS)))
-            .put(scenario + "/graph")
-            .then().spec(problem(400, String.join("; ",
-                "Connection orders-api.downstream → " + USERS + ": target is not a node of this scenario",
-                "Connection orders-api.downstream → " + USERS + ": target is not a node of this scenario",
-                "Connection orders-api.downstream → " + USERS + ": appears more than once")));
+                .put(scenario + "/graph")
+                .then().spec(problem(400, String.join("; ",
+                        "Connection orders-api.downstream → " + USERS + ": target is not a node of this scenario",
+                        "Connection orders-api.downstream → " + USERS + ": target is not a node of this scenario",
+                        "Connection orders-api.downstream → " + USERS + ": appears more than once")));
 
         alice.read().get(scenario + "/graph").then()
-            .body("revision", equalTo(1)).body("components", hasSize(0)).body("connections", hasSize(0));
+                .body("revision", equalTo(1)).body("components", hasSize(0)).body("connections", hasSize(0));
     }
 
     @Test
@@ -255,12 +255,12 @@ class ScenarioGraphApiSystemTests {
         String scenario = createScenario(alice);
 
         alice.write().body(graph(1, node(ORDERS, "docker-image", "evil", "DEFAULT", "{}"))).put(scenario + "/graph")
-            .then().spec(problem(400, "Component evil: unknown or disabled template docker-image"));
+                .then().spec(problem(400, "Component evil: unknown or disabled template docker-image"));
         alice.write().body(graph(1, node(ORDERS, "load-generator", "load", "CONSTANT_HTTP", "{}")))
-            .put(scenario + "/graph")
-            .then().spec(problem(400, "Component load: unknown or disabled template load-generator"));
+                .put(scenario + "/graph")
+                .then().spec(problem(400, "Component load: unknown or disabled template load-generator"));
         alice.write().body(graph(1, redis(ORDERS), redis(ORDERS))).put(scenario + "/graph")
-            .then().spec(problem(400, "Component " + ORDERS + " appears more than once"));
+                .then().spec(problem(400, "Component " + ORDERS + " appears more than once"));
         alice.write().body(graph(1, node(ORDERS, "http-service", "orders-api", "STATELESS",
                 "{\"responseDelayMs\":250.5}"))).put(scenario + "/graph").then().statusCode(400);
 
@@ -268,7 +268,7 @@ class ScenarioGraphApiSystemTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"image", "command", "ports", "type", "contractVersion", "id"})
+    @ValueSource(strings = { "image", "command", "ports", "type", "contractVersion", "id" })
     void rejectsFieldsOutsideTheGraphContract(String field) {
         ApiSession alice = ApiSession.signUp(port);
         String scenario = createScenario(alice);
@@ -279,7 +279,7 @@ class ScenarioGraphApiSystemTests {
 
         alice.write().body(graph(1, tampered)).put(scenario + "/graph").then().statusCode(400);
         alice.write().body("{\"revision\":1,\"components\":[],\"connections\":[],\"" + field + "\":1}")
-            .put(scenario + "/graph").then().statusCode(400);
+                .put(scenario + "/graph").then().statusCode(400);
         alice.write().body(graph(1, List.of(redis(ORDERS)), """
                 {"sourceKey":"%s","port":"cache","targetKey":"%s","%s":1}
                 """.formatted(ORDERS, ORDERS, field))).put(scenario + "/graph").then().statusCode(400);
@@ -300,7 +300,7 @@ class ScenarioGraphApiSystemTests {
         bob.read().get(scenario + "/graph").then().spec(problem(404, "Project not found"));
         bob.write().body(graph(1)).put(scenario + "/graph").then().spec(problem(404, "Project not found"));
         bob.write().body(graph(1)).put(bobProject + "/scenarios/" + scenarioId + "/graph")
-            .then().spec(problem(404, "Scenario not found"));
+                .then().spec(problem(404, "Scenario not found"));
         given().port(port).get(scenario + "/graph").then().statusCode(401);
 
         alice.read().get(scenario + "/graph").then().body("revision", equalTo(1));
@@ -312,30 +312,31 @@ class ScenarioGraphApiSystemTests {
         String scenario = createScenario(alice);
         String orders = http(ORDERS, "orders-api", 0, 0, 0);
 
-        alice.write().body(graphWithLoad(1, List.of(orders), load("\"" + ORDERS + "\"", 10, 42))).put(scenario + "/graph")
-            .then().statusCode(200)
-            .body("revision", equalTo(2))
-            .body("issues", hasSize(0));
+        alice.write().body(graphWithLoad(1, List.of(orders), load("\"" + ORDERS + "\"", 10, 42)))
+                .put(scenario + "/graph")
+                .then().statusCode(200)
+                .body("revision", equalTo(2))
+                .body("issues", hasSize(0));
         alice.read().get(scenario + "/graph").then()
-            .body("workload.targetKey", equalTo(ORDERS))
-            .body("workload.profile", equalTo("CONSTANT_HTTP"))
-            .body("workload.parameters.requestsPerSecond", equalTo(10))
-            .body("workload.parameters.virtualUsers", equalTo(5))
-            .body("workload.parameters.durationSeconds", equalTo(60))
-            .body("workload.seed", equalTo(42));
+                .body("workload.targetKey", equalTo(ORDERS))
+                .body("workload.profile", equalTo("CONSTANT_HTTP"))
+                .body("workload.parameters.requestsPerSecond", equalTo(10))
+                .body("workload.parameters.virtualUsers", equalTo(5))
+                .body("workload.parameters.durationSeconds", equalTo(60))
+                .body("workload.seed", equalTo(42));
 
         alice.write().body(graphWithLoad(2, List.of(orders), load("null", 500, 42))).put(scenario + "/graph")
-            .then().statusCode(200)
-            .body("workload.parameters.requestsPerSecond", equalTo(500))
-            .body("issues.code", equalTo(List.of("PARAMETER_OUT_OF_RANGE", "WORKLOAD_WITHOUT_TARGET")))
-            .body("issues[0].message", equalTo("requestsPerSecond must be between 1 and 50"))
-            .body("issues[0].target.kind", equalTo("WORKLOAD"))
-            .body("issues[0].field", equalTo("requestsPerSecond"))
-            .body("issues[1].field", equalTo("targetKey"));
+                .then().statusCode(200)
+                .body("workload.parameters.requestsPerSecond", equalTo(500))
+                .body("issues.code", equalTo(List.of("PARAMETER_OUT_OF_RANGE", "WORKLOAD_WITHOUT_TARGET")))
+                .body("issues[0].message", equalTo("requestsPerSecond must be between 1 and 50"))
+                .body("issues[0].target.kind", equalTo("WORKLOAD"))
+                .body("issues[0].field", equalTo("requestsPerSecond"))
+                .body("issues[1].field", equalTo("targetKey"));
 
         alice.write().body(graph(3, List.of(orders))).put(scenario + "/graph").then().statusCode(200)
-            .body("workload", equalTo(null))
-            .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
+                .body("workload", equalTo(null))
+                .body("issues.code", equalTo(List.of("NO_WORKLOAD")));
     }
 
     @Test
@@ -345,7 +346,7 @@ class ScenarioGraphApiSystemTests {
         List<String> orders = List.of(http(ORDERS, "orders-api", 0, 0, 0));
 
         alice.write().body(graphWithLoad(1, orders, load("\"" + USERS + "\"", 10, 42))).put(scenario + "/graph")
-            .then().spec(problem(400, "Workload: target is not a node of this scenario"));
+                .then().spec(problem(400, "Workload: target is not a node of this scenario"));
         alice.write().body(graphWithLoad(1, orders, """
                 {"targetKey":null,"profile":"CONSTANT_HTTP","parameters":{},"seed":1,"script":"export default"}
                 """)).put(scenario + "/graph").then().statusCode(400);
@@ -354,7 +355,7 @@ class ScenarioGraphApiSystemTests {
                 """)).put(scenario + "/graph").then().statusCode(400);
 
         alice.read().get(scenario + "/graph").then()
-            .body("revision", equalTo(1)).body("components", hasSize(0)).body("workload", equalTo(null));
+                .body("revision", equalTo(1)).body("components", hasSize(0)).body("workload", equalTo(null));
     }
 
     private static String graph(int revision, String... components) {
@@ -405,12 +406,12 @@ class ScenarioGraphApiSystemTests {
     private String createScenario(ApiSession session) {
         String scenarios = "/api/v1/projects/" + createProject(session) + "/scenarios";
         long id = session.write().body("{\"name\":\"Cold cache\"}").post(scenarios)
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
         return scenarios + "/" + id;
     }
 
     private long createProject(ApiSession session) {
         return session.write().body("{\"name\":\"Cache lab\"}").post("/api/v1/projects")
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
     }
 }

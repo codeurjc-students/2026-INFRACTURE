@@ -13,7 +13,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class HttpServiceDefinition implements ComponentTypeDefinition {
 
-    private static final List<ParameterContract> PARAMETERS = List.of(new ParameterContract("responseDelayMs", 0, 5000));
+    private static final List<ParameterContract> PARAMETERS =
+            List.of(new ParameterContract("responseDelayMs", 0, 5000));
     private static final PortContract DATABASE = new PortContract("database", "Database",
             List.of(Capability.SQL_DATABASE), 1, 1);
     private static final List<Capability> RESOURCES = List.of(Capability.HTTP, Capability.RESOURCE_READ,

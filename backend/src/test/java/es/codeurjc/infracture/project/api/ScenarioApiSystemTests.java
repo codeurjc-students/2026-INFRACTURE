@@ -59,19 +59,19 @@ class ScenarioApiSystemTests {
                 {"name":"  Cold cache  ","description":"Empty Redis"}
                 """).post(scenariosPath);
         created.then().statusCode(201)
-            .body("name", equalTo("Cold cache"))
-            .body("description", equalTo("Empty Redis"))
-            .body("revision", equalTo(1));
+                .body("name", equalTo("Cold cache"))
+                .body("description", equalTo("Empty Redis"))
+                .body("revision", equalTo(1));
         long id = created.jsonPath().getLong("id");
         assertThat(created.header("Location")).endsWith(scenariosPath + "/" + id);
         long otherId = alice.write().body("{\"name\":\"Warm cache\"}").post(scenariosPath)
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
 
         alice.write().body("{\"name\":\"Renamed\",\"description\":\"\"}").put(scenariosPath + "/" + id)
-            .then().statusCode(200).body("name", equalTo("Renamed")).body("description", nullValue())
-            .body("revision", equalTo(1));
+                .then().statusCode(200).body("name", equalTo("Renamed")).body("description", nullValue())
+                .body("revision", equalTo(1));
         alice.read().get(created.header("Location")).then().statusCode(200)
-            .body("name", equalTo("Renamed")).body("revision", equalTo(1));
+                .body("name", equalTo("Renamed")).body("revision", equalTo(1));
         alice.read().get(scenariosPath + "/" + otherId).then().statusCode(200).body("name", equalTo("Warm cache"));
         alice.read().get("/api/v1/projects/" + projectId).then().statusCode(200).body("name", equalTo("Cache lab"));
     }
@@ -83,20 +83,20 @@ class ScenarioApiSystemTests {
         long queueLab = createProject(alice, "Queue lab");
         for (int number = 1; number <= 11; number++) {
             alice.write().body("{\"name\":\"Cache " + number + "\"}")
-                .post("/api/v1/projects/" + cacheLab + "/scenarios").then().statusCode(201);
+                    .post("/api/v1/projects/" + cacheLab + "/scenarios").then().statusCode(201);
         }
         alice.write().body("{\"name\":\"Queue\"}").post("/api/v1/projects/" + queueLab + "/scenarios")
-            .then().statusCode(201);
+                .then().statusCode(201);
 
         alice.read().get("/api/v1/projects/" + cacheLab + "/scenarios").then().statusCode(200)
-            .body("content", hasSize(10))
-            .body("content[0].name", equalTo("Cache 11"))
-            .body("page.totalElements", equalTo(11))
-            .body("page.totalPages", equalTo(2));
+                .body("content", hasSize(10))
+                .body("content[0].name", equalTo("Cache 11"))
+                .body("page.totalElements", equalTo(11))
+                .body("page.totalPages", equalTo(2));
         alice.read().queryParam("page", 1).get("/api/v1/projects/" + cacheLab + "/scenarios").then()
-            .statusCode(200).body("content.name", equalTo(List.of("Cache 1")));
+                .statusCode(200).body("content.name", equalTo(List.of("Cache 1")));
         alice.read().queryParam("size", 101).get("/api/v1/projects/" + cacheLab + "/scenarios")
-            .then().statusCode(400);
+                .then().statusCode(400);
     }
 
     @Test
@@ -107,22 +107,22 @@ class ScenarioApiSystemTests {
         long otherAliceLab = createProject(alice, "Other lab");
         long bobLab = createProject(bob, "Bob lab");
         long id = alice.write().body("{\"name\":\"Private\"}").post("/api/v1/projects/" + aliceLab + "/scenarios")
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
 
         bob.read().get("/api/v1/projects/" + aliceLab + "/scenarios")
-            .then().spec(problem(404, "Project not found"));
+                .then().spec(problem(404, "Project not found"));
         bob.read().get("/api/v1/projects/" + aliceLab + "/scenarios/" + id)
-            .then().spec(problem(404, "Project not found"));
+                .then().spec(problem(404, "Project not found"));
         bob.read().get("/api/v1/projects/" + bobLab + "/scenarios/" + id)
-            .then().spec(problem(404, "Scenario not found"));
+                .then().spec(problem(404, "Scenario not found"));
         bob.write().body("{\"name\":\"Taken over\"}").put("/api/v1/projects/" + bobLab + "/scenarios/" + id)
-            .then().spec(problem(404, "Scenario not found"));
+                .then().spec(problem(404, "Scenario not found"));
         bob.write().body("{\"name\":\"Planted\"}").post("/api/v1/projects/" + aliceLab + "/scenarios")
-            .then().spec(problem(404, "Project not found"));
+                .then().spec(problem(404, "Project not found"));
         alice.read().get("/api/v1/projects/" + otherAliceLab + "/scenarios/" + id)
-            .then().spec(problem(404, "Scenario not found"));
+                .then().spec(problem(404, "Scenario not found"));
         alice.read().get("/api/v1/projects/" + aliceLab + "/scenarios/" + (id + 1000))
-            .then().spec(problem(404, "Scenario not found"));
+                .then().spec(problem(404, "Scenario not found"));
         given().port(port).get("/api/v1/projects/" + aliceLab + "/scenarios").then().statusCode(401);
 
         assertThat(scenarios.findAll()).singleElement().satisfies(scenario -> {
@@ -132,14 +132,14 @@ class ScenarioApiSystemTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"id", "projectId", "project", "revision", "createdAt"})
+    @ValueSource(strings = { "id", "projectId", "project", "revision", "createdAt" })
     void rejectsFieldsControlledByTheServer(String field) {
         ApiSession alice = signUp();
         long projectId = createProject(alice, "Cache lab");
         long otherProjectId = createProject(alice, "Queue lab");
         String scenariosPath = "/api/v1/projects/" + projectId + "/scenarios";
         long id = alice.write().body("{\"name\":\"Cold cache\"}").post(scenariosPath)
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
         String tampered = "{\"name\":\"Tampered\",\"" + field + "\":" + otherProjectId + "}";
 
         alice.write().body(tampered).post(scenariosPath).then().statusCode(400);
@@ -158,12 +158,12 @@ class ScenarioApiSystemTests {
         String scenariosPath = "/api/v1/projects/" + createProject(alice, "Cache lab") + "/scenarios";
 
         alice.write().body("{\"name\":\"   \"}").post(scenariosPath)
-            .then().spec(problem(400, "Scenario name is required"));
+                .then().spec(problem(400, "Scenario name is required"));
         long id = alice.write().body("{\"name\":\"Cold cache\"}").post(scenariosPath)
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
         alice.write().body("{\"name\":\"Cold cache\",\"description\":\"" + "d".repeat(281) + "\"}")
-            .put(scenariosPath + "/" + id)
-            .then().spec(problem(400, "Scenario description must contain at most 280 characters"));
+                .put(scenariosPath + "/" + id)
+                .then().spec(problem(400, "Scenario description must contain at most 280 characters"));
         alice.read().get(scenariosPath + "/" + id).then().body("description", nullValue());
     }
 
@@ -173,6 +173,6 @@ class ScenarioApiSystemTests {
 
     private long createProject(ApiSession session, String name) {
         return session.write().body("{\"name\":\"" + name + "\"}").post("/api/v1/projects")
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
     }
 }

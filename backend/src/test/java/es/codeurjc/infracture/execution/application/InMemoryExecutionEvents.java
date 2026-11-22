@@ -30,23 +30,26 @@ final class InMemoryExecutionEvents {
             saved.add(event);
             return event;
         });
-        when(repository.findByExecutionIdAndKindNotOrderById(anyLong(), any())).thenAnswer(invocation ->
-                of(invocation.getArgument(0)).stream().filter(event -> event.getKind() != invocation.getArgument(1))
+        when(repository.findByExecutionIdAndKindNotOrderById(anyLong(), any()))
+                .thenAnswer(invocation -> of(invocation.getArgument(0)).stream()
+                        .filter(event -> event.getKind() != invocation.getArgument(1))
                         .toList());
         when(repository.findTop200ByExecutionIdAndIdGreaterThanOrderById(anyLong(), anyLong())).thenAnswer(
                 invocation -> of(invocation.getArgument(0)).stream()
                         .filter(event -> event.getId() > (long) invocation.getArgument(1)).limit(200).toList());
-        when(repository.existsByIdAndExecutionId(anyLong(), anyLong())).thenAnswer(invocation ->
-                of(invocation.getArgument(1)).stream().anyMatch(event -> event.getId().equals(invocation.getArgument(0))));
-        when(repository.findFirstByExecutionIdOrderByIdDesc(anyLong())).thenAnswer(invocation ->
-                of(invocation.getArgument(0)).stream().reduce((first, second) -> second));
-        when(repository.findFirstByExecutionIdAndKindOrderByAtDescIdDesc(anyLong(), any())).thenAnswer(invocation ->
-                of(invocation.getArgument(0)).stream().filter(event -> event.getKind() == invocation.getArgument(1))
+        when(repository.existsByIdAndExecutionId(anyLong(), anyLong()))
+                .thenAnswer(invocation -> of(invocation.getArgument(1)).stream()
+                        .anyMatch(event -> event.getId().equals(invocation.getArgument(0))));
+        when(repository.findFirstByExecutionIdOrderByIdDesc(anyLong()))
+                .thenAnswer(invocation -> of(invocation.getArgument(0)).stream().reduce((first, second) -> second));
+        when(repository.findFirstByExecutionIdAndKindOrderByAtDescIdDesc(anyLong(), any()))
+                .thenAnswer(invocation -> of(invocation.getArgument(0)).stream()
+                        .filter(event -> event.getKind() == invocation.getArgument(1))
                         .max(Comparator.comparing(ExecutionEvent::getAt).thenComparing(ExecutionEvent::getId)));
-        when(repository.countByExecutionIdAndComponentKeyAndKind(anyLong(), any(), any())).thenAnswer(invocation ->
-                count(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2)));
-        when(repository.countByExecutionIdAndComponentKeyIsNullAndKind(anyLong(), any())).thenAnswer(invocation ->
-                count(invocation.getArgument(0), null, invocation.getArgument(1)));
+        when(repository.countByExecutionIdAndComponentKeyAndKind(anyLong(), any(), any())).thenAnswer(
+                invocation -> count(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2)));
+        when(repository.countByExecutionIdAndComponentKeyIsNullAndKind(anyLong(), any()))
+                .thenAnswer(invocation -> count(invocation.getArgument(0), null, invocation.getArgument(1)));
     }
 
     List<ExecutionEvent> of(Long executionId) {

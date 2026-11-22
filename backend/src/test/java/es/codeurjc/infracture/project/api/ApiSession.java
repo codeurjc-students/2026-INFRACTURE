@@ -36,8 +36,8 @@ public final class ApiSession {
     // The session cookies as one Cookie header, for clients other than REST Assured.
     public String cookieHeader() {
         return cookies.getCookieStore().getCookies().stream()
-            .map(cookie -> cookie.getName() + "=" + cookie.getValue())
-            .collect(Collectors.joining("; "));
+                .map(cookie -> cookie.getName() + "=" + cookie.getValue())
+                .collect(Collectors.joining("; "));
     }
 
     public RequestSpecification read() {
@@ -47,8 +47,8 @@ public final class ApiSession {
     public RequestSpecification write() {
         given().port(port).filter(cookies).get("/api/v1/auth/csrf").then().statusCode(204);
         String csrf = cookies.getCookieStore().getCookies().stream()
-            .filter(cookie -> cookie.getName().equals("XSRF-TOKEN"))
-            .findFirst().orElseThrow().getValue();
+                .filter(cookie -> cookie.getName().equals("XSRF-TOKEN"))
+                .findFirst().orElseThrow().getValue();
         return given().port(port).filter(cookies).header("X-XSRF-TOKEN", csrf).contentType(ContentType.JSON);
     }
 }

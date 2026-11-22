@@ -21,8 +21,8 @@ class ContractCatalogTests {
     private final ContractCatalog catalog = ContractCatalogs.standard();
 
     @ParameterizedTest
-    @CsvSource({"HTTP_SERVICE, STATELESS", "WORKER, CONSUMER", "POSTGRESQL, DEFAULT", "REDIS, DEFAULT",
-            "RABBITMQ, DEFAULT"})
+    @CsvSource({ "HTTP_SERVICE, STATELESS", "WORKER, CONSUMER", "POSTGRESQL, DEFAULT", "REDIS, DEFAULT",
+            "RABBITMQ, DEFAULT" })
     void givesEveryNodeTypeAtLeastOneProfile(ComponentType type, String profile) {
         TemplateContract contract = catalog.find(type).orElseThrow();
 
@@ -40,13 +40,13 @@ class ContractCatalogTests {
             "WORKER       | CONSUMER        | queue:MESSAGE_BROKER:1:1 result:SQL_DATABASE,KEY_VALUE:0:1 | ''",
             "POSTGRESQL   | DEFAULT         | ''                                                | SQL_DATABASE",
             "REDIS        | DEFAULT         | ''                                                | KEY_VALUE",
-            "RABBITMQ     | DEFAULT         | ''                                                | MESSAGE_BROKER"})
+            "RABBITMQ     | DEFAULT         | ''                                                | MESSAGE_BROKER" })
     void declaresThePortsEachProfileNeedsAndTheCapabilitiesItOffers(ComponentType type, String name, String ports,
             String capabilities) {
         ProfileContract profile = catalog.find(type).orElseThrow().profile(name).orElseThrow();
 
         assertThat(profile.ports()).map(port -> "%s:%s:%d:%d".formatted(port.name(),
-                        String.join(",", port.accepts().stream().map(Capability::name).toList()), port.min(), port.max()))
+                String.join(",", port.accepts().stream().map(Capability::name).toList()), port.min(), port.max()))
                 .containsExactly(ports.isEmpty() ? new String[0] : ports.split(" +"));
         assertThat(profile.ports()).allSatisfy(port -> assertThat(port.label()).isNotBlank());
         assertThat(profile.capabilities()).map(Capability::name)

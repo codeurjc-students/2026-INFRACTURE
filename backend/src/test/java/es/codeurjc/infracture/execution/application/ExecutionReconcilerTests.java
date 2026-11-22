@@ -425,10 +425,10 @@ class ExecutionReconcilerTests {
 
         assertThat(events.of(12L, Kind.LOG)).extracting(ExecutionEvent::getComponentKey,
                 event -> event.getPayload().get("line"), ExecutionEvent::getAt).containsExactly(
-                org.assertj.core.groups.Tuple.tuple(ORDERS, "Started DemoApplication", printed),
-                org.assertj.core.groups.Tuple.tuple(ORDERS, "connecting with password=[redacted]",
-                        printed.plusMillis(1)),
-                org.assertj.core.groups.Tuple.tuple(null, "running (01m00s)", printed.plusMillis(2)));
+                        org.assertj.core.groups.Tuple.tuple(ORDERS, "Started DemoApplication", printed),
+                        org.assertj.core.groups.Tuple.tuple(ORDERS, "connecting with password=[redacted]",
+                                printed.plusMillis(1)),
+                        org.assertj.core.groups.Tuple.tuple(null, "running (01m00s)", printed.plusMillis(2)));
     }
 
     @Test
@@ -581,8 +581,8 @@ class ExecutionReconcilerTests {
         private RuntimeEngineException logsFailure;
         private final List<LogLine> logLines = new ArrayList<>();
         // What happens while the engine waits, such as a Stop from the owner.
-        private Runnable duringUp = () -> { };
-        private Runnable duringStartLoad = () -> { };
+        private Runnable duringUp = () -> {};
+        private Runnable duringStartLoad = () -> {};
         private Map<String, ComponentStatus> status = Map.of("c-" + ORDERS, ComponentStatus.HEALTHY);
         // k6 exits with 105 when Stop interrupts it.
         private LoadReport loadReport = new LoadReport(105, SUMMARY);

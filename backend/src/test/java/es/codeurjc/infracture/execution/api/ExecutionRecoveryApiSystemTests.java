@@ -35,9 +35,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 // A second reconciler built after the experiment started plays the backend process that comes back
 // after a restart: it finds the execution that the first one left open.
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@TestPropertySource(locations = "classpath:admin-test.properties",
-        properties = {"infracture.execution.reconciler.enabled=false",
-            "infracture.execution.cleanup-retry-pause=0s"})
+@TestPropertySource(locations = "classpath:admin-test.properties", properties = {
+        "infracture.execution.reconciler.enabled=false",
+        "infracture.execution.cleanup-retry-pause=0s" })
 @Testcontainers
 class ExecutionRecoveryApiSystemTests {
 
@@ -69,25 +69,25 @@ class ExecutionRecoveryApiSystemTests {
         String other = statelessScenario(bob);
         String current = scenario + "/executions/current";
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .body("interruptedAt", nullValue()).body("interruptedPhase", nullValue());
+                .body("interruptedAt", nullValue()).body("interruptedPhase", nullValue());
         reconciler.reconcile();
         doThrow(new RuntimeEngineException("docker compose down failed: Cannot connect to the Docker daemon"))
-            .doNothing()
-            .when(engine).down(anyMap(), anyMap());
+                .doNothing()
+                .when(engine).down(anyMap(), anyMap());
 
         ExecutionReconciler restarted = beans.createBean(ExecutionReconciler.class);
         restarted.reconcile();
 
         alice.read().get(current).then()
-            .body("phase", equalTo("STOPPING")).body("stopCause", equalTo("INTERRUPTION"))
-            .body("interruptedPhase", equalTo("RUNNING")).body("interruptedAt", notNullValue())
-            .body("secondsLeft", nullValue()).body("cleanupFailures", equalTo(1))
-            .body("cleanupError", equalTo("docker compose down failed: Cannot connect to the Docker daemon"));
+                .body("phase", equalTo("STOPPING")).body("stopCause", equalTo("INTERRUPTION"))
+                .body("interruptedPhase", equalTo("RUNNING")).body("interruptedAt", notNullValue())
+                .body("secondsLeft", nullValue()).body("cleanupFailures", equalTo(1))
+                .body("cleanupError", equalTo("docker compose down failed: Cannot connect to the Docker daemon"));
         bob.write().body(run(2)).post(other + "/executions").then().spec(problem(409, ANOTHER_RUNNING));
         restarted.reconcile();
         alice.read().get(current).then()
-            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("INTERRUPTED"))
-            .body("interruptedPhase", equalTo("RUNNING"));
+                .body("phase", equalTo("RELEASED")).body("outcome", equalTo("INTERRUPTED"))
+                .body("interruptedPhase", equalTo("RUNNING"));
         bob.write().body(run(2)).post(other + "/executions").then().statusCode(202);
     }
 }

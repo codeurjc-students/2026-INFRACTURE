@@ -55,8 +55,8 @@ public class SecurityConfig {
         http.authenticationProvider(authenticationProvider)
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(unauthorizedHandlerJwt)
-                        .accessDeniedHandler((request, response, exception) ->
-                                resolver.resolveException(request, response, null, exception)))
+                        .accessDeniedHandler((request, response, exception) -> resolver.resolveException(request,
+                                response, null, exception)))
                 .authorizeHttpRequests(authorize -> authorize
                         // The request that started an error page or an event stream was already authorized.
                         // The stateless session cannot authenticate the later async dispatch on its own.
@@ -70,7 +70,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh",
-                                "/api/v1/auth/logout").permitAll()
+                                "/api/v1/auth/logout")
+                        .permitAll()
                         .anyRequest().authenticated())
 
                 .formLogin(form -> form.disable())

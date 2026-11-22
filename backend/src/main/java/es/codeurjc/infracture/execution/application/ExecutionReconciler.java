@@ -146,8 +146,8 @@ public class ExecutionReconciler {
         for (Map.Entry<UUID, URI> target : planCompiler.evidence(execution).entrySet()) {
             String response = probe.get(target.getValue());
             if (response != null) {
-                transactions.executeWithoutResult(status ->
-                        journal.recordResponse(execution.getId(), target.getKey(), response, clock.instant()));
+                transactions.executeWithoutResult(status -> journal.recordResponse(execution.getId(), target.getKey(),
+                        response, clock.instant()));
             }
         }
     }
@@ -185,8 +185,7 @@ public class ExecutionReconciler {
                 broken = component.getName() + " stopped";
             }
         }
-        transactions.executeWithoutResult(status ->
-                journal.recordStates(execution.getId(), byNode, clock.instant()));
+        transactions.executeWithoutResult(status -> journal.recordStates(execution.getId(), byNode, clock.instant()));
         return broken;
     }
 

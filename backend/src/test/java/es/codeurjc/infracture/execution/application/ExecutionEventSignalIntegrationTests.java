@@ -79,8 +79,9 @@ class ExecutionEventSignalIntegrationTests {
             entityManager.persist(scenario);
             ComponentConfiguration stateless = new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0));
             scenario.replaceGraph(1, List.of(new ComponentDraft(UUID.randomUUID(), "http-service", "orders-api", 0,
-                    0, stateless)), List.of(), null, Map.of("http-service", new ComponentTemplate("http-service",
-                    "HTTP Service", ComponentType.HTTP_SERVICE, true, stateless)));
+                    0, stateless)), List.of(), null, Map.of("http-service",
+                            new ComponentTemplate("http-service",
+                                    "HTTP Service", ComponentType.HTTP_SERVICE, true, stateless)));
             Execution execution = new Execution(scenario, Map.of(ComponentType.HTTP_SERVICE, 1));
             entityManager.persist(execution);
             entityManager.flush();

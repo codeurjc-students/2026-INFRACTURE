@@ -82,7 +82,8 @@ class ScenarioPersistenceIntegrationTests {
         assertThat(updated.getDescription()).isNull();
         assertThat(updated.getRevision()).isEqualTo(1);
         assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(updated.getCreatedAt());
-        assertThat(repository.findAll()).extracting(Scenario::getName).containsExactlyInAnyOrder("Renamed", "Warm cache");
+        assertThat(repository.findAll()).extracting(Scenario::getName).containsExactlyInAnyOrder("Renamed",
+                "Warm cache");
         assertThat(entityManager.find(Project.class, cacheLab.getId()).getUpdatedAt()).isEqualTo(projectUpdatedAt);
     }
 
@@ -153,7 +154,8 @@ class ScenarioPersistenceIntegrationTests {
                 new ComponentDraft(orders, "http-service", "orders-api", 120.5, -40,
                         new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 250))),
                 new ComponentDraft(cache, "redis", "cache", 0, 300,
-                        new ComponentConfiguration("DEFAULT", Map.of()))), List.of(), null,
+                        new ComponentConfiguration("DEFAULT", Map.of()))),
+                List.of(), null,
                 catalogue());
         repository.saveAndFlush(scenario);
         entityManager.clear();
@@ -177,7 +179,8 @@ class ScenarioPersistenceIntegrationTests {
     void keepsNodeIdentityAndRemovesDeletedNodesOnTheNextSave() {
         UUID kept = UUID.randomUUID();
         Scenario scenario = repository.saveAndFlush(new Scenario(cacheLab, "Cold cache", null));
-        scenario.replaceGraph(1, List.of(redis(kept, "cache"), redis(UUID.randomUUID(), "removed")), List.of(), null, catalogue());
+        scenario.replaceGraph(1, List.of(redis(kept, "cache"), redis(UUID.randomUUID(), "removed")), List.of(), null,
+                catalogue());
         repository.saveAndFlush(scenario);
         Long keptId = scenario.getComponents().getFirst().getId();
         entityManager.clear();
@@ -370,8 +373,11 @@ class ScenarioPersistenceIntegrationTests {
 
     private static Map<String, ComponentTemplate> catalogue() {
         return Map.of(
-                "http-service", new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
-                "redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of())));
+                "http-service",
+                new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE, true,
+                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
+                "redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true,
+                        new ComponentConfiguration("DEFAULT", Map.of())));
     }
 
     @Test
