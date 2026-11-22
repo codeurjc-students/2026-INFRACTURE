@@ -15,7 +15,7 @@ Este documento sirve para explicar cualquier pieza de Infracture en un minuto: q
 
 ## Cómo está organizado
 
-**Backend** ([`backend/src/main/java/es/codeurjc/infracture`](../backend/src/main/java/es/codeurjc/infracture)). Es un monolito modular de Spring Boot. Cada módulo es un paquete con cuatro capas, y una petición siempre las recorre en el mismo orden:
+**Backend** ([`backend/src/main/java/es/codeurjc/infracture`](../backend/src/main/java/es/codeurjc/infracture)). Es un monolito modular de Spring Boot ([ADR 0018](adr/0018-monolito-modular-con-spring-boot.md)). Cada módulo es un paquete con cuatro capas, y una petición siempre las recorre en el mismo orden:
 
 ```
 api (controlador + DTO + mapper) → application (servicio) → domain (entidades y reglas) → persistence (repositorio)
@@ -30,7 +30,7 @@ api (controlador + DTO + mapper) → application (servicio) → domain (entidade
 | `execution` | Run y Stop: reserva, plan de Compose, motor de Docker y bucle de control. |
 | `shared` | Excepciones comunes y su traducción a respuestas HTTP. |
 
-**Frontend** ([`frontend/app`](../frontend/app)). Es una SPA de React con React Router. Cada ruta de `routes/` carga sus datos en un `clientLoader` y guarda en un `clientAction`; la lógica de cada área vive en `features/<área>/`, con `api/` (llamadas HTTP), `model/` (tipos de los DTO) y `components/`.
+**Frontend** ([`frontend/app`](../frontend/app)). Es una SPA de React con React Router ([ADR 0020](adr/0020-react-router-en-modo-spa.md)). Cada ruta de `routes/` carga sus datos en un `clientLoader` y guarda en un `clientAction`; la lógica de cada área vive en `features/<área>/`, con `api/` (llamadas HTTP), `model/` (tipos de los DTO) y `components/`.
 
 ## Recorridos principales
 
@@ -45,7 +45,7 @@ api (controlador + DTO + mapper) → application (servicio) → domain (entidade
 ### Diseñar y guardar un escenario
 
 1. `routes/scenario.tsx` carga a la vez proyecto, escenario, grafo, catálogo, perfiles de carga y la ejecución actual, y monta `ScenarioCanvas`.
-2. Cada cambio del lienzo (añadir, mover, conectar, configurar, la carga del panel Load) es una acción de `graph-reducer.ts`; `draft-storage.ts` guarda el trabajo sin guardar en el navegador.
+2. Cada cambio del lienzo (añadir, mover, conectar, configurar, la carga del panel Load) es una acción de `graph-reducer.ts`; `draft-storage.ts` guarda el trabajo sin guardar en el navegador ([ADR 0031](adr/0031-borrador-local-del-lienzo.md)).
 3. Guardar envía el grafo entero con la revisión de partida: `graph-service.saveGraph` → `PUT …/graph` → `ScenarioController` → `ScenarioService.saveGraph`.
 4. `ScenarioService` bloquea la fila del escenario, rechaza la escritura si una ejecución lo reserva y llama a `Scenario.replaceGraph`, que comprueba la revisión (409 si otra pestaña guardó antes) y las reglas estructurales.
 5. `ScenarioValidator` revisa el grafo guardado contra los contratos de `ContractCatalog` y devuelve errores y avisos; el lienzo los pinta en los nodos, las flechas y el panel de incidencias.
@@ -162,7 +162,7 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | Clase | Qué hace | Quién la usa |
 | --- | --- | --- |
 | `ConflictException`, `InvalidDataException`, `NotFoundException` | Errores de negocio comunes: 409, 400 y 404. | Todos los servicios. |
-| `ApiExceptionHandler` | Traduce cualquier error a `application/problem+json` con un mensaje claro. | Spring. |
+| `ApiExceptionHandler` | Traduce cualquier error a `application/problem+json` con un mensaje claro ([ADR 0024](adr/0024-errores-de-la-api-como-problemdetail.md)). | Spring. |
 | `InfractureBackendApplication` | Punto de entrada de Spring Boot. | `./mvnw spring-boot:run`, imagen. |
 
 ## Frontend
