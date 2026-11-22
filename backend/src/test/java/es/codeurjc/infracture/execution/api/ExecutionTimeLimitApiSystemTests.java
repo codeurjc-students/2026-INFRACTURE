@@ -35,10 +35,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 // The limit is cut to one second, so the test reaches it without waiting 30 real minutes.
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@TestPropertySource(locations = "classpath:admin-test.properties",
-        properties = {"infracture.execution.reconciler.enabled=false",
-            "infracture.execution.cleanup-retry-pause=0s",
-            "infracture.execution.max-duration=1s"})
+@TestPropertySource(locations = "classpath:admin-test.properties", properties = {
+        "infracture.execution.reconciler.enabled=false",
+        "infracture.execution.cleanup-retry-pause=0s",
+        "infracture.execution.max-duration=1s" })
 @Testcontainers
 class ExecutionTimeLimitApiSystemTests {
 
@@ -67,26 +67,26 @@ class ExecutionTimeLimitApiSystemTests {
         String other = statelessScenario(bob);
         String current = scenario + "/executions/current";
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .body("deadlineAt", nullValue()).body("secondsLeft", nullValue());
+                .body("deadlineAt", nullValue()).body("secondsLeft", nullValue());
 
         reconciler.reconcile();
         alice.read().get(current).then().body("phase", equalTo("RUNNING"))
-            .body("deadlineAt", notNullValue()).body("secondsLeft", lessThanOrEqualTo(1));
+                .body("deadlineAt", notNullValue()).body("secondsLeft", lessThanOrEqualTo(1));
         doThrow(new RuntimeEngineException("docker network rm failed: network has active endpoints"))
-            .doNothing()
-            .when(engine).down(anyMap(), anyMap());
+                .doNothing()
+                .when(engine).down(anyMap(), anyMap());
         Thread.sleep(Duration.ofMillis(1100));
         reconciler.reconcile();
 
         alice.read().get(current).then()
-            .body("phase", equalTo("STOPPING")).body("stopCause", equalTo("TIME_LIMIT"))
-            .body("secondsLeft", nullValue()).body("cleanupFailures", equalTo(1))
-            .body("releasedAt", nullValue());
+                .body("phase", equalTo("STOPPING")).body("stopCause", equalTo("TIME_LIMIT"))
+                .body("secondsLeft", nullValue()).body("cleanupFailures", equalTo(1))
+                .body("releasedAt", nullValue());
         bob.write().body(run(2)).post(other + "/executions").then().spec(problem(409, ANOTHER_RUNNING));
         reconciler.reconcile();
         alice.read().get(current).then()
-            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"))
-            .body("stopCause", equalTo("TIME_LIMIT")).body("failureReason", nullValue());
+                .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"))
+                .body("stopCause", equalTo("TIME_LIMIT")).body("failureReason", nullValue());
         bob.write().body(run(2)).post(other + "/executions").then().statusCode(202);
     }
 }

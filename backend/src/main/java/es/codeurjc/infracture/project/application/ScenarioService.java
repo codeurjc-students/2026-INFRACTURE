@@ -104,7 +104,8 @@ public class ScenarioService {
 
     private void requireEditable(Scenario scenario) {
         if (reservations.isReserved(scenario.getId())) {
-            throw new ConflictException("The scenario is read-only while an experiment uses it. Stop it to edit the scenario.");
+            throw new ConflictException(
+                    "The scenario is read-only while an experiment uses it. Stop it to edit the scenario.");
         }
     }
 

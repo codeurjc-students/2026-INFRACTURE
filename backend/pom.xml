@@ -37,6 +37,8 @@
 		<rest-assured.version>6.0.1</rest-assured.version>
 		<springdoc-openapi.version>3.0.0</springdoc-openapi.version>
 		<springdoc-openapi-maven-plugin.version>1.5</springdoc-openapi-maven-plugin.version>
+		<spotless.version>3.12.0</spotless.version>
+		<eclipse-jdt-formatter.version>4.41</eclipse-jdt-formatter.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -245,6 +247,27 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<!-- Formats with the same Eclipse profile that jdtls uses in Zed; verify fails on unformatted code. -->
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>${spotless.version}</version>
+				<configuration>
+					<java>
+						<eclipse>
+							<version>${eclipse-jdt-formatter.version}</version>
+							<file>${project.basedir}/eclipse-formatter.xml</file>
+						</eclipse>
+					</java>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

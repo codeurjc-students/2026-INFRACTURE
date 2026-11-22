@@ -25,7 +25,8 @@ class ComponentTemplateMigrationIntegrationTests {
         var jdbc = new JdbcTemplate(dataSource);
 
         Flyway.configure().dataSource(dataSource).target("2").load().migrate();
-        jdbc.update("UPDATE component_template SET name = 'Existing worker', enabled = false WHERE template_key = 'worker'");
+        jdbc.update(
+                "UPDATE component_template SET name = 'Existing worker', enabled = false WHERE template_key = 'worker'");
         String original = "SELECT id, template_key, name, type, enabled FROM component_template ORDER BY id";
         var existingTemplates = jdbc.queryForList(original);
         assertThat(existingTemplates).hasSize(6);

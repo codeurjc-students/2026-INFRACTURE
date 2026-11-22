@@ -117,7 +117,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         return lines;
     }
 
-    // With --timestamps each line reads "<service>-<index>  | <time> <text>". The service keeps its own
+    // With --timestamps each line reads "<service>-<index> | <time> <text>". The service keeps its own
     // hyphens and only the last "-<index>" goes. Null for any other line. Plain index searches, not a regex,
     // so a long line is read in one pass.
     static LogLine parseLogLine(String line) {

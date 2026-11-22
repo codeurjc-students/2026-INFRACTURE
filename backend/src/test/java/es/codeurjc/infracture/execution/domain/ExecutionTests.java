@@ -321,6 +321,7 @@ class ExecutionTests {
 
     private static Map<String, ComponentTemplate> templates() {
         return Map.of("http-service", new ComponentTemplate("http-service", "HTTP Service",
-                ComponentType.HTTP_SERVICE, true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))));
+                ComponentType.HTTP_SERVICE, true,
+                new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))));
     }
 }

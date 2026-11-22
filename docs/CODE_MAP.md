@@ -229,6 +229,7 @@ Rutas relativas a `frontend/app/`. Los ficheros de `features/*/model/` son los t
 | `load-generator/` | La imagen `infracture/load-generator`: k6 con un script fijo por perfil de carga y `run.sh`, que elige el script. |
 | `docker/Dockerfile`, `docker/docker-proxy/haproxy.cfg` | Imagen de la aplicación y lista blanca del proxy de Docker. |
 | `compose.yaml` | Postgres de desarrollo y, con `--profile app`, el proxy y el backend en contenedor. |
+| `backend/eclipse-formatter.xml`, `.zed/settings.json` | El formato único del código Java: Spotless lo comprueba en `./mvnw verify` y jdtls lo aplica al guardar en Zed. |
 | `scripts/` | Arranque de desarrollo y los entornos desechables de las pruebas de integración y de navegador. |
 | `docs/models/execution-lifecycle/` | El modelo TLA+ del ciclo de vida de una ejecución. |
 

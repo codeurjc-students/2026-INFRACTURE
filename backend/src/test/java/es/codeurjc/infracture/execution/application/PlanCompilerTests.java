@@ -90,7 +90,8 @@ class PlanCompilerTests {
     void refusesTwoDriversForTheSameType() {
         HttpServiceDriver driver = new HttpServiceDriver("image");
 
-        assertThatIllegalStateException().isThrownBy(() -> new PlanCompiler(List.of(driver, driver), "local", LOAD_IMAGE));
+        assertThatIllegalStateException()
+                .isThrownBy(() -> new PlanCompiler(List.of(driver, driver), "local", LOAD_IMAGE));
     }
 
     private static Execution execution(Long id) {

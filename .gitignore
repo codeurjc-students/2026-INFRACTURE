@@ -7,5 +7,6 @@
 /docs/images/phase-3-guide/
 .DS_Store
 .vscode/
-.zed/
+.zed/*
+!.zed/settings.json
 /.env

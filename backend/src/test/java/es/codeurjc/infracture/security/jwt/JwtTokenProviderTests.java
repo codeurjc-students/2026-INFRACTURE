@@ -16,7 +16,7 @@ class JwtTokenProviderTests {
     private final MutableClock clock = new MutableClock(Instant.parse("2026-10-19T10:00:00Z"));
     private final JwtTokenProvider provider = new JwtTokenProvider(clock);
     private final UserDetails user = User.withUsername("alice@example.com")
-        .password("stored-password-hash").roles("USER").build();
+            .password("stored-password-hash").roles("USER").build();
 
     @Test
     void acceptsAnAccessTokenUntilItsLifetimeEnds() {

@@ -34,7 +34,8 @@ class UserServiceTests {
 
     private final UserRepository repository = mock(UserRepository.class);
     private final PasswordEncoder encoder = mock(PasswordEncoder.class);
-    private final UserService service = new UserService(repository, encoder, VALIDATORS.getValidator(), new PasswordPolicy());
+    private final UserService service =
+            new UserService(repository, encoder, VALIDATORS.getValidator(), new PasswordPolicy());
 
     @AfterAll
     static void closeValidatorFactory() {
@@ -74,7 +75,8 @@ class UserServiceTests {
 
     @Test
     void normalizesRegistrationAndAssignsServerControlledFields() {
-        User input = new User(" ALICE ", PASSWORD, " ALICE@EXAMPLE.COM ", "  A\u0301lice O’Neill-Sáez  ", UserRole.ADMIN);
+        User input =
+                new User(" ALICE ", PASSWORD, " ALICE@EXAMPLE.COM ", "  A\u0301lice O’Neill-Sáez  ", UserRole.ADMIN);
         input.setActive(false);
         input.setAvatarKey("untrusted-avatar");
         when(encoder.encode(PASSWORD)).thenReturn("encoded-hash");
@@ -119,7 +121,7 @@ class UserServiceTests {
     }
 
     @ParameterizedTest
-    @CsvSource({"true, false", "false, true"})
+    @CsvSource({ "true, false", "false, true" })
     void rejectsExistingUsernameOrEmailBeforeHashing(boolean usernameExists, boolean emailExists) {
         when(repository.existsByUsernameIgnoreCase("alice")).thenReturn(usernameExists);
         when(repository.existsByEmailIgnoreCase("alice@example.com")).thenReturn(emailExists);

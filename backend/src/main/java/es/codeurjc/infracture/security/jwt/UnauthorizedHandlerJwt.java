@@ -12,14 +12,15 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @Component
 public class UnauthorizedHandlerJwt implements AuthenticationEntryPoint {
 
-  private final HandlerExceptionResolver resolver;
+    private final HandlerExceptionResolver resolver;
 
-  public UnauthorizedHandlerJwt(@Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
-    this.resolver = resolver;
-  }
+    public UnauthorizedHandlerJwt(@Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
+        this.resolver = resolver;
+    }
 
-  @Override
-  public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) {
-    resolver.resolveException(request, response, null, authException);
-  }
+    @Override
+    public void commence(HttpServletRequest request, HttpServletResponse response,
+            AuthenticationException authException) {
+        resolver.resolveException(request, response, null, authException);
+    }
 }

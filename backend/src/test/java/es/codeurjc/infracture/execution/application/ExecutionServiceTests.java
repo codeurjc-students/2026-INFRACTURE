@@ -138,8 +138,8 @@ class ExecutionServiceTests {
         when(repository.findByReleasedAtIsNull()).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.run(OWNER, 5L, 3L, 2))
-                .isInstanceOfSatisfying(ScenarioNotRunnableException.class, exception ->
-                        assertThat(exception.getIssues()).extracting(ValidationIssue::code)
+                .isInstanceOfSatisfying(ScenarioNotRunnableException.class,
+                        exception -> assertThat(exception.getIssues()).extracting(ValidationIssue::code)
                                 .containsExactly("UNSUPPORTED_IN_THIS_VERSION"));
         verify(repository, never()).saveAndFlush(any());
     }
@@ -150,8 +150,8 @@ class ExecutionServiceTests {
         when(repository.findByReleasedAtIsNull()).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.run(OWNER, 5L, 3L, 2))
-                .isInstanceOfSatisfying(ScenarioNotRunnableException.class, exception ->
-                        assertThat(exception.getIssues()).extracting(ValidationIssue::code)
+                .isInstanceOfSatisfying(ScenarioNotRunnableException.class,
+                        exception -> assertThat(exception.getIssues()).extracting(ValidationIssue::code)
                                 .containsExactly("EMPTY_SCENARIO"));
     }
 
@@ -160,7 +160,8 @@ class ExecutionServiceTests {
         when(scenarioService.lockOwnScenario(OWNER, 5L, 3L)).thenReturn(scenario(3L, stateless()));
         when(repository.findByReleasedAtIsNull()).thenReturn(Optional.empty());
         when(repository.saveAndFlush(any(Execution.class))).thenThrow(new DataIntegrityViolationException("insert",
-                new RuntimeException("duplicate key value violates unique constraint \"ux_executions_single_active\"")));
+                new RuntimeException(
+                        "duplicate key value violates unique constraint \"ux_executions_single_active\"")));
 
         assertThatThrownBy(() -> service.run(OWNER, 5L, 3L, 2))
                 .isInstanceOf(ConflictException.class)
@@ -200,7 +201,8 @@ class ExecutionServiceTests {
     void hidesExecutionsOfOtherScenariosFromStop() {
         when(scenarioService.getScenario(OWNER, 5L, 3L)).thenReturn(scenario(3L, stateless()));
         when(repository.findForUpdateById(12L))
-                .thenReturn(Optional.of(new Execution(scenario(9L, stateless()), Map.of(ComponentType.HTTP_SERVICE, 1))));
+                .thenReturn(
+                        Optional.of(new Execution(scenario(9L, stateless()), Map.of(ComponentType.HTTP_SERVICE, 1))));
 
         assertThatThrownBy(() -> service.stop(OWNER, 5L, 3L, 12L))
                 .isInstanceOf(NotFoundException.class).hasMessage("Execution not found");

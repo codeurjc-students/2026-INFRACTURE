@@ -29,15 +29,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@WebMvcTest({AuthController.class, SecurityConfigTests.TestController.class})
+@WebMvcTest({ AuthController.class, SecurityConfigTests.TestController.class })
 @Import({
-    SecurityConfig.class,
-    EncoderConfig.class,
-    JwtTokenProvider.class,
-    UnauthorizedHandlerJwt.class,
-    UserLoginService.class,
-    AuthController.class,
-    SecurityConfigTests.TestController.class
+        SecurityConfig.class,
+        EncoderConfig.class,
+        JwtTokenProvider.class,
+        UnauthorizedHandlerJwt.class,
+        UserLoginService.class,
+        AuthController.class,
+        SecurityConfigTests.TestController.class
 })
 class SecurityConfigTests {
 
@@ -56,39 +56,39 @@ class SecurityConfigTests {
     @Test
     void keepsCataloguePublic() throws Exception {
         mvc.perform(get("/api/v1/component-templates"))
-            .andExpect(status().isOk())
-            .andExpect(content().string("catalogue"));
+                .andExpect(status().isOk())
+                .andExpect(content().string("catalogue"));
     }
 
     @Test
     void rejectsPrivateRequestsWithoutAuthentication() throws Exception {
         mvc.perform(get("/api/v1/security-test/private"))
-            .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     void rejectsInvalidAccessToken() throws Exception {
         mvc.perform(get("/api/v1/security-test/private")
                 .cookie(new Cookie("AuthToken", "invalid-token")))
-            .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized());
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"login", "refresh", "logout"})
+    @ValueSource(strings = { "login", "refresh", "logout" })
     void requiresCsrfProtectionForAuthenticationWrites(String endpoint) throws Exception {
         mvc.perform(post("/api/v1/auth/" + endpoint)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"student@example.com\",\"password\":\"test-password\"}"))
-            .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden());
     }
 
     @Test
     void authenticatesWithEncodedPasswordAndIssuedJwtCookie() throws Exception {
         when(userDetailsService.loadUserByUsername("student@example.com"))
-            .thenReturn(User.withUsername("student@example.com")
-                .password(passwordEncoder.encode("un bosque con café"))
-                .roles("USER")
-                .build());
+                .thenReturn(User.withUsername("student@example.com")
+                        .password(passwordEncoder.encode("un bosque con café"))
+                        .roles("USER")
+                        .build());
 
         Cookie csrfCookie = csrfCookie();
 
@@ -97,26 +97,26 @@ class SecurityConfigTests {
                 .header("X-XSRF-TOKEN", csrfCookie.getValue())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"student@example.com\",\"password\":\"un bosque con cafe\u0301\"}"))
-            .andExpect(status().isOk())
-            .andExpect(cookie().exists("AuthToken"))
-            .andExpect(cookie().exists("RefreshToken"))
-            .andReturn()
-            .getResponse();
+                .andExpect(status().isOk())
+                .andExpect(cookie().exists("AuthToken"))
+                .andExpect(cookie().exists("RefreshToken"))
+                .andReturn()
+                .getResponse();
 
         mvc.perform(get("/api/v1/security-test/private")
                 .cookie(response.getCookie("AuthToken")))
-            .andExpect(status().isOk())
-            .andExpect(content().string("private"));
+                .andExpect(status().isOk())
+                .andExpect(content().string("private"));
     }
 
     @Test
     void rejectsLoginOfInactiveAccountWithoutRevealingAccountState() throws Exception {
         when(userDetailsService.loadUserByUsername("student@example.com"))
-            .thenReturn(User.withUsername("student@example.com")
-                .password(passwordEncoder.encode("un bosque con café"))
-                .roles("USER")
-                .disabled(true)
-                .build());
+                .thenReturn(User.withUsername("student@example.com")
+                        .password(passwordEncoder.encode("un bosque con café"))
+                        .roles("USER")
+                        .disabled(true)
+                        .build());
         Cookie csrfCookie = csrfCookie();
 
         mvc.perform(post("/api/v1/auth/login")
@@ -124,33 +124,33 @@ class SecurityConfigTests {
                 .header("X-XSRF-TOKEN", csrfCookie.getValue())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"student@example.com\",\"password\":\"un bosque con café\"}"))
-            .andExpect(status().isUnauthorized())
-            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.detail").value("Invalid email or password."))
-            .andExpect(cookie().doesNotExist("AuthToken"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Invalid email or password."))
+                .andExpect(cookie().doesNotExist("AuthToken"));
     }
 
     @Test
     void rejectsPreviouslyIssuedTokensWhenAccountBecomesInactive() throws Exception {
         var activeUser = User.withUsername("student@example.com")
-            .password("stored-password-hash")
-            .roles("USER")
-            .build();
+                .password("stored-password-hash")
+                .roles("USER")
+                .build();
         String accessToken = jwtTokenProvider.generateAccessToken(activeUser);
         String refreshToken = jwtTokenProvider.generateRefreshToken(activeUser);
         when(userDetailsService.loadUserByUsername(activeUser.getUsername()))
-            .thenReturn(User.withUserDetails(activeUser).disabled(true).build());
+                .thenReturn(User.withUserDetails(activeUser).disabled(true).build());
 
         mvc.perform(get("/api/v1/security-test/private")
                 .cookie(new Cookie("AuthToken", accessToken)))
-            .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized());
 
         Cookie csrfCookie = csrfCookie();
         mvc.perform(post("/api/v1/auth/refresh")
                 .cookie(csrfCookie, new Cookie("RefreshToken", refreshToken))
                 .header("X-XSRF-TOKEN", csrfCookie.getValue()))
-            .andExpect(status().isUnauthorized())
-            .andExpect(cookie().doesNotExist("AuthToken"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(cookie().doesNotExist("AuthToken"));
     }
 
     @Test
@@ -162,9 +162,9 @@ class SecurityConfigTests {
         mvc.perform(post("/api/v1/auth/refresh")
                 .cookie(csrfCookie, new Cookie("RefreshToken", jwtTokenProvider.generateRefreshToken(user)))
                 .header("X-XSRF-TOKEN", csrfCookie.getValue()))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value("SUCCESS"))
-            .andExpect(cookie().httpOnly("AuthToken", true));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUCCESS"))
+                .andExpect(cookie().httpOnly("AuthToken", true));
     }
 
     @ParameterizedTest
@@ -173,16 +173,16 @@ class SecurityConfigTests {
     void rejectsMissingOrInvalidRefreshCookies(String refreshToken) throws Exception {
         Cookie csrfCookie = csrfCookie();
         var request = post("/api/v1/auth/refresh").cookie(csrfCookie)
-            .header("X-XSRF-TOKEN", csrfCookie.getValue());
+                .header("X-XSRF-TOKEN", csrfCookie.getValue());
         if (refreshToken != null) {
             request.cookie(new Cookie("RefreshToken", refreshToken));
         }
 
         mvc.perform(request)
-            .andExpect(status().isUnauthorized())
-            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.detail").value("Authentication is required."))
-            .andExpect(cookie().doesNotExist("AuthToken"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Authentication is required."))
+                .andExpect(cookie().doesNotExist("AuthToken"));
     }
 
     @Test
@@ -194,12 +194,12 @@ class SecurityConfigTests {
         mvc.perform(post("/api/v1/auth/refresh")
                 .cookie(csrfCookie, new Cookie("RefreshToken", jwtTokenProvider.generateAccessToken(user)))
                 .header("X-XSRF-TOKEN", csrfCookie.getValue()))
-            .andExpect(status().isUnauthorized())
-            .andExpect(cookie().doesNotExist("AuthToken"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(cookie().doesNotExist("AuthToken"));
 
         mvc.perform(get("/api/v1/security-test/private")
                 .cookie(new Cookie("AuthToken", jwtTokenProvider.generateRefreshToken(user))))
-            .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -209,18 +209,18 @@ class SecurityConfigTests {
         mvc.perform(post("/api/v1/auth/logout")
                 .cookie(csrfCookie, new Cookie("AuthToken", "invalid-token"))
                 .header("X-XSRF-TOKEN", csrfCookie.getValue()))
-            .andExpect(status().isNoContent())
-            .andExpect(cookie().maxAge("AuthToken", 0))
-            .andExpect(cookie().maxAge("RefreshToken", 0))
-            .andExpect(cookie().path("AuthToken", "/"))
-            .andExpect(cookie().path("RefreshToken", "/"));
+                .andExpect(status().isNoContent())
+                .andExpect(cookie().maxAge("AuthToken", 0))
+                .andExpect(cookie().maxAge("RefreshToken", 0))
+                .andExpect(cookie().path("AuthToken", "/"))
+                .andExpect(cookie().path("RefreshToken", "/"));
     }
 
     private Cookie csrfCookie() throws Exception {
         return mvc.perform(get("/api/v1/auth/csrf"))
-            .andExpect(status().isNoContent())
-            .andExpect(cookie().exists("XSRF-TOKEN"))
-            .andReturn().getResponse().getCookie("XSRF-TOKEN");
+                .andExpect(status().isNoContent())
+                .andExpect(cookie().exists("XSRF-TOKEN"))
+                .andReturn().getResponse().getCookie("XSRF-TOKEN");
     }
 
     @RestController

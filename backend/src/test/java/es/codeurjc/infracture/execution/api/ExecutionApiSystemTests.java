@@ -65,10 +65,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@TestPropertySource(locations = "classpath:admin-test.properties",
-        properties = {"infracture.execution.reconciler.enabled=false",
-            "infracture.execution.cleanup-retry-pause=0s",
-            "infracture.execution.events.poll-interval=1h"})
+@TestPropertySource(locations = "classpath:admin-test.properties", properties = {
+        "infracture.execution.reconciler.enabled=false",
+        "infracture.execution.cleanup-retry-pause=0s",
+        "infracture.execution.events.poll-interval=1h" })
 @Testcontainers
 class ExecutionApiSystemTests {
 
@@ -117,18 +117,18 @@ class ExecutionApiSystemTests {
         String other = createScenario(alice);
 
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .body("phase", equalTo("RESERVED"))
-            .body("scenarioRevision", equalTo(2))
-            .body("stopCause", nullValue())
-            .body("outcome", nullValue())
-            .body("plan.services.c-" + ORDERS + ".image", equalTo("infracture/demo-app:0.1.0"))
-            .body("plan.services.c-" + ORDERS + ".environment.COMPONENT_NAME", equalTo("orders-api"))
-            .extract().jsonPath().getLong("id");
+                .body("phase", equalTo("RESERVED"))
+                .body("scenarioRevision", equalTo(2))
+                .body("stopCause", nullValue())
+                .body("outcome", nullValue())
+                .body("plan.services.c-" + ORDERS + ".image", equalTo("infracture/demo-app:0.1.0"))
+                .body("plan.services.c-" + ORDERS + ".environment.COMPONENT_NAME", equalTo("orders-api"))
+                .extract().jsonPath().getLong("id");
 
         alice.read().get(scenario + "/executions/current").then().statusCode(200)
-            .body("id", equalTo((int) id)).body("phase", equalTo("RESERVED"))
-            .body("plan.name", matchesPattern("infracture-test-[0-9a-f]{32}-exec-" + id))
-            .body("plan.networks.exec.labels['io.infracture.instance']", startsWith("test-"));
+                .body("id", equalTo((int) id)).body("phase", equalTo("RESERVED"))
+                .body("plan.name", matchesPattern("infracture-test-[0-9a-f]{32}-exec-" + id))
+                .body("plan.networks.exec.labels['io.infracture.instance']", startsWith("test-"));
         String readOnly = "The scenario is read-only while an experiment uses it. Stop it to edit the scenario.";
         alice.write().body(graph(2, "")).put(scenario + "/graph").then().spec(problem(409, readOnly));
         alice.write().body("{\"name\":\"Renamed\"}").put(scenario).then().spec(problem(409, readOnly));
@@ -147,16 +147,16 @@ class ExecutionApiSystemTests {
                 """.formatted(http(ORDERS), ORDERS)).put(scenario + "/graph").then().statusCode(200);
 
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .body("workload.targetKey", equalTo(ORDERS))
-            .body("workload.profile", equalTo("CONSTANT_HTTP"))
-            .body("workload.parameters.requestsPerSecond", equalTo(10))
-            .body("workload.seed", equalTo(42))
-            .body("plan.services.workload.image", equalTo("infracture/load-generator:0.1.0"))
-            .body("plan.services.workload.profiles", equalTo(List.of("load")))
-            .body("plan.services.workload.environment.TARGET_URL", equalTo("http://c-" + ORDERS + ":8080/"))
-            .body("plan.services.workload.environment.REQUESTS_PER_SECOND", equalTo("10"));
+                .body("workload.targetKey", equalTo(ORDERS))
+                .body("workload.profile", equalTo("CONSTANT_HTTP"))
+                .body("workload.parameters.requestsPerSecond", equalTo(10))
+                .body("workload.seed", equalTo(42))
+                .body("plan.services.workload.image", equalTo("infracture/load-generator:0.1.0"))
+                .body("plan.services.workload.profiles", equalTo(List.of("load")))
+                .body("plan.services.workload.environment.TARGET_URL", equalTo("http://c-" + ORDERS + ":8080/"))
+                .body("plan.services.workload.environment.REQUESTS_PER_SECOND", equalTo("10"));
         alice.read().get(scenario + "/executions/current").then().body("workload.seed", equalTo(42))
-            .body("workload.summaryCollectedAt", nullValue()).body("workload.summary", nullValue());
+                .body("workload.summaryCollectedAt", nullValue()).body("workload.summary", nullValue());
     }
 
     @Test
@@ -169,7 +169,7 @@ class ExecutionApiSystemTests {
                   "parameters":{"requestsPerSecond":10,"virtualUsers":5,"durationSeconds":60},"seed":42}}
                 """.formatted(http(ORDERS), ORDERS)).put(scenario + "/graph").then().statusCode(200);
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .extract().jsonPath().getLong("id");
+                .extract().jsonPath().getLong("id");
         when(engine.stopLoad(anyMap())).thenReturn(new LoadReport(105, new LoadSummary(120L, 1L, 0L, 52.5, null)));
         reconciler.reconcile();
         reconciler.reconcile();
@@ -183,13 +183,13 @@ class ExecutionApiSystemTests {
         order.verify(engine).stopLoad(anyMap());
         order.verify(engine).down(anyMap(), anyMap());
         alice.read().get(scenario + "/executions/current").then()
-            .body("phase", equalTo("RELEASED"))
-            .body("workload.completed", equalTo(false))
-            .body("workload.summaryCollectedAt", notNullValue())
-            .body("workload.summary.requests", equalTo(120))
-            .body("workload.summary.failedRequests", equalTo(1))
-            .body("workload.summary.averageLatencyMs", equalTo(52.5f))
-            .body("workload.summary.p95LatencyMs", nullValue());
+                .body("phase", equalTo("RELEASED"))
+                .body("workload.completed", equalTo(false))
+                .body("workload.summaryCollectedAt", notNullValue())
+                .body("workload.summary.requests", equalTo(120))
+                .body("workload.summary.failedRequests", equalTo(1))
+                .body("workload.summary.averageLatencyMs", equalTo(52.5f))
+                .body("workload.summary.p95LatencyMs", nullValue());
     }
 
     @Test
@@ -197,30 +197,30 @@ class ExecutionApiSystemTests {
         ApiSession alice = ApiSession.signUp(port);
         String scenario = statelessScenario(alice);
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .extract().jsonPath().getLong("id");
+                .extract().jsonPath().getLong("id");
         String stop = scenario + "/executions/" + id + "/stop";
 
         when(probe.get(any())).thenReturn("{\"component\":\"orders-api\"}");
         alice.read().get(scenario + "/executions/current").then()
-            .body("components[0].name", equalTo("orders-api")).body("components[0].status", nullValue());
+                .body("components[0].name", equalTo("orders-api")).body("components[0].status", nullValue());
         reconciler.reconcile();
         reconciler.reconcile();
         alice.read().get(scenario + "/executions/current").then().body("phase", equalTo("RUNNING"))
-            .body("components[0].key", equalTo(ORDERS))
-            .body("components[0].status", equalTo("HEALTHY"))
-            .body("components[0].response", equalTo("{\"component\":\"orders-api\"}"));
+                .body("components[0].key", equalTo(ORDERS))
+                .body("components[0].status", equalTo("HEALTHY"))
+                .body("components[0].response", equalTo("{\"component\":\"orders-api\"}"));
         alice.write().post(stop).then().statusCode(202)
-            .body("phase", equalTo("RUNNING")).body("stopCause", equalTo("STOP_REQUESTED"));
+                .body("phase", equalTo("RUNNING")).body("stopCause", equalTo("STOP_REQUESTED"));
         alice.write().body(graph(2, "")).put(scenario + "/graph").then().statusCode(409);
 
         reconciler.reconcile();
         alice.read().get(scenario + "/executions/current").then()
-            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"));
+                .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"));
         alice.write().post(stop).then().statusCode(202).body("outcome", equalTo("COMPLETED"));
         alice.write().body(graph(2, http(ORDERS))).put(scenario + "/graph").then().statusCode(200);
         verify(engine).up(anyMap(), any());
         verify(engine).down(anyMap(), eq(Map.of("io.infracture.instance", instanceOf(alice, scenario),
-            "io.infracture.execution", String.valueOf(id))));
+                "io.infracture.execution", String.valueOf(id))));
     }
 
     @Test
@@ -228,17 +228,17 @@ class ExecutionApiSystemTests {
         ApiSession alice = ApiSession.signUp(port);
         String scenario = statelessScenario(alice);
         doThrow(new RuntimeEngineException("docker compose up failed: container is unhealthy"))
-            .when(engine).up(anyMap(), any());
+                .when(engine).up(anyMap(), any());
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202);
 
         reconciler.reconcile();
         reconciler.reconcile();
 
         alice.read().get(scenario + "/executions/current").then()
-            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("FAILED"))
-            .body("failureReason", equalTo("docker compose up failed: container is unhealthy"));
+                .body("phase", equalTo("RELEASED")).body("outcome", equalTo("FAILED"))
+                .body("failureReason", equalTo("docker compose up failed: container is unhealthy"));
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .body("phase", equalTo("RESERVED"));
+                .body("phase", equalTo("RESERVED"));
     }
 
     // The engine asks whether to go on while it waits; a Stop sent meanwhile cancels the start.
@@ -247,7 +247,7 @@ class ExecutionApiSystemTests {
         ApiSession alice = ApiSession.signUp(port);
         String scenario = statelessScenario(alice);
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .extract().jsonPath().getLong("id");
+                .extract().jsonPath().getLong("id");
         String stop = scenario + "/executions/" + id + "/stop";
         doAnswer(invocation -> {
             alice.write().post(stop).then().statusCode(202).body("phase", equalTo("STARTING"));
@@ -259,12 +259,12 @@ class ExecutionApiSystemTests {
 
         reconciler.reconcile();
         alice.read().get(scenario + "/executions/current").then()
-            .body("phase", equalTo("STARTING")).body("failureReason", nullValue());
+                .body("phase", equalTo("STARTING")).body("failureReason", nullValue());
         reconciler.reconcile();
 
         alice.read().get(scenario + "/executions/current").then()
-            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"))
-            .body("failureReason", nullValue());
+                .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"))
+                .body("failureReason", nullValue());
         verify(engine).down(anyMap(), anyMap());
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202);
     }
@@ -278,14 +278,14 @@ class ExecutionApiSystemTests {
         String scenario = statelessScenario(alice);
         String other = statelessScenario(bob);
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .extract().jsonPath().getLong("id");
+                .extract().jsonPath().getLong("id");
         String stop = scenario + "/executions/" + id + "/stop";
         reconciler.reconcile();
         doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
-            .doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
-            .doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
-            .doNothing()
-            .when(engine).down(anyMap(), anyMap());
+                .doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
+                .doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
+                .doNothing()
+                .when(engine).down(anyMap(), anyMap());
         alice.write().post(stop).then().statusCode(202);
 
         for (int tick = 0; tick < 4; tick++) {
@@ -293,20 +293,20 @@ class ExecutionApiSystemTests {
         }
 
         alice.read().get(scenario + "/executions/current").then()
-            .body("phase", equalTo("STOPPING")).body("outcome", nullValue())
-            .body("stopCause", equalTo("STOP_REQUESTED"))
-            .body("cleanupFailures", equalTo(3)).body("cleanupRetryNeeded", equalTo(true))
-            .body("cleanupError", equalTo("docker volume rm failed: volume is in use"));
+                .body("phase", equalTo("STOPPING")).body("outcome", nullValue())
+                .body("stopCause", equalTo("STOP_REQUESTED"))
+                .body("cleanupFailures", equalTo(3)).body("cleanupRetryNeeded", equalTo(true))
+                .body("cleanupError", equalTo("docker volume rm failed: volume is in use"));
         alice.write().body(graph(2, "")).put(scenario + "/graph").then().statusCode(409);
         bob.write().body(run(2)).post(other + "/executions").then().spec(problem(409, ANOTHER_RUNNING));
 
         alice.write().post(stop).then().statusCode(202)
-            .body("cleanupRetryNeeded", equalTo(false)).body("cleanupFailures", equalTo(0));
+                .body("cleanupRetryNeeded", equalTo(false)).body("cleanupFailures", equalTo(0));
         reconciler.reconcile();
 
         alice.read().get(scenario + "/executions/current").then()
-            .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"))
-            .body("failureReason", nullValue());
+                .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"))
+                .body("failureReason", nullValue());
         bob.write().body(run(2)).post(other + "/executions").then().statusCode(202);
     }
 
@@ -316,32 +316,32 @@ class ExecutionApiSystemTests {
         ApiSession bob = ApiSession.signUp(port);
         String scenario = statelessScenario(alice);
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .extract().jsonPath().getLong("id");
+                .extract().jsonPath().getLong("id");
         String events = scenario + "/executions/" + id + "/events";
         when(engine.logs(anyMap(), any())).thenReturn(List.of(new LogLine("c-" + ORDERS,
-            Instant.parse("2026-11-21T10:00:00Z"), "connected with password=hunter2")));
+                Instant.parse("2026-11-21T10:00:00Z"), "connected with password=hunter2")));
         reconciler.reconcile();
         reconciler.reconcile();
         alice.write().post(scenario + "/executions/" + id + "/stop").then().statusCode(202);
         reconciler.reconcile();
 
         String all = alice.read().accept("text/event-stream").get(events).then().statusCode(200)
-            .contentType(startsWith("text/event-stream")).extract().asString();
+                .contentType(startsWith("text/event-stream")).extract().asString();
         List<String> sent = messages(all);
         assertThat(sent).extracting(message -> message.replaceAll("^id:\\d+\\n", "").lines().findFirst()
-            .orElseThrow()).containsExactly("event:event", "event:event", "event:event", "event:state",
-                "event:log", "event:event", "event:event", "event:event");
+                .orElseThrow()).containsExactly("event:event", "event:event", "event:event", "event:state",
+                        "event:log", "event:event", "event:event", "event:event");
         assertThat(all).contains("\"phase\":\"RESERVED\"", "\"cause\":\"STOP_REQUESTED\"",
                 "\"phase\":\"RELEASED\"", "\"status\":\"HEALTHY\"",
                 "\"line\":\"connected with password=[redacted]\"", "\"componentKey\":\"" + ORDERS + "\"")
-            .doesNotContain("hunter2");
+                .doesNotContain("hunter2");
 
         String cursor = sent.get(4).lines().findFirst().orElseThrow().substring("id:".length());
         String rest = alice.read().accept("text/event-stream").header("Last-Event-ID", cursor).get(events)
-            .then().statusCode(200).extract().asString();
+                .then().statusCode(200).extract().asString();
         assertThat(messages(rest)).hasSize(3).allSatisfy(message -> assertThat(message).contains("event:event"));
         assertThat(alice.read().accept("text/event-stream").queryParam("after", 999_999).get(events).then()
-            .statusCode(200).extract().asString()).startsWith("event:reset").contains("\"phase\":\"RELEASED\"");
+                .statusCode(200).extract().asString()).startsWith("event:reset").contains("\"phase\":\"RELEASED\"");
 
         bob.read().accept("text/event-stream").get(events).then().statusCode(404);
         given().port(port).accept("text/event-stream").get(events).then().statusCode(401);
@@ -353,10 +353,10 @@ class ExecutionApiSystemTests {
         ApiSession alice = ApiSession.signUp(port);
         String scenario = statelessScenario(alice);
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .extract().jsonPath().getLong("id");
+                .extract().jsonPath().getLong("id");
         HttpRequest request = HttpRequest.newBuilder(
                 URI.create("http://localhost:" + port + scenario + "/executions/" + id + "/events"))
-            .header("Accept", "text/event-stream").header("Cookie", alice.cookieHeader()).build();
+                .header("Accept", "text/event-stream").header("Cookie", alice.cookieHeader()).build();
 
         try (HttpClient client = HttpClient.newHttpClient();
                 Stream<String> body = client.send(request, BodyHandlers.ofLines()).body()) {
@@ -365,7 +365,7 @@ class ExecutionApiSystemTests {
             alice.write().post(scenario + "/executions/" + id + "/stop").then().statusCode(202);
 
             assertTimeoutPreemptively(Duration.ofSeconds(10),
-                () -> readUntil(lines, "\"cause\":\"STOP_REQUESTED\""));
+                    () -> readUntil(lines, "\"cause\":\"STOP_REQUESTED\""));
         }
     }
 
@@ -375,7 +375,7 @@ class ExecutionApiSystemTests {
         ApiSession bob = ApiSession.signUp(port);
         String scenario = statelessScenario(alice);
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .extract().jsonPath().getLong("id");
+                .extract().jsonPath().getLong("id");
 
         bob.write().post(scenario + "/executions/" + id + "/stop").then().statusCode(404);
         alice.read().get(scenario + "/executions/current").then().body("stopCause", nullValue());
@@ -387,9 +387,9 @@ class ExecutionApiSystemTests {
         String scenario = statelessScenario(alice);
 
         long first = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .extract().jsonPath().getLong("id");
+                .extract().jsonPath().getLong("id");
         long second = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
-            .extract().jsonPath().getLong("id");
+                .extract().jsonPath().getLong("id");
 
         assertThat(second).isEqualTo(first);
         assertThat(executions.count()).isEqualTo(1);
@@ -417,13 +417,13 @@ class ExecutionApiSystemTests {
         alice.write().body(graph(1, redis(CACHE))).put(redisOnly + "/graph").then().statusCode(200);
 
         alice.write().body(run(1)).post(stateless + "/executions").then()
-            .spec(problem(409, "The scenario was saved after revision 1. Reload it to run revision 2."));
+                .spec(problem(409, "The scenario was saved after revision 1. Reload it to run revision 2."));
         alice.write().body(run(1)).post(empty + "/executions").then()
-            .spec(problem(422, "The scenario has errors that block Run"))
-            .body("issues[0].code", equalTo("EMPTY_SCENARIO"));
+                .spec(problem(422, "The scenario has errors that block Run"))
+                .body("issues[0].code", equalTo("EMPTY_SCENARIO"));
         alice.write().body(run(2)).post(redisOnly + "/executions").then().statusCode(422)
-            .body("issues[0].code", equalTo("UNSUPPORTED_IN_THIS_VERSION"))
-            .body("issues[0].target.key", equalTo(CACHE));
+                .body("issues[0].code", equalTo("UNSUPPORTED_IN_THIS_VERSION"))
+                .body("issues[0].target.key", equalTo(CACHE));
         alice.write().body("{}").post(stateless + "/executions").then().statusCode(400);
 
         assertThat(executions.count()).isZero();
@@ -493,7 +493,7 @@ class ExecutionApiSystemTests {
                 if (ran.get() == 202) {
                     assertThat(saved.get()).isEqualTo(409);
                     alice.read().get(scenario + "/executions/current").then()
-                        .body("scenarioRevision", equalTo(2)).body("components[0].name", equalTo("orders-api"));
+                            .body("scenarioRevision", equalTo(2)).body("components[0].name", equalTo("orders-api"));
                     alice.read().get(scenario + "/graph").then().body("revision", equalTo(2));
                 } else {
                     assertThat(ran.get()).isEqualTo(409);
@@ -513,7 +513,7 @@ class ExecutionApiSystemTests {
 
     private static String instanceOf(ApiSession session, String scenario) {
         return session.read().get(scenario + "/executions/current").then().extract()
-            .path("plan.networks.exec.labels['io.infracture.instance']");
+                .path("plan.networks.exec.labels['io.infracture.instance']");
     }
 
     static String statelessScenario(ApiSession session) {
@@ -524,10 +524,10 @@ class ExecutionApiSystemTests {
 
     static String createScenario(ApiSession session) {
         long project = session.write().body("{\"name\":\"Lab\"}").post("/api/v1/projects")
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
         String path = "/api/v1/projects/" + project + "/scenarios";
         long id = session.write().body("{\"name\":\"Run\"}").post(path)
-            .then().statusCode(201).extract().jsonPath().getLong("id");
+                .then().statusCode(201).extract().jsonPath().getLong("id");
         return path + "/" + id;
     }
 

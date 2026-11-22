@@ -1,0 +1,29 @@
+// Project settings for Zed. jdtls formats Java with the same Eclipse profile as Spotless
+// (./mvnw spotless:apply), so saving a file and the Maven check give the same result.
+{
+  "languages": {
+    "Java": {
+      "formatter": "language_server",
+      "tab_size": 4,
+      "hard_tabs": false
+    }
+  },
+  "lsp": {
+    "jdtls": {
+      "initialization_options": {
+        "settings": {
+          "java": {
+            "format": {
+              "enabled": true,
+              "settings": {
+                // Relative to the folder opened in Zed (the repository root).
+                "url": "backend/eclipse-formatter.xml",
+                "profile": "Infracture"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

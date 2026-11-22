@@ -21,28 +21,25 @@ public class ComponentTemplateService {
     }
 
     public Page<ComponentTemplate> getEnabledTemplates(
-        Pageable pageable,
-        String q,
-        ComponentType type
-    ) {
+            Pageable pageable,
+            String q,
+            ComponentType type) {
         String search = q.trim();
 
         if (type == null) {
             return repository.findAllByEnabledTrueAndNameContainingIgnoreCaseOrderByNameAscKeyAsc(
-                search,
-                pageable
-            );
+                    search,
+                    pageable);
         }
 
         return repository.findAllByEnabledTrueAndTypeAndNameContainingIgnoreCaseOrderByNameAscKeyAsc(
-            type,
-            search,
-            pageable
-        );
+                type,
+                search,
+                pageable);
     }
 
     public Map<String, ComponentTemplate> getTemplatesByKey(Collection<String> keys) {
         return repository.findAllByKeyIn(keys).stream()
-            .collect(Collectors.toMap(ComponentTemplate::getKey, Function.identity()));
+                .collect(Collectors.toMap(ComponentTemplate::getKey, Function.identity()));
     }
 }

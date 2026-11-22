@@ -9,18 +9,15 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ComponentTemplateRepository
-    extends JpaRepository<ComponentTemplate, Long>
-{
+        extends JpaRepository<ComponentTemplate, Long> {
     Page<ComponentTemplate> findAllByEnabledTrueAndNameContainingIgnoreCaseOrderByNameAscKeyAsc(
-        String q,
-        Pageable pageable
-    );
+            String q,
+            Pageable pageable);
 
     Page<ComponentTemplate> findAllByEnabledTrueAndTypeAndNameContainingIgnoreCaseOrderByNameAscKeyAsc(
-        ComponentType type,
-        String q,
-        Pageable pageable
-    );
+            ComponentType type,
+            String q,
+            Pageable pageable);
 
     List<ComponentTemplate> findAllByKeyIn(Collection<String> keys);
 }

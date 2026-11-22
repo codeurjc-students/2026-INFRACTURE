@@ -41,7 +41,9 @@ class ScenarioValidatorTests {
     private final Map<String, ComponentTemplate> templates = Map.of(
             "http-service", new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE, true,
                     new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0))),
-            "redis", new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of())),
+            "redis",
+            new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true,
+                    new ComponentConfiguration("DEFAULT", Map.of())),
             "postgresql", new ComponentTemplate("postgresql", "PostgreSQL", ComponentType.POSTGRESQL, true,
                     new ComponentConfiguration("DEFAULT", Map.of())),
             "rabbitmq", new ComponentTemplate("rabbitmq", "RabbitMQ", ComponentType.RABBITMQ, true,
@@ -79,11 +81,13 @@ class ScenarioValidatorTests {
                 node(CACHE, "redis", "cache", "DEFAULT", Map.of()),
                 node(DATABASE, "postgresql", "orders-db", "DEFAULT", Map.of()),
                 node(BROKER, "rabbitmq", "tasks", "DEFAULT", Map.of()),
-                node(WORKER, "worker", "worker", "CONSUMER", Map.of())), List.of(
-                new Connection(ORDERS, "cache", CACHE),
-                new Connection(ORDERS, "database", DATABASE),
-                new Connection(WORKER, "queue", BROKER),
-                new Connection(WORKER, "result", DATABASE)), null, templates);
+                node(WORKER, "worker", "worker", "CONSUMER", Map.of())),
+                List.of(
+                        new Connection(ORDERS, "cache", CACHE),
+                        new Connection(ORDERS, "database", DATABASE),
+                        new Connection(WORKER, "queue", BROKER),
+                        new Connection(WORKER, "result", DATABASE)),
+                null, templates);
 
         assertThat(withoutLoad(validator.validate(scenario))).isEmpty();
     }
@@ -93,9 +97,11 @@ class ScenarioValidatorTests {
         scenario.replaceGraph(1, List.of(
                 node(ORDERS, "http-service", "orders-api", "STATELESS", Map.of("responseDelayMs", 0)),
                 node(WORKER, "worker", "worker", "CONSUMER", Map.of()),
-                node(CACHE, "redis", "cache", "DEFAULT", Map.of())), List.of(
-                new Connection(ORDERS, "cache", CACHE),
-                new Connection(WORKER, "queue", CACHE)), null, templates);
+                node(CACHE, "redis", "cache", "DEFAULT", Map.of())),
+                List.of(
+                        new Connection(ORDERS, "cache", CACHE),
+                        new Connection(WORKER, "queue", CACHE)),
+                null, templates);
 
         assertThat(withoutLoad(validator.validate(scenario))).containsExactly(
                 new ValidationIssue(Severity.ERROR, "UNKNOWN_PORT", "orders-api has no port cache in profile STATELESS",
@@ -110,9 +116,11 @@ class ScenarioValidatorTests {
         scenario.replaceGraph(1, List.of(
                 node(ORDERS, "http-service", "orders-api", "LEGACY", Map.of()),
                 node(CACHE, "redis", "cache", "LEGACY", Map.of()),
-                node(WORKER, "worker", "worker", "CONSUMER", Map.of())), List.of(
-                new Connection(ORDERS, "cache", CACHE),
-                new Connection(WORKER, "result", CACHE)), null, templates);
+                node(WORKER, "worker", "worker", "CONSUMER", Map.of())),
+                List.of(
+                        new Connection(ORDERS, "cache", CACHE),
+                        new Connection(WORKER, "result", CACHE)),
+                null, templates);
 
         assertThat(withoutLoad(validator.validate(scenario))).extracting(ValidationIssue::code)
                 .containsExactly("UNKNOWN_PROFILE", "UNKNOWN_PROFILE", "MISSING_CONNECTION");
@@ -139,10 +147,12 @@ class ScenarioValidatorTests {
                 node(WORKER, "worker", "worker", "CONSUMER", Map.of()),
                 node(BROKER, "rabbitmq", "tasks", "DEFAULT", Map.of()),
                 node(DATABASE, "postgresql", "orders-db", "DEFAULT", Map.of()),
-                node(CACHE, "redis", "cache", "DEFAULT", Map.of())), List.of(
-                new Connection(WORKER, "queue", BROKER),
-                new Connection(WORKER, "result", DATABASE),
-                new Connection(WORKER, "result", CACHE)), null, templates);
+                node(CACHE, "redis", "cache", "DEFAULT", Map.of())),
+                List.of(
+                        new Connection(WORKER, "queue", BROKER),
+                        new Connection(WORKER, "result", DATABASE),
+                        new Connection(WORKER, "result", CACHE)),
+                null, templates);
 
         assertThat(withoutLoad(validator.validate(scenario))).containsExactly(
                 new ValidationIssue(Severity.ERROR, "TOO_MANY_CONNECTIONS",
@@ -155,13 +165,16 @@ class ScenarioValidatorTests {
         scenario.replaceGraph(1, List.of(
                 node(GATEWAY, "http-service", "gateway", "DOWNSTREAM_HTTP", Map.of("responseDelayMs", 0)),
                 node(ORDERS, "http-service", "orders-api", "DOWNSTREAM_HTTP", Map.of("responseDelayMs", 0)),
-                node(CACHE, "http-service", "echo", "DOWNSTREAM_HTTP", Map.of("responseDelayMs", 0))), List.of(
-                new Connection(GATEWAY, "downstream", ORDERS),
-                new Connection(ORDERS, "downstream", GATEWAY),
-                new Connection(CACHE, "downstream", CACHE)), null, templates);
+                node(CACHE, "http-service", "echo", "DOWNSTREAM_HTTP", Map.of("responseDelayMs", 0))),
+                List.of(
+                        new Connection(GATEWAY, "downstream", ORDERS),
+                        new Connection(ORDERS, "downstream", GATEWAY),
+                        new Connection(CACHE, "downstream", CACHE)),
+                null, templates);
 
         assertThat(withoutLoad(validator.validate(scenario))).containsExactly(
-                new ValidationIssue(Severity.ERROR, "DEPENDENCY_CYCLE", "orders-api → gateway closes a dependency cycle",
+                new ValidationIssue(Severity.ERROR, "DEPENDENCY_CYCLE",
+                        "orders-api → gateway closes a dependency cycle",
                         new Target(Kind.CONNECTION, ORDERS + ":downstream:" + GATEWAY), "downstream"),
                 new ValidationIssue(Severity.ERROR, "DEPENDENCY_CYCLE", "echo → echo closes a dependency cycle",
                         new Target(Kind.CONNECTION, CACHE + ":downstream:" + CACHE), "downstream"));
@@ -176,13 +189,15 @@ class ScenarioValidatorTests {
                 node(DATABASE, "postgresql", "orders-db", "DEFAULT", Map.of()),
                 node(PRODUCER, "http-service", "tasks-api", "QUEUE_PRODUCER", Map.of("responseDelayMs", 0)),
                 node(BROKER, "rabbitmq", "tasks", "DEFAULT", Map.of()),
-                node(WORKER, "worker", "worker", "CONSUMER", Map.of())), List.of(
-                new Connection(GATEWAY, "downstream", ORDERS),
-                new Connection(ORDERS, "cache", CACHE),
-                new Connection(ORDERS, "database", DATABASE),
-                new Connection(PRODUCER, "queue", BROKER),
-                new Connection(WORKER, "queue", BROKER),
-                new Connection(WORKER, "result", DATABASE)), null, templates);
+                node(WORKER, "worker", "worker", "CONSUMER", Map.of())),
+                List.of(
+                        new Connection(GATEWAY, "downstream", ORDERS),
+                        new Connection(ORDERS, "cache", CACHE),
+                        new Connection(ORDERS, "database", DATABASE),
+                        new Connection(PRODUCER, "queue", BROKER),
+                        new Connection(WORKER, "queue", BROKER),
+                        new Connection(WORKER, "result", DATABASE)),
+                null, templates);
 
         assertThat(withoutLoad(validator.validate(scenario))).isEmpty();
     }
@@ -198,8 +213,10 @@ class ScenarioValidatorTests {
     void warnsWhenTasksReachABrokerThatNoWorkerConsumes() {
         scenario.replaceGraph(1, List.of(
                 node(PRODUCER, "http-service", "tasks-api", "QUEUE_PRODUCER", Map.of("responseDelayMs", 0)),
-                node(BROKER, "rabbitmq", "tasks", "DEFAULT", Map.of())), List.of(
-                new Connection(PRODUCER, "queue", BROKER)), null, templates);
+                node(BROKER, "rabbitmq", "tasks", "DEFAULT", Map.of())),
+                List.of(
+                        new Connection(PRODUCER, "queue", BROKER)),
+                null, templates);
 
         assertThat(withoutLoad(validator.validate(scenario))).containsExactly(
                 new ValidationIssue(Severity.WARNING, "NO_CONSUMER",
@@ -211,7 +228,8 @@ class ScenarioValidatorTests {
     void reportsATypeWithoutContractInsteadOfFailing() {
         ContractCatalog empty = org.mockito.Mockito.mock(ContractCatalog.class);
         org.mockito.Mockito.when(empty.find(ComponentType.REDIS)).thenReturn(java.util.Optional.empty());
-        scenario.replaceGraph(1, List.of(node(CACHE, "redis", "cache", "DEFAULT", Map.of())), List.of(), null, templates);
+        scenario.replaceGraph(1, List.of(node(CACHE, "redis", "cache", "DEFAULT", Map.of())), List.of(), null,
+                templates);
 
         assertThat(withoutLoad(new ScenarioValidator(empty).validate(scenario))).containsExactly(
                 new ValidationIssue(Severity.ERROR, "UNKNOWN_TYPE", "REDIS has no contract",
@@ -252,7 +270,8 @@ class ScenarioValidatorTests {
                         "virtualUsers must be between 1 and 20", LOAD, "virtualUsers"),
                 new ValidationIssue(Severity.ERROR, "MISSING_PARAMETER", "durationSeconds is required", LOAD,
                         "durationSeconds"),
-                new ValidationIssue(Severity.ERROR, "UNEXPECTED_PARAMETER", "CONSTANT_HTTP does not accept payloadBytes",
+                new ValidationIssue(Severity.ERROR, "UNEXPECTED_PARAMETER",
+                        "CONSTANT_HTTP does not accept payloadBytes",
                         LOAD, "payloadBytes"),
                 new ValidationIssue(Severity.ERROR, "PARAMETER_OUT_OF_RANGE", "seed must be between 0 and 2147483647",
                         LOAD, "seed"));

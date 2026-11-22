@@ -36,7 +36,8 @@ class ComponentTemplateServiceTests {
     @Test
     void trimsSearchAndReturnsPageForRequestedType() {
         Pageable pageable = PageRequest.of(0, 10);
-        ComponentTemplate redis = new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true, new ComponentConfiguration("DEFAULT", Map.of()));
+        ComponentTemplate redis = new ComponentTemplate("redis", "Redis", ComponentType.REDIS, true,
+                new ComponentConfiguration("DEFAULT", Map.of()));
         Page<ComponentTemplate> result = new PageImpl<>(List.of(redis), pageable, 1);
         when(repository.findAllByEnabledTrueAndTypeAndNameContainingIgnoreCaseOrderByNameAscKeyAsc(
                 ComponentType.REDIS, "redis", pageable))

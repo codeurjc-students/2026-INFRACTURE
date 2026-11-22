@@ -59,8 +59,8 @@ class AdminInitializerIntegrationTests {
     void databaseRejectsSecondAdministratorButRegistrationStillCreatesOrdinaryAccounts() {
         assertThatThrownBy(() -> repository.saveAndFlush(
                 new User("otheradmin", "hash", "otheradmin@example.com", "Other Admin", UserRole.ADMIN)))
-            .isInstanceOf(DataIntegrityViolationException.class)
-            .hasMessageContaining("uk_users_single_admin");
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("uk_users_single_admin");
 
         User ordinary = userService.registerUser(new User("ordinary", "A secure user password 2026!",
                 "ordinary@example.com", "Ordinary User", UserRole.ADMIN));

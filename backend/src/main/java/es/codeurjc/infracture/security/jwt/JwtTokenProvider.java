@@ -29,12 +29,12 @@ public class JwtTokenProvider {
         this.jwtParser = Jwts.parser().verifyWith(jwtSecret).clock(() -> Date.from(clock.instant())).build();
     }
 
-    public String tokenStringFromHeaders(HttpServletRequest req){
+    public String tokenStringFromHeaders(HttpServletRequest req) {
         String bearerToken = req.getHeader(HttpHeaders.AUTHORIZATION);
         if (bearerToken == null) {
             throw new IllegalArgumentException("Missing Authorization header");
         }
-        if(!bearerToken.startsWith("Bearer ")){
+        if (!bearerToken.startsWith("Bearer ")) {
             throw new IllegalArgumentException("Authorization header does not start with Bearer: " + bearerToken);
         }
         return bearerToken.substring(7);
@@ -50,7 +50,8 @@ public class JwtTokenProvider {
             if (TokenType.ACCESS.cookieName.equals(cookie.getName())) {
                 String accessToken = cookie.getValue();
                 if (accessToken == null) {
-                    throw new IllegalArgumentException("Cookie %s has null value".formatted(TokenType.ACCESS.cookieName));
+                    throw new IllegalArgumentException(
+                            "Cookie %s has null value".formatted(TokenType.ACCESS.cookieName));
                 }
 
                 return accessToken;
@@ -59,10 +60,8 @@ public class JwtTokenProvider {
         throw new IllegalArgumentException("No access token cookie found in request");
     }
 
-    public Claims validateToken(HttpServletRequest req, boolean fromCookie){
-        var token = fromCookie?
-                tokenStringFromCookies(req):
-                tokenStringFromHeaders(req);
+    public Claims validateToken(HttpServletRequest req, boolean fromCookie) {
+        var token = fromCookie ? tokenStringFromCookies(req) : tokenStringFromHeaders(req);
         return validateToken(token);
     }
 

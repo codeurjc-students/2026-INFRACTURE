@@ -21,10 +21,9 @@ public class ComponentTemplateController {
     private final ContractCatalog contracts;
 
     public ComponentTemplateController(
-        ComponentTemplateService service,
-        ComponentTemplateMapper mapper,
-        ContractCatalog contracts
-    ) {
+            ComponentTemplateService service,
+            ComponentTemplateMapper mapper,
+            ContractCatalog contracts) {
         this.service = service;
         this.mapper = mapper;
         this.contracts = contracts;
@@ -32,14 +31,13 @@ public class ComponentTemplateController {
 
     @GetMapping
     public Page<ComponentTemplateDTO> getComponentTemplates(
-        @RequestParam(defaultValue = "") String q,
-        @RequestParam(required = false) ComponentType type,
-        @RequestParam(defaultValue = "0") @Min(0) int page,
-        @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
-    ) {
+            @RequestParam(defaultValue = "") String q,
+            @RequestParam(required = false) ComponentType type,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         PageRequest pageable = PageRequest.of(page, size);
         return service
-            .getEnabledTemplates(pageable, q, type)
-            .map(template -> mapper.toDTO(template, contracts));
+                .getEnabledTemplates(pageable, q, type)
+                .map(template -> mapper.toDTO(template, contracts));
     }
 }

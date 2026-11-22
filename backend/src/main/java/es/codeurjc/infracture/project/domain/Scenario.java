@@ -113,8 +113,9 @@ public class Scenario {
     public void replaceGraph(int expectedRevision, List<ComponentDraft> drafts, List<Connection> connections,
             Workload workload, Map<String, ComponentTemplate> templates) {
         if (expectedRevision != revision) {
-            throw new ConflictException("The scenario was saved after revision %d. Reload it to continue from revision %d."
-                    .formatted(expectedRevision, revision));
+            throw new ConflictException(
+                    "The scenario was saved after revision %d. Reload it to continue from revision %d."
+                            .formatted(expectedRevision, revision));
         }
         if (drafts.size() > MAX_COMPONENTS) {
             throw new InvalidDataException("A scenario can have at most " + MAX_COMPONENTS + " components");
@@ -200,8 +201,9 @@ public class Scenario {
         for (Connection connection : connections) {
             String port = connection.port();
             String label = "Connection %s.%s → %s: ".formatted(names.getOrDefault(connection.sourceKey(),
-                    String.valueOf(connection.sourceKey())), port, names.getOrDefault(connection.targetKey(),
-                    String.valueOf(connection.targetKey())));
+                    String.valueOf(connection.sourceKey())), port,
+                    names.getOrDefault(connection.targetKey(),
+                            String.valueOf(connection.targetKey())));
             if (!names.containsKey(connection.sourceKey())) {
                 problems.add(label + "source is not a node of this scenario");
             }

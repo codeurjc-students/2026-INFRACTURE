@@ -739,6 +739,14 @@ Los identificadores históricos conservados no se renumeran al agrupar o retirar
 - **Resultado y evidencia:** cada ADR enlaza las clases, ficheros y propiedades que aplican la decisión, y todos los enlaces internos existen. Al rehacer la rama sobre #92 se corrigió el ADR 0020, porque el stream de eventos no pasa por `apiFetch`.
 - **Revisión del alumno y límites:** el alumno pidió las ADR y su PR; queda pendiente que revise cada decisión. Las ADR describen decisiones ya tomadas, así que sus alternativas se reconstruyen a partir de la documentación y del historial, no de una discusión de entonces.
 
+## AI-2026-11-22-078 - Formato único del código Java
+
+- **Fecha o periodo y fase:** 22 de noviembre de 2026; Fase 3.
+- **Objetivo y contexto:** que Zed, Maven y el CI formateen el backend igual. Zed formateaba al guardar con el perfil por defecto de jdtls, que corta los comentarios a 80 columnas y solo existía en la configuración personal del alumno.
+- **Aportación de IA:** Claude Code midió el estilo del código con el formateador Eclipse que trae jdtls y eligió el perfil que menos ficheros cambia: valores de Eclipse con comentarios a 120 columnas, `case` sangrados, saltos de línea manuales conservados y text blocks sin tocar. Añadió [`backend/eclipse-formatter.xml`](../backend/eclipse-formatter.xml), Spotless en `backend/pom.xml` con `spotless:check` dentro de `verify`, `.zed/settings.json` para jdtls y la sección de formato de la [guía de desarrollo](development-guide.md#formato-del-código-java).
+- **Resultado y evidencia:** el reformateo, repetido sobre `main` después de #92, cambia 47 de 172 ficheros Java (644 líneas añadidas y 592 borradas), casi siempre la sangría de continuación de 4 a 8 espacios y líneas de más de 120 columnas. El formateador de jdtls (jdt.core 3.48) y el de Spotless (Eclipse 4.41, jdt.core 3.47) dan un resultado idéntico, y un segundo formateo no cambia nada. Tras el reformateo, `./mvnw verify` pasó 381 pruebas, la puerta de cobertura y `spotless:check`.
+- **Revisión del alumno y límites:** pendiente de la revisión del alumno y de comprobar en Zed que guardar da el mismo resultado que `spotless:apply`. El formato de jdtls y el de Spotless se compararon en la primera versión de la rama, antes de rehacerla sobre #92.
+
 ## Plantilla para nuevas entradas
 
 Usar solo para una finalidad nueva que cumpla el criterio de registro; para una continuación, actualizar el tema existente.

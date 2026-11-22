@@ -36,7 +36,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-      throws ServletException, IOException {
+            throws ServletException, IOException {
 
         try {
             var claims = jwtTokenProvider.validateToken(request, true);
@@ -47,7 +47,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             new AccountStatusUserDetailsChecker().check(userDetails);
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
+                    userDetails, null, userDetails.getAuthorities());
 
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
