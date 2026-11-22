@@ -31,15 +31,13 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     private static final List<String> RESOURCE_KINDS = List.of("container", "network", "volume");
     // Compose prints the cause last, so the reason keeps the end.
     private static final int MAX_OUTPUT_IN_REASON = 500;
-    // Activates the load service. Only the first `up` leaves it out, so it starts
-    // after the nodes.
+    // Activates the load service. Only the first `up` leaves it out, so it starts after the nodes.
     private static final List<String> WITH_LOAD = List.of("--profile", PlanCompiler.LOAD_PROFILE);
     // Longer than the script's graceful stop, so k6 has time to print its summary.
     private static final String LOAD_STOP_SECONDS = "15";
     // The line the load scripts print with their summary (load-generator/scripts).
     static final String SUMMARY_MARKER = "INFRACTURE_SUMMARY ";
-    // How often a start asks whether it must stop, and how long a stopped command
-    // has to exit cleanly.
+    // How often a start asks whether it must stop, and how long a stopped command has to exit cleanly.
     private static final Duration CANCEL_CHECK = Duration.ofSeconds(1);
     private static final Duration GRACEFUL_EXIT = Duration.ofSeconds(10);
     private static final BooleanSupplier NEVER = () -> false;
@@ -57,8 +55,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
 
     @Override
     public void up(Map<String, Object> plan, BooleanSupplier cancelled) {
-        // One minute more than --wait, so Compose names the unhealthy service. -d keeps
-        // Compose from
+        // One minute more than --wait, so Compose names the unhealthy service. -d keeps Compose from
         // attaching to the containers (/attach, /events), which docker-proxy forbids.
         compose(plan, START_TIMEOUT.plusMinutes(1), cancelled, List.of(),
                 "up", "-d", "--wait", "--wait-timeout", String.valueOf(START_TIMEOUT.toSeconds()));
@@ -206,10 +203,8 @@ class ComposeRuntimeEngine implements RuntimeEngine {
                 cancelled);
     }
 
-    // Compose replaces ${NAME} in every value with the backend's own environment,
-    // which holds secrets.
-    // The plan is literal text, part of it typed by the user, so each $ goes as $$:
-    // Compose reads one $.
+    // Compose replaces ${NAME} in every value with the backend's own environment, which holds secrets.
+    // The plan is literal text, part of it typed by the user, so each $ goes as $$: Compose reads one $.
     private static Object literal(Object value) {
         return switch (value) {
             case String text -> text.replace("$", "$$");
@@ -301,8 +296,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         }
     }
 
-    // `docker compose` runs as a child of the docker CLI, so the child is ended
-    // too. SIGTERM first lets
+    // `docker compose` runs as a child of the docker CLI, so the child is ended too. SIGTERM first lets
     // Compose stop what it was doing; a command that ignores it is killed.
     private static void end(Process process) throws InterruptedException {
         process.descendants().forEach(ProcessHandle::destroy);
