@@ -374,7 +374,7 @@ services:
 - **Una imagen para servicio y Worker.** `infracture/demo-app` es un único programa. `APP_ROLE=http|worker` elige el papel y `APP_MODE` el perfil. Hay un solo build y un solo digest por release.
 - **Imágenes fijadas por digest.** Cada imagen se referencia por su digest, y el snapshot lo guarda. Así se sabe exactamente qué se ejecutó.
 - **Secretos fuera del plan guardado.** El plan que se guarda solo contiene referencias. Las contraseñas temporales se generan al aplicarlo y nunca se guardan ni se muestran.
-- **El texto del plan es literal.** Compose sustituye `${NOMBRE}` por variables de entorno de quien lo lanza, y el backend tiene ahí sus contraseñas. El plan incluye texto del usuario, como el nombre de un nodo, así que el motor escribe cada `$` como `$$` al pasarlo a Compose: un nodo llamado `${POSTGRES_PASSWORD}` recibe ese texto, no el valor.
+- **El texto del plan es literal.** Compose sustituye `${NOMBRE}` por variables de entorno de quien lo lanza, y el backend tiene ahí sus contraseñas. El plan incluye texto del usuario, como el nombre de un nodo, así que el motor escribe cada `$` como `$$` al pasarlo a Compose: un nodo llamado `${POSTGRES_PASSWORD}` recibe ese texto, no el valor. Las demás restricciones de cada contenedor están en el [ADR 0030](adr/0030-contenedores-sin-privilegios.md).
 
 ### 9.4 Arranque ordenado por salud
 
@@ -388,7 +388,7 @@ El orden lo deciden las dependencias del grafo, y Compose espera la salud real a
 
 ### 9.5 Fase deseada y limpieza por etiqueta
 
-El `ExecutionReconciler` funciona como un bucle de control: compara **lo que se quiere** con **lo que hay** y actúa hasta que coinciden.
+El `ExecutionReconciler` funciona como un bucle de control: compara **lo que se quiere** con **lo que hay** y actúa hasta que coinciden. Cómo se ejecuta cada vuelta y cómo se ordena con Stop y con el guardado lo explica el [ADR 0025](adr/0025-bucle-de-reconciliacion-con-bloqueo-de-fila.md).
 
 | Lo que ocurre | Fase deseada |
 | --- | --- |
@@ -527,7 +527,7 @@ Así se guarda en `Execution` (#86). Las fases solo avanzan en orden; un método
 | `STOPPING` | `docker compose down -v` y limpieza por etiqueta. |
 | `RELEASED` | No queda nada; la reserva está libre y el escenario vuelve a ser editable. |
 
-Stop, el tiempo límite, un fallo y una interrupción no cambian la fase: solo registran una causa. Una causa nueva sustituye a la guardada **solo si es más grave**; entre dos igual de graves se queda la primera. En cuanto hay causa, la fase deseada de la [sección 9.5](#95-fase-deseada-y-limpieza-por-etiqueta) pasa a ser `STOPPED`.
+Stop, el tiempo límite, un fallo y una interrupción no cambian la fase: solo registran una causa. Una causa nueva sustituye a la guardada **solo si es más grave**; entre dos igual de graves se queda la primera. En cuanto hay causa, la fase deseada de la [sección 9.5](#95-fase-deseada-y-limpieza-por-etiqueta) pasa a ser `STOPPED`. El porqué de esta regla está en el [ADR 0026](adr/0026-la-causa-de-parada-mas-grave-decide-el-resultado.md).
 
 | Causa (`stopCause`), de menos a más grave | La registra | Resultado al liberar (`outcome`) |
 | --- | --- | --- |
@@ -538,7 +538,7 @@ Stop, el tiempo límite, un fallo y una interrupción no cambian la fase: solo r
 
 Por ejemplo, si pulsas Stop mientras arranca y después falla la salud, la causa pasa de `STOP_REQUESTED` a `FAILURE` y el resultado es `FAILED`. Pulsar Stop dos veces no cambia nada.
 
-**La limpieza va aparte (#88).** Un fallo al limpiar no es una causa y no cambia el resultado: un experimento detenido con Stop termina `COMPLETED` aunque su limpieza necesitara varios intentos. Se guarda en tres campos que la API devuelve:
+**La limpieza va aparte (#88, [ADR 0028](adr/0028-reintentos-de-la-limpieza.md)).** Un fallo al limpiar no es una causa y no cambia el resultado: un experimento detenido con Stop termina `COMPLETED` aunque su limpieza necesitara varios intentos. Se guarda en tres campos que la API devuelve:
 
 | Campo | Qué guarda |
 | --- | --- |
@@ -550,7 +550,7 @@ No se guarda en qué paso iba la limpieza: cada intento repite `down -v` y la b�
 
 ### 10.4 Tiempo límite y esperas
 
-El servidor termina cada experimento a los 30 minutos (#89), aunque no haya ningún navegador abierto.
+El servidor termina cada experimento a los 30 minutos (#89, [ADR 0029](adr/0029-tiempo-limite-fijado-por-el-servidor.md)), aunque no haya ningún navegador abierto.
 
 - **Cuándo empieza el reloj.** Cuando todos los nodos están sanos y la ejecución pasa a `RUNNING`. El arranque tiene su propia espera, así que una descarga lenta no quita tiempo al experimento.
 - **Plazo fijo.** En ese momento se guarda `deadlineAt` (columna `deadline_at`) y ya no cambia. Cerrar la pestaña, reconectar o cambiar la configuración no lo mueve. Al volver, la API devuelve la misma ejecución con el mismo plazo.
@@ -570,7 +570,7 @@ Cada paso de Docker tiene además su propia espera, independiente del tiempo lí
 
 ### 10.5 Reinicio del backend
 
-Si el backend se cae con un experimento abierto, al volver lo cierra como interrumpido y nunca lo reanuda (#90, [ADR 0005](adr/0005-recuperacion-sin-reanudacion-automatica.md)).
+Si el backend se cae con un experimento abierto, al volver lo cierra como interrumpido y nunca lo reanuda (#90, [ADR 0005](adr/0005-recuperacion-sin-reanudacion-automatica.md), [ADR 0027](adr/0027-ejecuciones-abiertas-por-un-proceso-anterior.md)).
 
 - **Cómo sabe que es de antes.** Al arrancar, el `ExecutionReconciler` guarda su instante de inicio con su `Clock`. Solo hay un backend, así que una ejecución abierta creada antes de ese instante la dejó un proceso anterior. Lo comprueba en cada vuelta, dentro de la transacción que bloquea la fila. Así una reserva antigua nunca arranca, aunque la primera vuelta llegue antes de que la aplicación termine de arrancar.
 - **Qué guarda.** La causa `INTERRUPTION`, la más grave, y en `interrupted_at` e `interrupted_phase` cuándo la encontró y en qué fase estaba. La API los devuelve como `interruptedAt` e `interruptedPhase`.
@@ -765,7 +765,7 @@ Estas piezas no forman parte de 0.1.0. El diseño actual las deja preparadas sin
 
 ## 16. Mapa al código
 
-El backend es un monolito modular. Cada módulo sigue las capas `api`, `application`, `domain` y `persistence`.
+El backend es un monolito modular ([ADR 0018](adr/0018-monolito-modular-con-spring-boot.md)). Cada módulo sigue las capas `api`, `application`, `domain` y `persistence`.
 
 ![Mapa al código](images/execution-architecture/17-mapa-al-codigo.png)
 
@@ -800,6 +800,12 @@ Los nombres de las piezas pendientes son los previstos y pueden ajustarse al imp
 | [0015](adr/0015-una-ejecucion-por-instancia-en-local.md) | Una ejecución por instancia en Infracture Local. |
 | [0016](adr/0016-limites-de-la-carga-constant-http.md) | Límites de la carga `CONSTANT_HTTP`. |
 | [0017](adr/0017-eventos-de-ejecucion-por-sse-con-aviso-de-postgresql.md) | Eventos de ejecución por SSE con aviso de PostgreSQL. |
+| [0025](adr/0025-bucle-de-reconciliacion-con-bloqueo-de-fila.md) | Bucle de reconciliación con una vuelta programada y bloqueo de fila. |
+| [0026](adr/0026-la-causa-de-parada-mas-grave-decide-el-resultado.md) | La causa de parada más grave decide el resultado. |
+| [0027](adr/0027-ejecuciones-abiertas-por-un-proceso-anterior.md) | Ejecuciones abiertas por un proceso anterior. |
+| [0028](adr/0028-reintentos-de-la-limpieza.md) | Reintentos de la limpieza y etiqueta de instancia. |
+| [0029](adr/0029-tiempo-limite-fijado-por-el-servidor.md) | Tiempo límite fijado por el servidor. |
+| [0030](adr/0030-contenedores-sin-privilegios.md) | Contenedores sin privilegios para la plataforma y el experimento. |
 
 ### Referencias para aprender
 
