@@ -131,6 +131,9 @@ public class ExecutionService {
     }
 
     // Read inside the transaction: the frozen nodes and load are lazy, and the web layer has no session.
+    // getComponents() wraps the lazy list, so Hibernate.initialize cannot see it; size() reaches it and
+    // loads it.
+    @SuppressWarnings("java:S2201")
     private ExecutionView view(Execution execution) {
         execution.getComponents().size();
         execution.getWorkload();

@@ -16,8 +16,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -40,9 +38,6 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     private static final String LOAD_STOP_SECONDS = "15";
     // The line the load scripts print with their summary (load-generator/scripts).
     static final String SUMMARY_MARKER = "INFRACTURE_SUMMARY ";
-    // The service name is greedy, so it keeps its own hyphens and only the last
-    // "-<index>" goes.
-    private static final Pattern LOG_LINE = Pattern.compile("^(.+)-\\d+\\s+\\| (\\S+) ?(.*)$");
     // How often a start asks whether it must stop, and how long a stopped command
     // has to exit cleanly.
     private static final Duration CANCEL_CHECK = Duration.ofSeconds(1);
@@ -105,7 +100,6 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         return statuses;
     }
 
-    // With --timestamps each line reads "<service>-<index>  | <time> <text>".
     @Override
     public List<LogLine> logs(Map<String, Object> plan, Instant since) {
         List<String> flags = new ArrayList<>(List.of("--no-color", "--timestamps"));
@@ -115,12 +109,36 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         List<LogLine> lines = new ArrayList<>();
         String output = compose(plan, STOP_TIMEOUT, WITH_LOAD, "logs", flags.toArray(String[]::new));
         for (String line : output.split("\\R")) {
-            Matcher match = LOG_LINE.matcher(line);
-            if (match.matches()) {
-                lines.add(new LogLine(match.group(1), Instant.parse(match.group(2)), match.group(3)));
+            LogLine parsed = parseLogLine(line);
+            if (parsed != null) {
+                lines.add(parsed);
             }
         }
         return lines;
+    }
+
+    // With --timestamps each line reads "<service>-<index>  | <time> <text>". The service keeps its own
+    // hyphens and only the last "-<index>" goes. Null for any other line. Plain index searches, not a regex,
+    // so a long line is read in one pass.
+    static LogLine parseLogLine(String line) {
+        int bar = line.indexOf(" | ");
+        if (bar < 0) {
+            return null;
+        }
+        String container = line.substring(0, bar).strip();
+        int dash = container.lastIndexOf('-');
+        String index = container.substring(dash + 1);
+        if (dash <= 0 || index.isEmpty() || !index.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        String rest = line.substring(bar + 3);
+        int space = rest.indexOf(' ');
+        String time = space < 0 ? rest : rest.substring(0, space);
+        if (time.isEmpty()) {
+            return null;
+        }
+        String text = space < 0 ? "" : rest.substring(space + 1);
+        return new LogLine(container.substring(0, dash), Instant.parse(time), text);
     }
 
     // Compose prints one JSON object per container and line.
