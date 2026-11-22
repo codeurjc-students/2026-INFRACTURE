@@ -101,7 +101,7 @@ Un número no válido, una página negativa, un tamaño fuera del rango o un tip
 | Integración cliente-servidor | Vitest, backend real, Testcontainers | El cliente recibe el catálogo persistido y lo muestra. |
 | Sistema en navegador | [Playwright](https://playwright.dev/), Chromium, Testcontainers | La SPA carga diez de doce plantillas, añade la última página sin duplicados y permite reintentar fallos de red inyectados contra el backend real. |
 
-`./mvnw verify` genera los informes de [JaCoCo](https://www.jacoco.org/jacoco/) en `backend/target/site/jacoco/`; `npm run test:coverage` genera los de Vitest en `frontend/coverage/`. Ambos builds exigen por separado un mínimo del 70 % de líneas cubiertas. [SonarQube Cloud](https://www.sonarsource.com/products/sonarcloud/) analiza código y cobertura desde el CI y espera el resultado del Quality Gate. [ESLint](https://eslint.org/) y [TypeScript](https://www.typescriptlang.org/) comprueban el cliente.
+`./mvnw verify` genera los informes de [JaCoCo](https://www.jacoco.org/jacoco/) en `backend/target/site/jacoco/`; `npm run test:coverage` genera los de Vitest en `frontend/coverage/`. Ambos builds exigen por separado un mínimo del 70 % de líneas cubiertas. [SonarQube Cloud](https://www.sonarsource.com/products/sonarcloud/) analiza código y cobertura desde el CI y espera el resultado del Quality Gate. [ESLint](https://eslint.org/) y [TypeScript](https://www.typescriptlang.org/) comprueban el cliente. Spotless comprueba el [formato del código Java](#formato-del-código-java) dentro de `./mvnw verify`.
 
 **Resultados comprobados el 25 de septiembre de 2026 desde un clon limpio:** 5 pruebas del servidor, 9 pruebas unitarias del cliente, 1 de integración cliente-servidor y 1 de sistema en Chromium, todas correctas. JaCoCo registró **49/54 líneas (90,74 %)** y Vitest **24/27 líneas (88,88 %)** en sus respectivos ámbitos.
 
@@ -219,6 +219,24 @@ Al terminar el arranque manual, detén cliente y backend con `Ctrl+C`. Desde la 
 ```bash
 docker compose down
 ```
+
+### Formato del código Java
+
+El backend tiene un único formato, definido en el perfil Eclipse [`backend/eclipse-formatter.xml`](../backend/eclipse-formatter.xml): cuatro espacios, líneas y comentarios de 120 columnas y continuaciones de ocho espacios. El perfil conserva los saltos de línea que ya existen y no modifica el contenido de los text blocks. Lo usan [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-maven) en Maven y jdtls en Zed, así que ambos producen el mismo resultado.
+
+Desde `backend/`, formatea todo el código Java:
+
+```bash
+./mvnw spotless:apply
+```
+
+`./mvnw verify` ejecuta `spotless:check` y falla si algún fichero no tiene el formato del perfil. Para comprobar solo el formato:
+
+```bash
+./mvnw spotless:check
+```
+
+En [Zed](https://zed.dev/), el fichero [`.zed/settings.json`](../.zed/settings.json) indica a jdtls que use el mismo perfil (`java.format.settings.url` y `java.format.settings.profile`). La ruta es relativa, así que abre la carpeta raíz del repositorio. jdtls lee esta configuración al arrancar: tras cambiarla, ejecuta **editor: restart language server**. Con `format_on_save` activado, guardar un fichero `.java` lo formatea igual que `spotless:apply`.
 
 ### Compilación del frontend
 
