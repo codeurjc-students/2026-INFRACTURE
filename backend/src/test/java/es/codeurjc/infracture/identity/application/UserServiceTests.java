@@ -15,7 +15,6 @@ import es.codeurjc.infracture.identity.persistence.UserRepository;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
-import java.util.function.Consumer;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
@@ -24,6 +23,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -44,7 +44,7 @@ class UserServiceTests {
 
     @Test
     void findsAccountByNormalizedEmailRatherThanUsername() {
-        User account = validUser();
+        User account = new User("alice", "stored-hash", "alice@example.com", "Alice", UserRole.USER);
         when(repository.findByEmailIgnoreCase("alice@example.com")).thenReturn(Optional.of(account));
 
         assertThat(service.getUserByEmail(" ALICE@EXAMPLE.COM ")).isSameAs(account);
@@ -53,21 +53,21 @@ class UserServiceTests {
 
     @Test
     void createsInitialAdministratorWithEncodedPassword() {
-        User input = validUser();
         when(encoder.encode(PASSWORD)).thenReturn("encoded-admin-hash");
 
-        service.initializeAdmin(input);
+        service.initializeAdmin("alice", "Alice", "alice@example.com", PASSWORD);
 
-        assertThat(input.getRole()).isEqualTo(UserRole.ADMIN);
-        assertThat(input.getEncodedPassword()).isEqualTo("encoded-admin-hash");
-        verify(repository).save(input);
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(repository).save(saved.capture());
+        assertThat(saved.getValue().getRole()).isEqualTo(UserRole.ADMIN);
+        assertThat(saved.getValue().getEncodedPassword()).isEqualTo("encoded-admin-hash");
     }
 
     @Test
     void leavesExistingAdministratorUntouchedEvenWithoutConfiguration() {
         when(repository.existsByRole(UserRole.ADMIN)).thenReturn(true);
 
-        service.initializeAdmin(null);
+        service.initializeAdmin(null, null, null, null);
 
         verify(repository, never()).save(any());
         verifyNoInteractions(encoder);
@@ -75,16 +75,11 @@ class UserServiceTests {
 
     @Test
     void normalizesRegistrationAndAssignsServerControlledFields() {
-        User input =
-                new User(" ALICE ", PASSWORD, " ALICE@EXAMPLE.COM ", "  A\u0301lice O’Neill-Sáez  ", UserRole.ADMIN);
-        input.setActive(false);
-        input.setAvatarKey("untrusted-avatar");
         when(encoder.encode(PASSWORD)).thenReturn("encoded-hash");
         when(repository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        User saved = service.registerUser(input);
+        User saved = service.registerUser(" ALICE ", "  A\u0301lice O’Neill-Sáez  ", " ALICE@EXAMPLE.COM ", PASSWORD);
 
-        assertThat(saved).isSameAs(input);
         assertThat(saved.getId()).isNull();
         assertThat(saved.getUsername()).isEqualTo("alice");
         assertThat(saved.getEmail()).isEqualTo("ALICE@EXAMPLE.COM");
@@ -93,18 +88,16 @@ class UserServiceTests {
         assertThat(saved.getRole()).isEqualTo(UserRole.USER);
         assertThat(saved.isActive()).isTrue();
         assertThat(saved.getAvatarKey()).isNull();
-        verify(repository).save(input);
+        verify(repository).save(saved);
         verify(repository).existsByUsernameIgnoreCase("alice");
         verify(repository).existsByEmailIgnoreCase("alice@example.com");
     }
 
     @ParameterizedTest
     @MethodSource("invalidFields")
-    void rejectsInvalidAccountFieldsBeforeHashingOrSaving(Consumer<User> change, String field) {
-        User input = validUser();
-        change.accept(input);
-
-        assertThatThrownBy(() -> service.registerUser(input))
+    void rejectsInvalidAccountFieldsBeforeHashingOrSaving(String username, String displayName, String email,
+            String field) {
+        assertThatThrownBy(() -> service.registerUser(username, displayName, email, PASSWORD))
                 .isInstanceOf(ConstraintViolationException.class)
                 .hasMessageContaining(field);
         verifyNoInteractions(repository, encoder);
@@ -112,12 +105,12 @@ class UserServiceTests {
 
     static Stream<Arguments> invalidFields() {
         return Stream.of(
-                Arguments.of((Consumer<User>) user -> user.setUsername("alice-smith"), "username"),
-                Arguments.of((Consumer<User>) user -> user.setUsername("a".repeat(21)), "username"),
-                Arguments.of((Consumer<User>) user -> user.setDisplayName("   "), "displayName"),
-                Arguments.of((Consumer<User>) user -> user.setDisplayName("a".repeat(31)), "displayName"),
-                Arguments.of((Consumer<User>) user -> user.setDisplayName("Alice 😀"), "displayName"),
-                Arguments.of((Consumer<User>) user -> user.setEmail("not-an-email"), "email"));
+                Arguments.of("alice-smith", "Alice", "alice@example.com", "username"),
+                Arguments.of("a".repeat(21), "Alice", "alice@example.com", "username"),
+                Arguments.of("alice", "   ", "alice@example.com", "displayName"),
+                Arguments.of("alice", "a".repeat(31), "alice@example.com", "displayName"),
+                Arguments.of("alice", "Alice 😀", "alice@example.com", "displayName"),
+                Arguments.of("alice", "Alice", "not-an-email", "email"));
     }
 
     @ParameterizedTest
@@ -126,7 +119,7 @@ class UserServiceTests {
         when(repository.existsByUsernameIgnoreCase("alice")).thenReturn(usernameExists);
         when(repository.existsByEmailIgnoreCase("alice@example.com")).thenReturn(emailExists);
 
-        assertThatThrownBy(() -> service.registerUser(validUser())).isInstanceOf(UserAlreadyExistsException.class);
+        assertThatThrownBy(() -> registerValidUser()).isInstanceOf(UserAlreadyExistsException.class);
 
         verifyNoInteractions(encoder);
         verify(repository, never()).save(any());
@@ -137,19 +130,10 @@ class UserServiceTests {
         DataIntegrityViolationException failure = new DataIntegrityViolationException("Other database constraint");
         when(repository.save(any(User.class))).thenThrow(failure);
 
-        assertThatThrownBy(() -> service.registerUser(validUser())).isSameAs(failure);
+        assertThatThrownBy(() -> registerValidUser()).isSameAs(failure);
     }
 
-    @Test
-    void rejectsAnExistingEntityInsteadOfUpdatingItThroughRegistration() {
-        User input = validUser();
-        input.setId(1L);
-
-        assertThatThrownBy(() -> service.registerUser(input)).isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(repository, encoder);
-    }
-
-    private User validUser() {
-        return new User("alice", PASSWORD, "alice@example.com", "Alice", UserRole.USER);
+    private User registerValidUser() {
+        return service.registerUser("alice", "Alice", "alice@example.com", PASSWORD);
     }
 }

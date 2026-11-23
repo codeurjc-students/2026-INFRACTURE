@@ -42,33 +42,26 @@ public class UserService {
         return userRepository.existsByEmailIgnoreCase(normalizeIdentifier(email));
     }
 
-    public User registerUser(User user) {
-        return createUser(user, UserRole.USER);
+    public User registerUser(String username, String displayName, String email, String password) {
+        return createUser(username, displayName, email, password, UserRole.USER);
     }
 
-    public void initializeAdmin(User user) {
+    public void initializeAdmin(String username, String displayName, String email, String password) {
         if (!userRepository.existsByRole(UserRole.ADMIN)) {
-            createUser(user, UserRole.ADMIN);
+            createUser(username, displayName, email, password, UserRole.ADMIN);
         }
     }
 
-    private User createUser(User user, UserRole role) {
-        if (user == null || user.getId() != null) {
-            throw new IllegalArgumentException("Registration requires a new user without an ID");
-        }
-
-        user.setUsername(normalizeIdentifier(user.getUsername()));
-        user.setEmail(user.getEmail() == null ? null : user.getEmail().trim());
-        user.setDisplayName(normalizeDisplayName(user.getDisplayName()));
-        user.setRole(role);
-        user.setActive(true);
-        user.setAvatarKey(null);
+    private User createUser(String username, String displayName, String email, String rawPassword, UserRole role) {
+        // The entity receives only the hash, once the account and the password are valid.
+        User user = new User(normalizeIdentifier(username), null, email == null ? null : email.trim(),
+                normalizeDisplayName(displayName), role);
 
         Set<ConstraintViolation<User>> violations = validator.validate(user);
         if (!violations.isEmpty()) {
             throw new ConstraintViolationException(violations);
         }
-        String password = passwordPolicy.validate(user.getEncodedPassword(), user.getUsername(),
+        String password = passwordPolicy.validate(rawPassword, user.getUsername(),
                 user.getEmail(), user.getDisplayName());
 
         if (existsByUsername(user.getUsername())) {

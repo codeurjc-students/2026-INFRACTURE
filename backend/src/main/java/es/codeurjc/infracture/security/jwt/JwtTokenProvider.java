@@ -6,7 +6,6 @@ import java.util.Date;
 
 import javax.crypto.SecretKey;
 
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -29,17 +28,6 @@ public class JwtTokenProvider {
         this.jwtParser = Jwts.parser().verifyWith(jwtSecret).clock(() -> Date.from(clock.instant())).build();
     }
 
-    public String tokenStringFromHeaders(HttpServletRequest req) {
-        String bearerToken = req.getHeader(HttpHeaders.AUTHORIZATION);
-        if (bearerToken == null) {
-            throw new IllegalArgumentException("Missing Authorization header");
-        }
-        if (!bearerToken.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Authorization header does not start with Bearer: " + bearerToken);
-        }
-        return bearerToken.substring(7);
-    }
-
     private String tokenStringFromCookies(HttpServletRequest request) {
         var cookies = request.getCookies();
         if (cookies == null) {
@@ -60,9 +48,8 @@ public class JwtTokenProvider {
         throw new IllegalArgumentException("No access token cookie found in request");
     }
 
-    public Claims validateToken(HttpServletRequest req, boolean fromCookie) {
-        var token = fromCookie ? tokenStringFromCookies(req) : tokenStringFromHeaders(req);
-        return validateToken(token);
+    public Claims validateToken(HttpServletRequest request) {
+        return validateToken(tokenStringFromCookies(request));
     }
 
     public Claims validateToken(String token) {

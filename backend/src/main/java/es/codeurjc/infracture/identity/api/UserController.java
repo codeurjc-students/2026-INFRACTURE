@@ -28,7 +28,8 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<UserDTO> registerUser(@RequestBody RegisterUserDTO userDTO) {
-        User registeredUser = userService.registerUser(userMapper.fromRegisterDTOtoDomain(userDTO));
+        User registeredUser = userService.registerUser(userDTO.username(), userDTO.displayName(),
+                userDTO.email(), userDTO.password());
         URI location = fromCurrentRequest().path("/{id}").buildAndExpand(registeredUser.getId()).toUri();
 
         return ResponseEntity.created(location).body(userMapper.toDTO(registeredUser));

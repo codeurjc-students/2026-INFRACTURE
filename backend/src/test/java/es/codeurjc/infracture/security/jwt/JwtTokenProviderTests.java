@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import es.codeurjc.infracture.security.MutableClock;
 import io.jsonwebtoken.ExpiredJwtException;
+import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -36,5 +39,19 @@ class JwtTokenProviderTests {
         clock.advance(TokenType.ACCESS.duration.plusSeconds(1));
 
         assertThat(provider.validateToken(refreshToken).get("type", String.class)).isEqualTo("REFRESH");
+    }
+
+    @Test
+    void readsTheAccessTokenFromItsCookieAndIgnoresTheAuthorizationHeader() {
+        String token = provider.generateAccessToken(user);
+        MockHttpServletRequest withCookie = new MockHttpServletRequest();
+        withCookie.setCookies(new Cookie(TokenType.ACCESS.cookieName, token));
+        MockHttpServletRequest withHeader = new MockHttpServletRequest();
+        withHeader.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+
+        assertThat(provider.validateToken(withCookie).getSubject()).isEqualTo("alice@example.com");
+        assertThatThrownBy(() -> provider.validateToken(withHeader))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageNotContaining(token);
     }
 }
