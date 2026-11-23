@@ -755,6 +755,14 @@ Los identificadores históricos conservados no se renumeran al agrupar o retirar
 - **Resultado y evidencia:** `LoginRequestTests` y `RegisterUserDTOTests` fallaron antes del cambio y pasan después. `./mvnw verify` pasó 383 pruebas, la puerta de cobertura y `spotless:check`. El contrato OpenAPI regenerado es equivalente al anterior.
 - **Revisión del alumno y límites:** el alumno revisó el nuevo registro y el motivo de los `record`, y decidió mantener `AuthResponse` como `record` aunque es solo limpieza. El campo `error` sin uso se conserva para no cambiar la API.
 
+## AI-2026-11-23-080 - Edición de la cuenta propia y sesiones por versión
+
+- **Fecha o periodo y fase:** 23 de noviembre de 2026; Fase 3, issue #75.
+- **Objetivo y contexto:** permitir que cada persona edite su nombre, usuario, correo y contraseña, y que un cambio de credenciales termine sus otras sesiones sin que un token antiguo pueda entrar en otra cuenta.
+- **Aportación de IA:** Claude Code implementó el diseño aprobado por el alumno: `users.token_version`, JWT con id y versión, `AuthenticatedUser`, los tres endpoints de `/users/me`, el corte de SSE y los formularios de `/account`. Durante la implementación detectó y corrigió una carrera entre el login y un cambio de contraseña, y redactó el [ADR 0032](adr/0032-sesiones-por-id-y-version-de-token.md).
+- **Resultado y evidencia:** `./mvnw verify -Popenapi` pasó 429 pruebas con la puerta de cobertura y `spotless:check`. Las suites del frontend, la integración cliente-API y las E2E de interfaz y ejecución pasaron. El contrato OpenAPI solo añade las tres operaciones y sus esquemas.
+- **Revisión del alumno y límites:** el alumno aprobó el diseño antes de implementarlo y pidió explicación de `AuthenticatedUser`, `UserService` y `loadSession`, decidió simplificar el servicio y mantener `AuthenticatedUser` sin herencia, y pidió este ADR. El logout sigue sin revocar copias de tokens (ADR 0007) y no hay límite de intentos para la contraseña actual.
+
 ## Plantilla para nuevas entradas
 
 Usar solo para una finalidad nueva que cumpla el criterio de registro; para una continuación, actualizar el tema existente.

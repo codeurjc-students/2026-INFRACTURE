@@ -5,7 +5,6 @@ import es.codeurjc.infracture.execution.persistence.ExecutionEventRepository;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
 import es.codeurjc.infracture.identity.application.UserService;
 import java.util.List;
-import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +24,14 @@ public class ExecutionFeed {
         this.users = users;
     }
 
-    // The events after the cursor, whether the execution has ended, and whether the owner may still watch.
+    // The events after the cursor, whether the execution has ended, and whether the session may still watch:
+    // a deactivated or deleted account, or a revoked session, loses its stream at its next read.
     public record Batch(List<ExecutionEvent> events, boolean released, boolean allowed) {
     }
 
     @Transactional(readOnly = true)
-    public Batch next(String ownerEmail, Long executionId, long after) {
-        if (!isActiveAccount(ownerEmail)) {
+    public Batch next(Long userId, int tokenVersion, Long executionId, long after) {
+        if (!users.isSessionCurrent(userId, tokenVersion)) {
             return new Batch(List.of(), false, false);
         }
         boolean released = executions.findById(executionId).map(execution -> !execution.isActive()).orElse(true);
@@ -48,14 +48,5 @@ public class ExecutionFeed {
     @Transactional(readOnly = true)
     public long latest(Long executionId) {
         return events.findFirstByExecutionIdOrderByIdDesc(executionId).map(ExecutionEvent::getId).orElse(0L);
-    }
-
-    // A deactivated or deleted account loses its streams at its next read: within one heartbeat.
-    private boolean isActiveAccount(String email) {
-        try {
-            return users.getUserByEmail(email).isActive();
-        } catch (NoSuchElementException _) {
-            return false;
-        }
     }
 }

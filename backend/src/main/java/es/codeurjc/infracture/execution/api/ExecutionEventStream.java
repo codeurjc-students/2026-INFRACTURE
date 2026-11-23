@@ -29,8 +29,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 // the ExecutionEventSignal says the execution has new events, and at the latest once per heartbeat; while
 // the signal is not listening, it reads once per poll interval instead.
 // The stream ends when the access token it was opened with expires (after a "renew" message, so the page
-// renews the session and reopens from the same cursor), when the account stops being active, when the
-// execution is released and everything was sent, or when the tab goes away.
+// renews the session and reopens from the same cursor), when the account stops being active or its sessions
+// are revoked, when the execution is released and everything was sent, or when the tab goes away.
 @Component
 public class ExecutionEventStream {
 
@@ -49,7 +49,7 @@ public class ExecutionEventStream {
     private final Clock clock;
     private final Duration pollInterval;
     private final Duration heartbeat;
-    private final Map<String, Integer> openByUser = new ConcurrentHashMap<>();
+    private final Map<Long, Integer> openByUser = new ConcurrentHashMap<>();
     private volatile boolean closing;
 
     public ExecutionEventStream(ExecutionFeed feed, ExecutionEventSignal signal, ExecutionMapper mapper, Clock clock,
@@ -63,9 +63,9 @@ public class ExecutionEventStream {
         this.heartbeat = heartbeat;
     }
 
-    public SseEmitter open(String email, ExecutionView view, Long cursor, Instant tokenExpiresAt) {
-        if (openByUser.merge(email, 1, Integer::sum) > MAX_STREAMS_PER_USER) {
-            release(email);
+    public SseEmitter open(Long userId, int tokenVersion, ExecutionView view, Long cursor, Instant tokenExpiresAt) {
+        if (openByUser.merge(userId, 1, Integer::sum) > MAX_STREAMS_PER_USER) {
+            release(userId);
             throw new TooManyStreamsException(MAX_STREAMS_PER_USER);
         }
         Instant expiresAt = tokenExpiresAt == null ? clock.instant() : tokenExpiresAt;
@@ -77,17 +77,17 @@ public class ExecutionEventStream {
         emitter.onError(error -> closed.set(true));
         Thread.ofVirtual().name("execution-events-" + view.execution().getId()).start(() -> {
             try {
-                send(emitter, email, view, cursor, expiresAt, closed::get);
+                send(emitter, userId, tokenVersion, view, cursor, expiresAt, closed::get);
             } finally {
-                release(email);
+                release(userId);
             }
         });
         return emitter;
     }
 
     // Runs until the stream ends. Package-visible so tests can drive it on their own thread.
-    void send(SseEmitter emitter, String email, ExecutionView view, Long cursor, Instant expiresAt,
-            BooleanSupplier closed) {
+    void send(SseEmitter emitter, Long userId, int tokenVersion, ExecutionView view, Long cursor,
+            Instant expiresAt, BooleanSupplier closed) {
         Long executionId = view.execution().getId();
         signal.watch(executionId);
         try {
@@ -107,7 +107,7 @@ public class ExecutionEventStream {
                     break;
                 }
                 long seen = signal.version(executionId);
-                Batch batch = feed.next(email, executionId, after);
+                Batch batch = feed.next(userId, tokenVersion, executionId, after);
                 if (!batch.allowed()) {
                     break;
                 }
@@ -167,7 +167,7 @@ public class ExecutionEventStream {
                 .data(data, MediaType.APPLICATION_JSON);
     }
 
-    private void release(String email) {
-        openByUser.computeIfPresent(email, (user, count) -> count > 1 ? count - 1 : null);
+    private void release(Long userId) {
+        openByUser.computeIfPresent(userId, (user, count) -> count > 1 ? count - 1 : null);
     }
 }

@@ -6,8 +6,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -19,13 +21,19 @@ import es.codeurjc.infracture.identity.application.UserAlreadyExistsException;
 import es.codeurjc.infracture.identity.application.UserService;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
+import es.codeurjc.infracture.identity.persistence.UserRepository;
+import es.codeurjc.infracture.security.AuthenticatedUser;
 import es.codeurjc.infracture.security.EncoderConfig;
+import es.codeurjc.infracture.security.RepositoryUserDetailsService;
 import es.codeurjc.infracture.security.SecurityConfig;
 import es.codeurjc.infracture.security.jwt.JwtTokenProvider;
 import es.codeurjc.infracture.security.jwt.UnauthorizedHandlerJwt;
+import es.codeurjc.infracture.security.jwt.UserLoginService;
+import es.codeurjc.infracture.shared.InvalidDataException;
 import jakarta.servlet.http.Cookie;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -37,7 +45,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -45,7 +52,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 @WebMvcTest(UserController.class)
 @Import({ SecurityConfig.class, EncoderConfig.class, JwtTokenProvider.class,
-        UnauthorizedHandlerJwt.class, UserMapperImpl.class })
+        UnauthorizedHandlerJwt.class, UserMapperImpl.class, RepositoryUserDetailsService.class,
+        UserLoginService.class })
 class UserControllerTests {
 
     private static final String REGISTRATION = """
@@ -63,15 +71,14 @@ class UserControllerTests {
     private UserService userService;
 
     @MockitoBean
-    private UserDetailsService userDetailsService;
+    private UserRepository users;
 
     @Test
     void returnsCurrentAccountUsingAuthenticatedEmail() throws Exception {
         User account = new User("alice", "stored-password-hash", "ALICE@EXAMPLE.COM", "Alice", UserRole.USER);
         account.setId(7L);
-        var authenticated = org.springframework.security.core.userdetails.User
-                .withUsername(account.getEmail()).password(account.getEncodedPassword()).roles("USER").build();
-        when(userDetailsService.loadUserByUsername(account.getEmail())).thenReturn(authenticated);
+        var authenticated = AuthenticatedUser.from(account);
+        when(users.findById(7L)).thenReturn(Optional.of(account));
         when(userService.getUserByEmail(account.getEmail())).thenReturn(account);
 
         mvc.perform(get("/api/v1/users/me")
@@ -83,6 +90,47 @@ class UserControllerTests {
                 .andExpect(jsonPath("$.encodedPassword").doesNotExist());
 
         verify(userService).getUserByEmail(account.getEmail());
+    }
+
+    @Test
+    void changesTheCredentialOfTheSignedInAccountAndRenewsItsCookiesWithoutSecrets() throws Exception {
+        User account = signedInAccount();
+        when(userService.changePassword(7L, "current secret", "new secret")).thenReturn(account);
+
+        mvc.perform(put("/api/v1/users/me/password").with(csrf())
+                .cookie(new Cookie("AuthToken", jwtTokenProvider.generateAccessToken(AuthenticatedUser.from(account))))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"current secret\",\"newPassword\":\"new secret\"}"))
+                .andExpect(status().isOk())
+                .andExpect(cookie().httpOnly("AuthToken", true))
+                .andExpect(cookie().httpOnly("RefreshToken", true))
+                .andExpect(jsonPath("$.encodedPassword").doesNotExist())
+                .andExpect(jsonPath("$.tokenVersion").doesNotExist())
+                .andExpect(content().string(not(containsString("stored-password-hash"))));
+    }
+
+    // A 401 would make the web client try to renew a session that is fine.
+    @Test
+    void reportsAWrongCurrentPasswordWithoutAnAuthenticationError() throws Exception {
+        User account = signedInAccount();
+        when(userService.changeEmail(7L, "new@example.com", "wrong"))
+                .thenThrow(new InvalidDataException("Current password is incorrect"));
+
+        mvc.perform(put("/api/v1/users/me/email").with(csrf())
+                .cookie(new Cookie("AuthToken", jwtTokenProvider.generateAccessToken(AuthenticatedUser.from(account))))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"new@example.com\",\"currentPassword\":\"wrong\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Current password is incorrect"))
+                .andExpect(cookie().doesNotExist("AuthToken"));
+    }
+
+    private User signedInAccount() {
+        User account = new User("alice", "stored-password-hash", "alice@example.com", "Alice", UserRole.USER);
+        account.setId(7L);
+        when(users.findById(7L)).thenReturn(Optional.of(account));
+        return account;
     }
 
     @Test

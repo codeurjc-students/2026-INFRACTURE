@@ -85,6 +85,36 @@ class UserPersistenceIntegrationTests {
     }
 
     @Test
+    void startsTheTokenVersionAtZeroAndPersistsItsIncrement() {
+        User user = new User("alice", "encoded-password", "alice@example.com", "Alice", UserRole.USER);
+        entityManager.persist(user);
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(repository.existsByIdAndActiveTrueAndTokenVersion(user.getId(), 0)).isTrue();
+
+        repository.findWithLockById(user.getId()).orElseThrow().revokeSessions();
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(entityManager.find(User.class, user.getId()).getTokenVersion()).isEqualTo(1);
+        assertThat(repository.existsByIdAndActiveTrueAndTokenVersion(user.getId(), 0)).isFalse();
+        assertThat(repository.existsByIdAndActiveTrueAndTokenVersion(user.getId(), 1)).isTrue();
+    }
+
+    @Test
+    void rejectsAnUpdateToTheEmailOfAnotherAccountAtTheUniqueIndex() {
+        User alice = new User("alice", "encoded-password", "alice@example.com", "Alice", UserRole.USER);
+        entityManager.persist(alice);
+        entityManager.persist(new User("bob", "encoded-password", "bob@example.com", "Bob", UserRole.USER));
+        entityManager.flush();
+
+        alice.setEmail("BOB@example.com");
+
+        assertThatThrownBy(() -> entityManager.flush())
+                .isInstanceOf(PersistenceException.class).hasMessageContaining("uk_users_email_normalized");
+    }
+
+    @Test
     void rejectsRolesOutsideUserRole() {
         assertThatThrownBy(() -> entityManager.createNativeQuery("""
                 INSERT INTO users (username, encoded_password, email, display_name, role, created_at, updated_at)

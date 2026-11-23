@@ -2,6 +2,7 @@ package es.codeurjc.infracture.execution.api;
 
 import es.codeurjc.infracture.execution.application.ExecutionService;
 import es.codeurjc.infracture.execution.application.ExecutionView;
+import es.codeurjc.infracture.security.AuthenticatedUser;
 import es.codeurjc.infracture.security.jwt.JwtRequestFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -9,6 +10,7 @@ import java.security.Principal;
 import java.time.Instant;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -74,10 +76,11 @@ public class ExecutionController {
             @PathVariable Long executionId,
             @RequestHeader(name = "Last-Event-ID", required = false) Long lastEventId,
             @RequestParam(required = false) Long after,
-            Principal principal,
+            @AuthenticationPrincipal AuthenticatedUser user,
             HttpServletRequest request) {
-        ExecutionView view = service.getOwn(principal.getName(), projectId, scenarioId, executionId);
+        ExecutionView view = service.getOwn(user.getUsername(), projectId, scenarioId, executionId);
         Instant tokenExpiresAt = (Instant) request.getAttribute(JwtRequestFilter.TOKEN_EXPIRES_AT);
-        return stream.open(principal.getName(), view, lastEventId != null ? lastEventId : after, tokenExpiresAt);
+        return stream.open(user.getId(), user.getTokenVersion(), view, lastEventId != null ? lastEventId : after,
+                tokenExpiresAt);
     }
 }

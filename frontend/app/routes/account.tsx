@@ -1,9 +1,66 @@
-import { useRouteLoaderData } from "react-router";
+import type { Route } from "./+types/account";
+import { redirect, useRouteLoaderData } from "react-router";
 import AppHeader from "~/components/app-header";
+import { Field, FieldDescription, FieldLabel } from "~/components/ui/field";
+import { Input } from "~/components/ui/input";
+import {
+  changeEmail,
+  changePassword,
+  updateProfile,
+} from "~/features/auth/api/auth-service";
+import AccountForm, {
+  type AccountFormResult,
+} from "~/features/auth/components/account-form";
+import PasswordInput from "~/features/auth/components/password-input";
+import { HttpError } from "~/shared/api/api-fetch";
 import type { clientLoader as privateLoader } from "./private-layout";
 
 export function meta() {
   return [{ title: "Your account | Infracture" }];
+}
+
+function saveAccount(form: FormData) {
+  const field = (name: string) => String(form.get(name) ?? "");
+  switch (form.get("intent")) {
+    case "profile":
+      return updateProfile({
+        displayName: form.has("displayName") ? field("displayName") : undefined,
+        username: form.has("username") ? field("username") : undefined,
+      });
+    case "email":
+      return changeEmail({
+        email: field("email"),
+        currentPassword: field("currentPassword"),
+      });
+    default:
+      return changePassword({
+        currentPassword: field("currentPassword"),
+        newPassword: field("newPassword"),
+      });
+  }
+}
+
+// The route revalidates after this action, so the page and the header show the stored account.
+export async function clientAction({
+  request,
+}: Route.ClientActionArgs): Promise<AccountFormResult> {
+  try {
+    await saveAccount(await request.formData());
+    return { saved: true };
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 401) {
+      throw redirect(
+        `/login?${new URLSearchParams({ redirectTo: "/account" })}`,
+      );
+    }
+    return {
+      error:
+        error instanceof HttpError &&
+        (error.status === 400 || error.status === 409)
+          ? error.message
+          : "Something went wrong. Try again in a moment.",
+    };
+  }
 }
 
 export default function AccountRoute() {
@@ -25,6 +82,107 @@ export default function AccountRoute() {
             <dt className="text-muted-foreground">Email</dt>
             <dd className="[overflow-wrap:anywhere]">{user.email}</dd>
           </dl>
+          <AccountForm
+            intent="profile"
+            title="Profile"
+            submitLabel="Save profile"
+            pendingLabel="Saving…"
+            savedMessage="Profile saved"
+          >
+            <Field>
+              <FieldLabel htmlFor="account-displayName">Name</FieldLabel>
+              <Input
+                id="account-displayName"
+                name="displayName"
+                autoComplete="name"
+                maxLength={30}
+                defaultValue={user.displayName}
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="account-username">Username</FieldLabel>
+              <Input
+                id="account-username"
+                name="username"
+                autoComplete="username"
+                maxLength={20}
+                defaultValue={user.username}
+                aria-describedby="account-username-help"
+                required
+              />
+              <FieldDescription id="account-username-help">
+                3 to 20 letters, numbers or underscores.
+              </FieldDescription>
+            </Field>
+          </AccountForm>
+          <AccountForm
+            intent="email"
+            title="Email"
+            description="You sign in with this email. Changing it signs you out on your other devices."
+            submitLabel="Change email"
+            pendingLabel="Changing…"
+            savedMessage="Email changed"
+          >
+            <Field>
+              <FieldLabel htmlFor="account-email">New email</FieldLabel>
+              <Input
+                id="account-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                maxLength={254}
+                defaultValue={user.email}
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="account-email-password">
+                Current password
+              </FieldLabel>
+              <PasswordInput
+                id="account-email-password"
+                name="currentPassword"
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+          </AccountForm>
+          <AccountForm
+            intent="password"
+            title="Password"
+            description="Changing it signs you out on your other devices."
+            submitLabel="Change password"
+            pendingLabel="Changing…"
+            savedMessage="Password changed"
+          >
+            <Field>
+              <FieldLabel htmlFor="account-current-password">
+                Current password
+              </FieldLabel>
+              <PasswordInput
+                id="account-current-password"
+                name="currentPassword"
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="account-new-password">
+                New password
+              </FieldLabel>
+              <PasswordInput
+                id="account-new-password"
+                name="newPassword"
+                autoComplete="new-password"
+                aria-describedby="account-new-password-help"
+                required
+              />
+              <FieldDescription id="account-new-password-help">
+                At least 15 characters, mixing cases, a number and a symbol.
+              </FieldDescription>
+            </Field>
+          </AccountForm>
         </main>
       </div>
     </div>

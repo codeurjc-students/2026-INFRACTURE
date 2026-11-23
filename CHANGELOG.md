@@ -10,7 +10,7 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 - User accounts: sign up, sign in and sign out. Signing up signs you in automatically.
 - A session lasts 7 days and the web app renews it on its own in the meantime. Restarting the backend ends all sessions.
-- Account page at `/account` with the name, username and email.
+- Account page at `/account` to view and edit your name, username, email and password. Changing the email or password signs you out on your other devices.
 - Private projects at `/projects`: each account creates, lists and edits its own, and nobody else can see them. They cannot be deleted or published yet.
 - Scenarios inside each project, with an editable name and description. They cannot be deleted yet.
 - Public catalogue at `/catalogue` with the HTTP Service, Worker, PostgreSQL, Redis and RabbitMQ templates, with search by name and a filter by type.

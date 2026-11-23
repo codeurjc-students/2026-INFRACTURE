@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.identity.persistence.UserRepository;
+import es.codeurjc.infracture.shared.InvalidDataException;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
@@ -135,5 +136,154 @@ class UserServiceTests {
 
     private User registerValidUser() {
         return service.registerUser("alice", "Alice", "alice@example.com", PASSWORD);
+    }
+
+    private User storedAccount() {
+        User account = new User("alice", "stored-hash", "alice@example.com", "Alice", UserRole.USER);
+        account.setId(7L);
+        when(repository.findWithLockById(7L)).thenReturn(Optional.of(account));
+        when(repository.saveAndFlush(account)).thenReturn(account);
+        return account;
+    }
+
+    @Test
+    void updatesNormalizedProfileWithoutTouchingTheSessions() {
+        User account = storedAccount();
+
+        service.updateProfile(7L, "  Alice Cooper ", " ALICE_2 ");
+
+        assertThat(account.getDisplayName()).isEqualTo("Alice Cooper");
+        assertThat(account.getUsername()).isEqualTo("alice_2");
+        assertThat(account.getTokenVersion()).isZero();
+        verify(repository).saveAndFlush(account);
+    }
+
+    @Test
+    void keepsTheProfileFieldThatIsNotSent() {
+        User account = storedAccount();
+
+        service.updateProfile(7L, null, "alice_2");
+
+        assertThat(account.getDisplayName()).isEqualTo("Alice");
+        assertThat(account.getUsername()).isEqualTo("alice_2");
+    }
+
+    @Test
+    void rejectsAnInvalidProfileWithoutSavingIt() {
+        storedAccount();
+
+        assertThatThrownBy(() -> service.updateProfile(7L, "Alice", "no spaces allowed"))
+                .isInstanceOf(ConstraintViolationException.class);
+
+        verify(repository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void reportsAUsernameOfAnotherAccountAsAConflict() {
+        storedAccount();
+        when(repository.saveAndFlush(any())).thenThrow(uniqueIndexFailure("uk_users_username_normalized"));
+
+        assertThatThrownBy(() -> service.updateProfile(7L, null, "BOB"))
+                .isInstanceOf(UserAlreadyExistsException.class).hasMessage("Username is already in use");
+    }
+
+    @Test
+    void keepsAnyOtherDatabaseFailureAsItIs() {
+        storedAccount();
+        DataIntegrityViolationException failure = uniqueIndexFailure("another_constraint");
+        when(repository.saveAndFlush(any())).thenThrow(failure);
+
+        assertThatThrownBy(() -> service.updateProfile(7L, null, "bob")).isSameAs(failure);
+    }
+
+    private static DataIntegrityViolationException uniqueIndexFailure(String index) {
+        return new DataIntegrityViolationException("could not execute statement",
+                new IllegalStateException("duplicate key value violates unique constraint \"" + index + "\""));
+    }
+
+    @Test
+    void changesTheEmailOnceTheCurrentPasswordIsConfirmedAndRevokesSessionsOnce() {
+        User account = storedAccount();
+        when(encoder.matches("current", "stored-hash")).thenReturn(true);
+
+        service.changeEmail(7L, " New@Example.com ", "current");
+
+        assertThat(account.getEmail()).isEqualTo("New@Example.com");
+        assertThat(account.getTokenVersion()).isEqualTo(1);
+    }
+
+    @Test
+    void keepsTheSessionsWhenTheEmailIsTheSame() {
+        User account = storedAccount();
+        when(encoder.matches("current", "stored-hash")).thenReturn(true);
+
+        service.changeEmail(7L, "alice@example.com", "current");
+
+        assertThat(account.getTokenVersion()).isZero();
+    }
+
+    // Checking the password first keeps a stolen session from probing which emails exist.
+    @Test
+    void rejectsAWrongPasswordBeforeLookingAtTheNewEmail() {
+        User account = storedAccount();
+        when(encoder.matches("wrong", "stored-hash")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.changeEmail(7L, "bob@example.com", "wrong"))
+                .isInstanceOf(InvalidDataException.class).hasMessage("Current password is incorrect");
+
+        assertThat(account.getEmail()).isEqualTo("alice@example.com");
+        assertThat(account.getTokenVersion()).isZero();
+        verify(repository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void rejectsAMissingCurrentPassword() {
+        storedAccount();
+
+        assertThatThrownBy(() -> service.changePassword(7L, null, "Another secure password 2027!"))
+                .isInstanceOf(InvalidDataException.class);
+        verifyNoInteractions(encoder);
+    }
+
+    @Test
+    void reportsAnEmailOfAnotherAccountAsAConflict() {
+        storedAccount();
+        when(encoder.matches("current", "stored-hash")).thenReturn(true);
+        when(repository.saveAndFlush(any())).thenThrow(uniqueIndexFailure("uk_users_email_normalized"));
+
+        assertThatThrownBy(() -> service.changeEmail(7L, "BOB@example.com", "current"))
+                .isInstanceOf(UserAlreadyExistsException.class).hasMessage("Email is already in use");
+    }
+
+    @Test
+    void changesThePasswordComparingTheCurrentOneInNormalizedFormAndRevokesSessionsOnce() {
+        User account = storedAccount();
+        when(encoder.matches("un bosque con caf\u00e9", "stored-hash")).thenReturn(true);
+        when(encoder.encode("Another secure password 2027!")).thenReturn("new-hash");
+
+        service.changePassword(7L, "un bosque con cafe\u0301", "Another secure password 2027!");
+
+        assertThat(account.getEncodedPassword()).isEqualTo("new-hash");
+        assertThat(account.getTokenVersion()).isEqualTo(1);
+    }
+
+    @Test
+    void appliesThePasswordPolicyToTheNewPassword() {
+        User account = storedAccount();
+        when(encoder.matches("current", "stored-hash")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.changePassword(7L, "current", "Short 1!"))
+                .isInstanceOf(PasswordPolicyException.class);
+
+        assertThat(account.getEncodedPassword()).isEqualTo("stored-hash");
+        assertThat(account.getTokenVersion()).isZero();
+    }
+
+    @Test
+    void acceptsOnlyTheCurrentVersionOfAnActiveAccount() {
+        when(repository.existsByIdAndActiveTrueAndTokenVersion(7L, 3)).thenReturn(true);
+
+        assertThat(service.isSessionCurrent(7L, 3)).isTrue();
+        assertThat(service.isSessionCurrent(7L, 2)).isFalse();
     }
 }

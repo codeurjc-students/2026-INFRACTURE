@@ -39,7 +39,7 @@ api (controlador + DTO + mapper) → application (servicio) → domain (entidade
 1. `routes/register.tsx` envía el formulario con `auth-service.register` a `POST /api/v1/users`.
 2. `UserController` → `UserService.registerUser` valida con `PasswordPolicy`, cifra la contraseña (`EncoderConfig`) y guarda el `User`.
 3. `auth-service.login` llama a `POST /api/v1/auth/login`; `AuthController` → `UserLoginService` comprueba las credenciales y `JwtTokenProvider` deja los tokens de acceso y renovación en cookies `HttpOnly`.
-4. En cada petición, `JwtRequestFilter` lee la cookie y autentica al usuario. Las que cambian datos llevan además la cabecera CSRF, que `api-fetch.ts` obtiene de `GET /api/v1/auth/csrf`.
+4. En cada petición, `JwtRequestFilter` lee la cookie, carga la cuenta por id y rechaza el token si su versión ya no es la actual. Las que cambian datos llevan además la cabecera CSRF, que `api-fetch.ts` obtiene de `GET /api/v1/auth/csrf`.
 5. Si el token de acceso caduca, `api-fetch.ts` llama a `POST /api/v1/auth/refresh` y repite la petición. `private-layout.tsx` (`requireUser`) manda a `/login` a quien no tenga sesión.
 
 ### Diseñar y guardar un escenario
@@ -66,11 +66,11 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 
 | Clase | Qué hace | Quién la usa |
 | --- | --- | --- |
-| `UserController` | `POST /api/v1/users` (registro) y `GET /api/v1/users/me`. | Front: `auth-service`. |
+| `UserController` | `POST /api/v1/users` (registro), `GET` y `PATCH /api/v1/users/me`, y `PUT /api/v1/users/me/email` y `/password`. | Front: `auth-service`. |
 | `AuthController` | `login`, `refresh`, `logout` y `csrf` bajo `/api/v1/auth`. | Front: `auth-service`, `api-fetch`. |
 | `UserExceptionHandler` | Convierte usuario repetido y contraseña rechazada en errores 409 y 400. | Spring, ante esas excepciones. |
 | `RegisterUserDTO`, `UserDTO`, `UserMapper` | Datos de registro y de la cuenta visible; rechazan campos desconocidos. | Controladores de `identity`. |
-| `UserService` | Registra usuarios, comprueba duplicados y crea el administrador inicial. | Controladores, `AdminInitializer`, seguridad. |
+| `UserService` | Registra usuarios, edita la cuenta propia, comprueba duplicados y crea el administrador inicial. | Controladores, `AdminInitializer`, seguridad. |
 | `PasswordPolicy` | Exige de 15 a 128 caracteres y rechaza las contraseñas más comunes de una lista incluida. | `UserService`. |
 | `AdminInitializer` | Crea al arrancar el único administrador con las variables `INFRACTURE_ADMIN_*`. | Spring, al iniciar. |
 | `PasswordPolicyException`, `UserAlreadyExistsException` | Errores de registro con su mensaje para el usuario. | `UserService`, `UserExceptionHandler`. |
@@ -83,7 +83,8 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | --- | --- | --- |
 | `SecurityConfig` | La cadena de filtros: rutas públicas, CSRF con cookie, sesión sin estado y filtro JWT. | Spring Security. |
 | `EncoderConfig` | El cifrado de contraseñas con Argon2. | `UserService`, autenticación. |
-| `RepositoryUserDetailsService` | Carga el usuario por correo para Spring Security. | Autenticación. |
+| `RepositoryUserDetailsService` | Carga el usuario por correo en el login y por id y versión desde un token. | Autenticación. |
+| `AuthenticatedUser` | La cuenta autenticada: id, versión de token y correo actual. | Filtro JWT, controladores. |
 | `JwtTokenProvider` | Crea, firma, lee y valida los tokens de acceso y renovación. | `UserLoginService`, `JwtRequestFilter`. |
 | `JwtRequestFilter` | Autentica cada petición con el token de la cookie. | `SecurityConfig`. |
 | `UserLoginService` | Inicia sesión, renueva y cierra, escribiendo o borrando las cookies. | `AuthController`. |
@@ -174,7 +175,7 @@ Rutas relativas a `frontend/app/`. Los ficheros de `features/*/model/` son los t
 | Fichero | Qué hace |
 | --- | --- |
 | `home.tsx`, `component-catalogue.tsx` | Página de inicio y catálogo público de plantillas. |
-| `register.tsx`, `login.tsx`, `logout.tsx`, `account.tsx` | Alta, inicio y cierre de sesión, y la página de la cuenta. |
+| `register.tsx`, `login.tsx`, `logout.tsx`, `account.tsx` | Alta, inicio y cierre de sesión, y la página para ver y editar la cuenta. |
 | `private-layout.tsx` | Envuelve las páginas privadas y exige sesión (`requireUser`). |
 | `projects.tsx`, `new-project.tsx`, `project.tsx` | Lista, alta y detalle editable de proyectos. |
 | `new-scenario.tsx`, `scenario.tsx` | Alta de escenario y el editor; `scenario.tsx` carga todo lo que necesita el lienzo, también la ejecución actual. |

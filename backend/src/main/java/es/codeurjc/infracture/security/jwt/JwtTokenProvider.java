@@ -6,9 +6,9 @@ import java.util.Date;
 
 import javax.crypto.SecretKey;
 
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import es.codeurjc.infracture.security.AuthenticatedUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtParser;
@@ -18,6 +18,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @Component
 public class JwtTokenProvider {
+
+    public static final String VERSION_CLAIM = "ver";
 
     private final SecretKey jwtSecret = Jwts.SIG.HS256.key().build();
     private final Clock clock;
@@ -56,21 +58,22 @@ public class JwtTokenProvider {
         return jwtParser.parseSignedClaims(token).getPayload();
     }
 
-    public String generateAccessToken(UserDetails userDetails) {
-        return buildToken(TokenType.ACCESS, userDetails).compact();
+    public String generateAccessToken(AuthenticatedUser user) {
+        return buildToken(TokenType.ACCESS, user).compact();
     }
 
-    public String generateRefreshToken(UserDetails userDetails) {
-        var token = buildToken(TokenType.REFRESH, userDetails);
+    public String generateRefreshToken(AuthenticatedUser user) {
+        var token = buildToken(TokenType.REFRESH, user);
         return token.compact();
     }
 
-    private JwtBuilder buildToken(TokenType tokenType, UserDetails userDetails) {
+    private JwtBuilder buildToken(TokenType tokenType, AuthenticatedUser user) {
         Instant issuedAt = clock.instant();
         return Jwts.builder()
-                .claim("roles", userDetails.getAuthorities())
+                .claim("roles", user.getAuthorities())
                 .claim("type", tokenType.name())
-                .subject(userDetails.getUsername())
+                .claim(VERSION_CLAIM, user.getTokenVersion())
+                .subject(String.valueOf(user.getId()))
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(issuedAt.plus(tokenType.duration)))
                 .signWith(jwtSecret);

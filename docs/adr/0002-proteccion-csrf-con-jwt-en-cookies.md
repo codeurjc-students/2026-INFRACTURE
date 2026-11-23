@@ -24,7 +24,7 @@ Antes de la primera escritura, el cliente obtendrá la cookie mediante un `GET` 
 | Acceso | `AuthToken` | 5 minutos | Autentica cada petición a la API. |
 | Renovación | `RefreshToken` | 7 días | Obtiene un token de acceso nuevo con `POST /api/v1/auth/refresh`. |
 
-Ambas cookies son `HttpOnly`, usan `Path=/` y su `Max-Age` coincide con la duración del token. El servidor no guarda estado de sesión: valida la firma y la caducidad de cada JWT. La clave de firma se genera al arrancar el backend, por lo que un reinicio invalida todas las sesiones abiertas.
+Ambas cookies son `HttpOnly`, usan `Path=/` y su `Max-Age` coincide con la duración del token. El servidor no guarda estado por sesión: valida la firma y la caducidad de cada JWT, y compara su versión con `users.token_version`. Cambiar el correo o la contraseña sube esa versión, renueva la sesión que hizo el cambio y termina las demás ([ADR 0032](0032-sesiones-por-id-y-version-de-token.md)). La clave de firma se genera al arrancar el backend, por lo que un reinicio invalida todas las sesiones abiertas.
 
 El logout borra las dos cookies, pero no revoca en el servidor copias de tokens todavía vigentes; la revocación queda como [mejora opcional](0007-revocacion-jwt-como-mejora-opcional.md). Con el token de acceso caducado, la API responde `401`. El frontend llama entonces una vez a `POST /api/v1/auth/refresh` y repite la petición; las peticiones que caducan a la vez comparten esa renovación. Si la renovación también falla, lleva a `/login?redirectTo=<página>` y, tras iniciar sesión, vuelve a esa página si pertenece a la aplicación.
 

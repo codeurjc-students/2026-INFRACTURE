@@ -23,3 +23,33 @@ export function logout(): Promise<void> {
 export function getCurrentUser(): Promise<UserDTO> {
   return apiFetch<UserDTO>("/api/v1/users/me");
 }
+
+export function updateProfile(profile: {
+  displayName?: string;
+  username?: string;
+}): Promise<UserDTO> {
+  return apiFetch<UserDTO>("/api/v1/users/me", {
+    method: "PATCH",
+    body: JSON.stringify(profile),
+  });
+}
+
+export function changeEmail(change: {
+  email: string;
+  currentPassword: string;
+}): Promise<UserDTO> {
+  return apiFetch<UserDTO>("/api/v1/users/me/email", {
+    method: "PUT",
+    body: JSON.stringify(change),
+  });
+}
+
+export function changePassword(change: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<UserDTO> {
+  return apiFetch<UserDTO>("/api/v1/users/me/password", {
+    method: "PUT",
+    body: JSON.stringify(change),
+  });
+}
