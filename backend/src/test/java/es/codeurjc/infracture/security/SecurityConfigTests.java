@@ -9,10 +9,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import es.codeurjc.infracture.identity.api.AuthController;
+import es.codeurjc.infracture.identity.domain.User;
+import es.codeurjc.infracture.identity.domain.UserRole;
+import es.codeurjc.infracture.identity.persistence.UserRepository;
 import es.codeurjc.infracture.security.jwt.JwtTokenProvider;
 import es.codeurjc.infracture.security.jwt.UnauthorizedHandlerJwt;
 import es.codeurjc.infracture.security.jwt.UserLoginService;
 import jakarta.servlet.http.Cookie;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
@@ -21,8 +25,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Import({
         SecurityConfig.class,
         EncoderConfig.class,
+        RepositoryUserDetailsService.class,
         JwtTokenProvider.class,
         UnauthorizedHandlerJwt.class,
         UserLoginService.class,
@@ -51,7 +54,15 @@ class SecurityConfigTests {
     private JwtTokenProvider jwtTokenProvider;
 
     @MockitoBean
-    private UserDetailsService userDetailsService;
+    private UserRepository users;
+
+    private User storedAccount(String encodedPassword) {
+        User account = new User("student", encodedPassword, "student@example.com", "Student", UserRole.USER);
+        account.setId(7L);
+        when(users.findByEmailIgnoreCase("student@example.com")).thenReturn(Optional.of(account));
+        when(users.findById(7L)).thenReturn(Optional.of(account));
+        return account;
+    }
 
     @Test
     void keepsCataloguePublic() throws Exception {
@@ -84,11 +95,7 @@ class SecurityConfigTests {
 
     @Test
     void authenticatesWithEncodedPasswordAndIssuedJwtCookie() throws Exception {
-        when(userDetailsService.loadUserByUsername("student@example.com"))
-                .thenReturn(User.withUsername("student@example.com")
-                        .password(passwordEncoder.encode("un bosque con café"))
-                        .roles("USER")
-                        .build());
+        storedAccount(passwordEncoder.encode("un bosque con café"));
 
         Cookie csrfCookie = csrfCookie();
 
@@ -109,14 +116,33 @@ class SecurityConfigTests {
                 .andExpect(content().string("private"));
     }
 
+    // A password change that commits during the login must also end the session of that login.
+    @Test
+    void issuesTheLoginTokenWithTheVersionThatWasCheckedWithThePassword() throws Exception {
+        User checked = storedAccount(passwordEncoder.encode("un bosque con café"));
+        User changedMeanwhile = new User("student", "new-hash", "student@example.com", "Student", UserRole.USER);
+        changedMeanwhile.setId(7L);
+        changedMeanwhile.revokeSessions();
+        when(users.findByEmailIgnoreCase("student@example.com"))
+                .thenReturn(Optional.of(checked), Optional.of(changedMeanwhile));
+        when(users.findById(7L)).thenReturn(Optional.of(changedMeanwhile));
+        Cookie csrfCookie = csrfCookie();
+
+        var response = mvc.perform(post("/api/v1/auth/login")
+                .cookie(csrfCookie)
+                .header("X-XSRF-TOKEN", csrfCookie.getValue())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"student@example.com\",\"password\":\"un bosque con café\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+
+        mvc.perform(get("/api/v1/security-test/private").cookie(response.getCookie("AuthToken")))
+                .andExpect(status().isUnauthorized());
+    }
+
     @Test
     void rejectsLoginOfInactiveAccountWithoutRevealingAccountState() throws Exception {
-        when(userDetailsService.loadUserByUsername("student@example.com"))
-                .thenReturn(User.withUsername("student@example.com")
-                        .password(passwordEncoder.encode("un bosque con café"))
-                        .roles("USER")
-                        .disabled(true)
-                        .build());
+        storedAccount(passwordEncoder.encode("un bosque con café")).setActive(false);
         Cookie csrfCookie = csrfCookie();
 
         mvc.perform(post("/api/v1/auth/login")
@@ -132,14 +158,31 @@ class SecurityConfigTests {
 
     @Test
     void rejectsPreviouslyIssuedTokensWhenAccountBecomesInactive() throws Exception {
-        var activeUser = User.withUsername("student@example.com")
-                .password("stored-password-hash")
-                .roles("USER")
-                .build();
+        User account = storedAccount("stored-password-hash");
+        var activeUser = AuthenticatedUser.from(account);
         String accessToken = jwtTokenProvider.generateAccessToken(activeUser);
         String refreshToken = jwtTokenProvider.generateRefreshToken(activeUser);
-        when(userDetailsService.loadUserByUsername(activeUser.getUsername()))
-                .thenReturn(User.withUserDetails(activeUser).disabled(true).build());
+        account.setActive(false);
+
+        mvc.perform(get("/api/v1/security-test/private")
+                .cookie(new Cookie("AuthToken", accessToken)))
+                .andExpect(status().isUnauthorized());
+
+        Cookie csrfCookie = csrfCookie();
+        mvc.perform(post("/api/v1/auth/refresh")
+                .cookie(csrfCookie, new Cookie("RefreshToken", refreshToken))
+                .header("X-XSRF-TOKEN", csrfCookie.getValue()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(cookie().doesNotExist("AuthToken"));
+    }
+
+    @Test
+    void rejectsPreviouslyIssuedTokensWhenTheVersionChanges() throws Exception {
+        User account = storedAccount("stored-password-hash");
+        var previous = AuthenticatedUser.from(account);
+        String accessToken = jwtTokenProvider.generateAccessToken(previous);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(previous);
+        account.revokeSessions();
 
         mvc.perform(get("/api/v1/security-test/private")
                 .cookie(new Cookie("AuthToken", accessToken)))
@@ -155,8 +198,7 @@ class SecurityConfigTests {
 
     @Test
     void refreshesAccessWithoutAnAccessCookie() throws Exception {
-        var user = User.withUsername("student@example.com").password("stored-hash").roles("USER").build();
-        when(userDetailsService.loadUserByUsername(user.getUsername())).thenReturn(user);
+        var user = AuthenticatedUser.from(storedAccount("stored-hash"));
         Cookie csrfCookie = csrfCookie();
 
         mvc.perform(post("/api/v1/auth/refresh")
@@ -187,8 +229,7 @@ class SecurityConfigTests {
 
     @Test
     void rejectsTokensUsedForTheWrongPurpose() throws Exception {
-        var user = User.withUsername("student@example.com").password("stored-hash").roles("USER").build();
-        when(userDetailsService.loadUserByUsername(user.getUsername())).thenReturn(user);
+        var user = AuthenticatedUser.from(storedAccount("stored-hash"));
         Cookie csrfCookie = csrfCookie();
 
         mvc.perform(post("/api/v1/auth/refresh")

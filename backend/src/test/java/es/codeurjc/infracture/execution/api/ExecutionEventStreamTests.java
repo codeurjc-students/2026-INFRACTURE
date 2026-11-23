@@ -3,8 +3,8 @@ package es.codeurjc.infracture.execution.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -43,6 +43,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 class ExecutionEventStreamTests {
 
     private static final String OWNER = "alice@example.com";
+    private static final Long OWNER_ID = 7L;
+    private static final int VERSION = 3;
     private static final UUID ORDERS = UUID.fromString("3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10");
     private static final Instant NOW = Instant.parse("2026-11-21T10:00:00Z");
     private static final Instant TOKEN_EXPIRES = NOW.plusSeconds(300);
@@ -72,12 +74,12 @@ class ExecutionEventStreamTests {
 
     @Test
     void sendsTheEventsInOrderAndEndsOnceTheExecutionIsReleased() {
-        when(feed.next(OWNER, 12L, 0)).thenReturn(new Batch(List.of(
+        when(feed.next(OWNER_ID, VERSION, 12L, 0)).thenReturn(new Batch(List.of(
                 event(1, ExecutionEvent.event(12L, null, "PHASE", Map.of("phase", "STARTING"), NOW)),
                 event(2, ExecutionEvent.state(12L, ORDERS, "HEALTHY", NOW))), false, true));
-        when(feed.next(OWNER, 12L, 2)).thenReturn(new Batch(List.of(), true, true));
+        when(feed.next(OWNER_ID, VERSION, 12L, 2)).thenReturn(new Batch(List.of(), true, true));
 
-        stream.send(emitter, OWNER, view, null, TOKEN_EXPIRES, () -> false);
+        stream.send(emitter, OWNER_ID, VERSION, view, null, TOKEN_EXPIRES, () -> false);
 
         assertThat(emitter.messages).containsExactly(
                 "id:1|event:event|{id=1, executionId=12, componentKey=null, kind=EVENT, at=" + NOW
@@ -91,12 +93,12 @@ class ExecutionEventStreamTests {
     void endsRightAfterTheLastEventsOfAReleasedExecutionWithoutWaiting() {
         ExecutionEventStream slow = new ExecutionEventStream(feed, signal, new ExecutionMapperImpl(), clock,
                 Duration.ofHours(1), Duration.ofHours(1));
-        when(feed.next(OWNER, 12L, 0)).thenReturn(new Batch(List.of(
+        when(feed.next(OWNER_ID, VERSION, 12L, 0)).thenReturn(new Batch(List.of(
                 event(3, ExecutionEvent.event(12L, null, "PHASE", Map.of("phase", "RELEASED"), NOW))), true, true));
-        when(feed.next(OWNER, 12L, 3)).thenReturn(new Batch(List.of(), true, true));
+        when(feed.next(OWNER_ID, VERSION, 12L, 3)).thenReturn(new Batch(List.of(), true, true));
 
         assertTimeoutPreemptively(Duration.ofSeconds(5),
-                () -> slow.send(emitter, OWNER, view, null, TOKEN_EXPIRES, () -> false));
+                () -> slow.send(emitter, OWNER_ID, VERSION, view, null, TOKEN_EXPIRES, () -> false));
 
         assertThat(emitter.messages).hasSize(1);
         assertThat(emitter.completed).isTrue();
@@ -106,10 +108,10 @@ class ExecutionEventStreamTests {
     void endsAWaitingStreamWhenTheBackendShutsDown() throws InterruptedException {
         ExecutionEventStream slow = new ExecutionEventStream(feed, signal, new ExecutionMapperImpl(), clock,
                 Duration.ofHours(1), Duration.ofHours(1));
-        when(feed.next(OWNER, 12L, 0)).thenReturn(new Batch(List.of(), false, true));
+        when(feed.next(OWNER_ID, VERSION, 12L, 0)).thenReturn(new Batch(List.of(), false, true));
         Thread sending = Thread.ofVirtual().start(
-                () -> slow.send(emitter, OWNER, view, null, TOKEN_EXPIRES, () -> false));
-        verify(feed, timeout(5000)).next(OWNER, 12L, 0);
+                () -> slow.send(emitter, OWNER_ID, VERSION, view, null, TOKEN_EXPIRES, () -> false));
+        verify(feed, timeout(5000)).next(OWNER_ID, VERSION, 12L, 0);
 
         slow.close();
 
@@ -120,21 +122,21 @@ class ExecutionEventStreamTests {
     @Test
     void resumesAfterTheCursorItWasGiven() {
         when(feed.isKnown(12L, 7)).thenReturn(true);
-        when(feed.next(OWNER, 12L, 7)).thenReturn(new Batch(List.of(), true, true));
+        when(feed.next(OWNER_ID, VERSION, 12L, 7)).thenReturn(new Batch(List.of(), true, true));
 
-        stream.send(emitter, OWNER, view, 7L, TOKEN_EXPIRES, () -> false);
+        stream.send(emitter, OWNER_ID, VERSION, view, 7L, TOKEN_EXPIRES, () -> false);
 
         assertThat(emitter.messages).isEmpty();
-        verify(feed, never()).next(OWNER, 12L, 0);
+        verify(feed, never()).next(OWNER_ID, VERSION, 12L, 0);
     }
 
     @Test
     void sendsTheWholeStateWhenTheCursorIsGoneAndContinuesFromTheNewestEvent() {
         when(feed.isKnown(12L, 99)).thenReturn(false);
         when(feed.latest(12L)).thenReturn(40L);
-        when(feed.next(OWNER, 12L, 40)).thenReturn(new Batch(List.of(), true, true));
+        when(feed.next(OWNER_ID, VERSION, 12L, 40)).thenReturn(new Batch(List.of(), true, true));
 
-        stream.send(emitter, OWNER, view, 99L, TOKEN_EXPIRES, () -> false);
+        stream.send(emitter, OWNER_ID, VERSION, view, 99L, TOKEN_EXPIRES, () -> false);
 
         assertThat(emitter.messages).singleElement().asString()
                 .startsWith("event:reset|ExecutionDTO[id=12, scenarioId=null, scenarioRevision=2, phase=RESERVED");
@@ -145,18 +147,18 @@ class ExecutionEventStreamTests {
         when(feed.isKnown(12L, 5)).thenReturn(true);
         clock.advance(Duration.ofSeconds(300));
 
-        stream.send(emitter, OWNER, view, 5L, TOKEN_EXPIRES, () -> false);
+        stream.send(emitter, OWNER_ID, VERSION, view, 5L, TOKEN_EXPIRES, () -> false);
 
         assertThat(emitter.messages).containsExactly("event:renew|{after=5}");
         assertThat(emitter.completed).isTrue();
-        verify(feed, never()).next(anyString(), anyLong(), anyLong());
+        verify(feed, never()).next(anyLong(), anyInt(), anyLong(), anyLong());
     }
 
     @Test
     void endsWhenTheAccountIsNoLongerActive() {
-        when(feed.next(OWNER, 12L, 0)).thenReturn(new Batch(List.of(), false, false));
+        when(feed.next(OWNER_ID, VERSION, 12L, 0)).thenReturn(new Batch(List.of(), false, false));
 
-        stream.send(emitter, OWNER, view, null, TOKEN_EXPIRES, () -> false);
+        stream.send(emitter, OWNER_ID, VERSION, view, null, TOKEN_EXPIRES, () -> false);
 
         assertThat(emitter.messages).isEmpty();
         assertThat(emitter.completed).isTrue();
@@ -164,7 +166,7 @@ class ExecutionEventStreamTests {
 
     @Test
     void keepsAQuietStreamAliveWithAComment() {
-        when(feed.next(OWNER, 12L, 0))
+        when(feed.next(OWNER_ID, VERSION, 12L, 0))
                 .thenAnswer(invocation -> {
                     clock.advance(Duration.ofSeconds(16));
                     return new Batch(List.of(), false, true);
@@ -172,28 +174,28 @@ class ExecutionEventStreamTests {
                 .thenReturn(new Batch(List.of(), false, true))
                 .thenReturn(new Batch(List.of(), true, true));
 
-        stream.send(emitter, OWNER, view, null, TOKEN_EXPIRES, () -> false);
+        stream.send(emitter, OWNER_ID, VERSION, view, null, TOKEN_EXPIRES, () -> false);
 
         assertThat(emitter.messages).containsExactly(":keep-alive");
     }
 
     @Test
     void stopsSendingWhenTheTabGoesAway() {
-        when(feed.next(eq(OWNER), eq(12L), anyLong()))
+        when(feed.next(eq(OWNER_ID), eq(VERSION), eq(12L), anyLong()))
                 .thenReturn(new Batch(List.of(event(1, ExecutionEvent.state(12L, ORDERS, "HEALTHY", NOW))),
                         false, true));
         emitter.failure = new IOException("Broken pipe");
 
-        stream.send(emitter, OWNER, view, null, TOKEN_EXPIRES, () -> false);
+        stream.send(emitter, OWNER_ID, VERSION, view, null, TOKEN_EXPIRES, () -> false);
 
         assertThat(emitter.completed).isFalse();
     }
 
     @Test
     void endsTheStreamWhenTheDatabaseCannotAnswerSoTheBrowserReconnects() {
-        when(feed.next(OWNER, 12L, 0)).thenThrow(new QueryTimeoutException("statement timeout"));
+        when(feed.next(OWNER_ID, VERSION, 12L, 0)).thenThrow(new QueryTimeoutException("statement timeout"));
 
-        stream.send(emitter, OWNER, view, null, TOKEN_EXPIRES, () -> false);
+        stream.send(emitter, OWNER_ID, VERSION, view, null, TOKEN_EXPIRES, () -> false);
 
         assertThat(emitter.messages).isEmpty();
         assertThat(emitter.completed).isTrue();
@@ -201,18 +203,18 @@ class ExecutionEventStreamTests {
 
     @Test
     void refusesASixthStreamOfTheSameAccount() {
-        when(feed.next(anyString(), eq(12L), anyLong())).thenReturn(new Batch(List.of(), false, true));
+        when(feed.next(anyLong(), anyInt(), eq(12L), anyLong())).thenReturn(new Batch(List.of(), false, true));
         ExecutionEventStream slow =
                 new ExecutionEventStream(feed, signal, new ExecutionMapperImpl(), clock, Duration.ofSeconds(1),
                         Duration.ofSeconds(15));
         List<SseEmitter> open = new ArrayList<>();
         for (int tab = 0; tab < ExecutionEventStream.MAX_STREAMS_PER_USER; tab++) {
-            open.add(slow.open(OWNER, view, null, TOKEN_EXPIRES));
+            open.add(slow.open(OWNER_ID, VERSION, view, null, TOKEN_EXPIRES));
         }
 
-        assertThatThrownBy(() -> slow.open(OWNER, view, null, TOKEN_EXPIRES))
+        assertThatThrownBy(() -> slow.open(OWNER_ID, VERSION, view, null, TOKEN_EXPIRES))
                 .isInstanceOf(TooManyStreamsException.class);
-        assertThat(slow.open("bob@example.com", view, null, TOKEN_EXPIRES)).isNotNull();
+        assertThat(slow.open(8L, 0, view, null, TOKEN_EXPIRES)).isNotNull();
         open.forEach(SseEmitter::complete);
     }
 

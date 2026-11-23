@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  changeEmail,
+  changePassword,
   getCurrentUser,
   login,
   logout,
   register,
+  updateProfile,
 } from "~/features/auth/api/auth-service";
 import type { UserDTO } from "~/features/auth/model/UserDTO";
 
@@ -101,5 +104,28 @@ describe("auth service", () => {
       path: "/api/v1/users/me",
       method: "GET",
     });
+  });
+
+  it.each([
+    ["PATCH", "/api/v1/users/me", () => updateProfile({ displayName: "Alice" }), { displayName: "Alice" }],
+    [
+      "PUT",
+      "/api/v1/users/me/email",
+      () => changeEmail({ email: "new@example.com", currentPassword: "secret" }),
+      { email: "new@example.com", currentPassword: "secret" },
+    ],
+    [
+      "PUT",
+      "/api/v1/users/me/password",
+      () => changePassword({ currentPassword: "secret", newPassword: "new secret" }),
+      { currentPassword: "secret", newPassword: "new secret" },
+    ],
+  ] as const)("sends the owner edit %s %s", async (method, path, save, body) => {
+    const fetch = vi.fn().mockResolvedValue(Response.json(user));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(save()).resolves.toEqual(user);
+
+    expect(requestOf(fetch)).toEqual({ path, method, body: JSON.stringify(body) });
   });
 });

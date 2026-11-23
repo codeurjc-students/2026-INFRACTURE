@@ -48,6 +48,10 @@ public class User {
     private boolean active;
     private String avatarKey;
 
+    // Part of every session token: raising it ends the sessions issued before.
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -146,6 +150,14 @@ public class User {
 
     public void setAvatarKey(String avatarKey) {
         this.avatarKey = avatarKey;
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void revokeSessions() {
+        tokenVersion++;
     }
 
     public Instant getCreatedAt() {

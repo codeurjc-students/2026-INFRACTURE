@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { getCurrentUser } from "~/features/auth/api/auth-service";
+import { getCurrentUser, login, logout } from "~/features/auth/api/auth-service";
 import { requireUser } from "~/features/auth/session";
+import { clientAction as accountAction } from "~/routes/account";
 import { clientAction as loginAction } from "~/routes/login";
 import { clientAction as logoutAction } from "~/routes/logout";
 import { clientAction as registerAction } from "~/routes/register";
@@ -100,5 +101,88 @@ describe("auth client against the real API", () => {
       .catch((thrown) => thrown);
 
     expect(redirect.headers.get("Location")).toBe("/login?redirectTo=%2Faccount");
+  });
+
+  describe("account editing", () => {
+    const newPassword = "Another integration password 2027!";
+    const changedEmail = `changed.${account.email}`;
+
+    // The previous test leaves a rejected session behind.
+    beforeAll(() => login(account.email, account.password));
+
+    it("saves the profile through the real API", async () => {
+      await expect(accountAction(submit("/account", {
+        intent: "profile",
+        displayName: "Renamed User",
+        username: `${account.username}_2`,
+      }) as never)).resolves.toEqual({ saved: true });
+
+      await expect(getCurrentUser()).resolves.toMatchObject({
+        displayName: "Renamed User",
+        username: `${account.username}_2`,
+      });
+    });
+
+    it("represents a wrong current password and a taken email", async () => {
+      await expect(accountAction(submit("/account", {
+        intent: "email",
+        email: changedEmail,
+        currentPassword: "Wrong integration password 2026!",
+      }) as never)).resolves.toEqual({ error: "Current password is incorrect" });
+
+      const other = `other_${suffix}`;
+      await logout();
+      await registerAction(submit("/register", {
+        ...account,
+        username: other,
+        email: `${other}@example.test`,
+      }) as never);
+      await expect(accountAction(submit("/account", {
+        intent: "email",
+        email: account.email,
+        currentPassword: account.password,
+      }) as never)).resolves.toEqual({ error: "Email is already in use" });
+      await logout();
+      await login(account.email, account.password);
+    });
+
+    it("changes the email and password and keeps this session", async () => {
+      await expect(accountAction(submit("/account", {
+        intent: "email",
+        email: changedEmail,
+        currentPassword: account.password,
+      }) as never)).resolves.toEqual({ saved: true });
+      await expect(getCurrentUser()).resolves.toMatchObject({ email: changedEmail });
+
+      await expect(accountAction(submit("/account", {
+        intent: "password",
+        currentPassword: account.password,
+        newPassword,
+      }) as never)).resolves.toEqual({ saved: true });
+      await expect(getCurrentUser()).resolves.toMatchObject({ email: changedEmail });
+
+      await logout();
+      await expect(login(changedEmail, account.password)).rejects.toMatchObject({ status: 401 });
+      await login(changedEmail, newPassword);
+      await expect(getCurrentUser()).resolves.toMatchObject({ email: changedEmail });
+    });
+
+    it("sends a session the API revoked to the login", async () => {
+      const revoked = ["AuthToken", "RefreshToken"].map((name) => [name, cookies.get(name)!] as const);
+      await expect(accountAction(submit("/account", {
+        intent: "password",
+        currentPassword: newPassword,
+        newPassword: `${newPassword}x`,
+      }) as never)).resolves.toEqual({ saved: true });
+      revoked.forEach(([name, value]) => cookies.set(name, value));
+
+      const denied = await accountAction(submit("/account", {
+        intent: "profile",
+        displayName: "Not Saved",
+      }) as never).catch((response: unknown) => response);
+
+      expect(denied).toBeInstanceOf(Response);
+      expect((denied as Response).headers.get("Location")).toBe("/login?redirectTo=%2Faccount");
+    });
   });
 });

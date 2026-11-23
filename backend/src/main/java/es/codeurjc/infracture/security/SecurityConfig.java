@@ -47,7 +47,7 @@ public class SecurityConfig {
     public SecurityFilterChain apiFilterChain(
             HttpSecurity http,
             DaoAuthenticationProvider authenticationProvider,
-            UserDetailsService userDetailsService,
+            RepositoryUserDetailsService userDetailsService,
             JwtTokenProvider jwtTokenProvider,
             UnauthorizedHandlerJwt unauthorizedHandlerJwt,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) throws Exception {

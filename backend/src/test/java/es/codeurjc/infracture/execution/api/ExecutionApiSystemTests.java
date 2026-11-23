@@ -370,6 +370,33 @@ class ExecutionApiSystemTests {
     }
 
     @Test
+    void endsAnOpenStreamWhenThePasswordChangeRevokesItsSession() throws Exception {
+        ApiSession alice = ApiSession.signUp(port);
+        String scenario = statelessScenario(alice);
+        long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
+                .extract().jsonPath().getLong("id");
+        HttpRequest request = HttpRequest.newBuilder(
+                URI.create("http://localhost:" + port + scenario + "/executions/" + id + "/events"))
+                .header("Accept", "text/event-stream").header("Cookie", alice.cookieHeader()).build();
+
+        try (HttpClient client = HttpClient.newHttpClient();
+                Stream<String> body = client.send(request, BodyHandlers.ofLines()).body()) {
+            Iterator<String> lines = body.iterator();
+            assertTimeoutPreemptively(Duration.ofSeconds(10), () -> readUntil(lines, "\"phase\":\"RESERVED\""));
+            alice.write().body("""
+                    {"currentPassword":"A secure integration password 2026!",
+                     "newPassword":"Another secure password 2027!"}
+                    """).put("/api/v1/users/me/password").then().statusCode(200);
+            // The stop event wakes the stream, whose next read finds the session revoked.
+            alice.write().post(scenario + "/executions/" + id + "/stop").then().statusCode(202);
+
+            List<String> rest = new ArrayList<>();
+            assertTimeoutPreemptively(Duration.ofSeconds(10), () -> lines.forEachRemaining(rest::add));
+            assertThat(rest).noneMatch(line -> line.contains("STOP_REQUESTED"));
+        }
+    }
+
+    @Test
     void hidesStopFromOtherUsers() {
         ApiSession alice = ApiSession.signUp(port);
         ApiSession bob = ApiSession.signUp(port);

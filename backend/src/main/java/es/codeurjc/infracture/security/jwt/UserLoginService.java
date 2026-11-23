@@ -8,15 +8,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
-import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
+import es.codeurjc.infracture.security.AuthenticatedUser;
+import es.codeurjc.infracture.security.RepositoryUserDetailsService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -24,10 +23,11 @@ import jakarta.servlet.http.HttpServletResponse;
 public class UserLoginService {
 
     private final AuthenticationManager authenticationManager;
-    private final UserDetailsService userDetailsService;
+    private final RepositoryUserDetailsService userDetailsService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    public UserLoginService(AuthenticationManager authenticationManager, UserDetailsService userDetailsService,
+    public UserLoginService(AuthenticationManager authenticationManager,
+            RepositoryUserDetailsService userDetailsService,
             JwtTokenProvider jwtTokenProvider) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
@@ -50,19 +50,19 @@ public class UserLoginService {
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        String username = loginRequest.email();
-        UserDetails user = userDetailsService.loadUserByUsername(username);
+        // The account as it was when the password was checked, so a change made meanwhile also ends this session.
+        issueSession(response, (AuthenticatedUser) authentication.getPrincipal());
 
         HttpHeaders responseHeaders = new HttpHeaders();
-        var newAccessToken = jwtTokenProvider.generateAccessToken(user);
-        var newRefreshToken = jwtTokenProvider.generateRefreshToken(user);
-
-        response.addCookie(buildTokenCookie(TokenType.ACCESS, newAccessToken));
-        response.addCookie(buildTokenCookie(TokenType.REFRESH, newRefreshToken));
-
         AuthResponse loginResponse = new AuthResponse(AuthResponse.Status.SUCCESS,
                 "Auth successful. Tokens are created in cookie.");
         return ResponseEntity.ok().headers(responseHeaders).body(loginResponse);
+    }
+
+    // Sets new access and refresh cookies, for a login or for the session that changed its credentials.
+    public void issueSession(HttpServletResponse response, AuthenticatedUser user) {
+        response.addCookie(buildTokenCookie(TokenType.ACCESS, jwtTokenProvider.generateAccessToken(user)));
+        response.addCookie(buildTokenCookie(TokenType.REFRESH, jwtTokenProvider.generateRefreshToken(user)));
     }
 
     public ResponseEntity<AuthResponse> refresh(HttpServletResponse response, String refreshToken) {
@@ -71,8 +71,7 @@ public class UserLoginService {
             if (!TokenType.REFRESH.name().equals(claims.get("type", String.class))) {
                 throw new BadCredentialsException("Invalid refresh token type");
             }
-            UserDetails user = userDetailsService.loadUserByUsername(claims.getSubject());
-            new AccountStatusUserDetailsChecker().check(user);
+            AuthenticatedUser user = userDetailsService.loadSession(claims);
 
             var newAccessToken = jwtTokenProvider.generateAccessToken(user);
             response.addCookie(buildTokenCookie(TokenType.ACCESS, newAccessToken));
