@@ -39,7 +39,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         try {
-            var claims = jwtTokenProvider.validateToken(request, true);
+            var claims = jwtTokenProvider.validateToken(request);
             if (!TokenType.ACCESS.name().equals(claims.get("type", String.class))) {
                 throw new BadCredentialsException("Invalid access token type");
             }

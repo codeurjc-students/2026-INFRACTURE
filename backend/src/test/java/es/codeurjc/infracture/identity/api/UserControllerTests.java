@@ -2,7 +2,7 @@ package es.codeurjc.infracture.identity.api;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -96,12 +96,10 @@ class UserControllerTests {
     @Test
     void registersWithoutAuthenticationAndReturnsAccountWithoutPassword() throws Exception {
         Instant createdAt = Instant.parse("2026-10-17T10:00:00Z");
-        when(userService.registerUser(any(User.class))).thenAnswer(invocation -> {
-            User user = invocation.getArgument(0);
+        when(userService.registerUser(anyString(), anyString(), anyString(), anyString())).thenAnswer(invocation -> {
+            User user = new User(invocation.getArgument(0), "stored-password-hash", invocation.getArgument(2),
+                    invocation.getArgument(1), UserRole.USER);
             user.setId(1L);
-            user.setEncodedPassword("stored-password-hash");
-            user.setRole(UserRole.USER);
-            user.setActive(true);
             ReflectionTestUtils.setField(user, "createdAt", createdAt);
             ReflectionTestUtils.setField(user, "updatedAt", createdAt);
             return user;
@@ -125,7 +123,7 @@ class UserControllerTests {
     @ParameterizedTest
     @MethodSource("registrationFailures")
     void translatesExpectedRegistrationFailures(RuntimeException failure, int expectedStatus) throws Exception {
-        when(userService.registerUser(any(User.class))).thenThrow(failure);
+        when(userService.registerUser(anyString(), anyString(), anyString(), anyString())).thenThrow(failure);
 
         mvc.perform(registrationRequest())
                 .andExpect(status().is(expectedStatus))
@@ -152,7 +150,7 @@ class UserControllerTests {
 
     @Test
     void hidesUnexpectedFailuresBehindGenericProblemDetail() throws Exception {
-        when(userService.registerUser(any(User.class)))
+        when(userService.registerUser(anyString(), anyString(), anyString(), anyString()))
                 .thenThrow(new DataAccessResourceFailureException("Database unavailable"));
 
         mvc.perform(registrationRequest())

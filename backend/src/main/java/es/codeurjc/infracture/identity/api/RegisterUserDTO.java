@@ -12,4 +12,9 @@ public record RegisterUserDTO(
     public void rejectUnknownField(String name, Object value) {
         throw new IllegalArgumentException("Unexpected registration field: " + name);
     }
+
+    @Override
+    public String toString() {
+        return "RegisterUserDTO[username=" + username + ", displayName=" + displayName + ", email=" + email + "]";
+    }
 }

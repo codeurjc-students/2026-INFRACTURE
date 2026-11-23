@@ -747,6 +747,14 @@ Los identificadores históricos conservados no se renumeran al agrupar o retirar
 - **Resultado y evidencia:** el reformateo, repetido sobre `main` después de #92, cambia 47 de 172 ficheros Java (644 líneas añadidas y 592 borradas), casi siempre la sangría de continuación de 4 a 8 espacios y líneas de más de 120 columnas. El formateador de jdtls (jdt.core 3.48) y el de Spotless (Eclipse 4.41, jdt.core 3.47) dan un resultado idéntico, y un segundo formateo no cambia nada. Tras el reformateo, `./mvnw verify` pasó 381 pruebas, la puerta de cobertura y `spotless:check`.
 - **Revisión del alumno y límites:** pendiente de la revisión del alumno y de comprobar en Zed que guardar da el mismo resultado que `spotless:apply`. El formato de jdtls y el de Spotless se compararon en la primera versión de la rama, antes de rehacerla sobre #92.
 
+## AI-2026-11-23-079 - Contraseñas fuera de la entidad User
+
+- **Fecha o periodo y fase:** 23 de noviembre de 2026; Fase 3.
+- **Objetivo y contexto:** corregir el candidato 11 de la revisión de arquitectura: la contraseña en claro viajaba en `User.encodedPassword` hasta calcular el hash, los datos de login y registro la mostraban en su `toString()` y un error del token podía repetir la cabecera `Authorization`.
+- **Aportación de IA:** Claude Code comprobó el hallazgo sobre `main` y detectó que `RegisterUserDTO`, ya `record`, tenía el mismo fallo. Cambió `UserService` para recibir los campos sueltos y dar a `User` solo el hash, convirtió `LoginRequest` y `AuthResponse` en `record`, ocultó la contraseña en el texto de los DTO y eliminó la lectura del token por cabecera.
+- **Resultado y evidencia:** `LoginRequestTests` y `RegisterUserDTOTests` fallaron antes del cambio y pasan después. `./mvnw verify` pasó 383 pruebas, la puerta de cobertura y `spotless:check`. El contrato OpenAPI regenerado es equivalente al anterior.
+- **Revisión del alumno y límites:** el alumno revisó el nuevo registro y el motivo de los `record`, y decidió mantener `AuthResponse` como `record` aunque es solo limpieza. El campo `error` sin uso se conserva para no cambiar la API.
+
 ## Plantilla para nuevas entradas
 
 Usar solo para una finalidad nueva que cumpla el criterio de registro; para una continuación, actualizar el tema existente.

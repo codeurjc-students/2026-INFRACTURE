@@ -62,8 +62,8 @@ class AdminInitializerIntegrationTests {
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .hasMessageContaining("uk_users_single_admin");
 
-        User ordinary = userService.registerUser(new User("ordinary", "A secure user password 2026!",
-                "ordinary@example.com", "Ordinary User", UserRole.ADMIN));
+        User ordinary = userService.registerUser("ordinary", "Ordinary User", "ordinary@example.com",
+                "A secure user password 2026!");
 
         assertThat(ordinary.getRole()).isEqualTo(UserRole.USER);
         assertThat(repository.existsByRole(UserRole.ADMIN)).isTrue();

@@ -36,21 +36,21 @@ public class UserLoginService {
 
     public ResponseEntity<AuthResponse> login(HttpServletResponse response, LoginRequest loginRequest) {
 
-        String password = loginRequest.getPassword();
+        String password = loginRequest.password();
         if (password != null) {
             password = Normalizer.normalize(password, Normalizer.Form.NFC);
         }
         Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), password));
+                    new UsernamePasswordAuthenticationToken(loginRequest.email(), password));
         } catch (AuthenticationException exception) {
             throw new BadCredentialsException("Invalid email or password", exception);
         }
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        String username = loginRequest.getEmail();
+        String username = loginRequest.email();
         UserDetails user = userDetailsService.loadUserByUsername(username);
 
         HttpHeaders responseHeaders = new HttpHeaders();
