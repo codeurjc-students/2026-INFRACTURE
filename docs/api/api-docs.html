@@ -236,8 +236,11 @@ font-style: italic;
   <ul>
   <li><a href="#changeEmail"><code><span class="http-method">put</span> /api/v1/users/me/email</code></a></li>
   <li><a href="#changePassword"><code><span class="http-method">put</span> /api/v1/users/me/password</code></a></li>
+  <li><a href="#getAvatar"><code><span class="http-method">get</span> /api/v1/users/me/avatar</code></a></li>
   <li><a href="#getUserLogged"><code><span class="http-method">get</span> /api/v1/users/me</code></a></li>
   <li><a href="#registerUser"><code><span class="http-method">post</span> /api/v1/users</code></a></li>
+  <li><a href="#removeAvatar"><code><span class="http-method">delete</span> /api/v1/users/me/avatar</code></a></li>
+  <li><a href="#replaceAvatar"><code><span class="http-method">put</span> /api/v1/users/me/avatar</code></a></li>
   <li><a href="#updateProfile"><code><span class="http-method">patch</span> /api/v1/users/me</code></a></li>
   </ul>
   <h4><a href="#WorkloadProfileController">WorkloadProfileController</a></h4>
@@ -286,6 +289,9 @@ font-style: italic;
     <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
 
     <h3 class="field-label">Produces</h3>
     This API call produces the following media types according to the <span class="header">Accept</span> request header;
@@ -301,14 +307,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -318,6 +321,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -382,6 +391,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "message" : "message",
@@ -404,14 +416,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -421,6 +430,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -467,6 +482,9 @@ font-style: italic;
     <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
 
     <h3 class="field-label">Produces</h3>
     This API call produces the following media types according to the <span class="header">Accept</span> request header;
@@ -482,14 +500,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -499,6 +514,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -551,6 +572,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "message" : "message",
@@ -573,14 +597,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -590,6 +611,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -630,6 +657,9 @@ font-style: italic;
 
     <!--Todo: process Response Object and its headers, schema, examples -->
 
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
@@ -809,14 +839,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -826,6 +853,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -902,6 +935,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: text/event-stream</div>
     <pre class="example"><code>Custom MIME type example not yet supported: text/event-stream</code></pre>
 
@@ -920,14 +956,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -937,6 +970,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -972,6 +1011,9 @@ font-style: italic;
 
     <!--Todo: process Response Object and its headers, schema, examples -->
 
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
@@ -1065,14 +1107,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1082,6 +1121,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1154,6 +1199,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "phase" : "RESERVED",
@@ -1222,14 +1270,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1239,6 +1284,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1301,6 +1352,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "phase" : "RESERVED",
@@ -1369,14 +1423,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1386,6 +1437,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1461,6 +1518,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "components" : [ {
@@ -1511,14 +1571,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1528,6 +1585,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1593,6 +1656,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
@@ -1617,14 +1683,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1634,6 +1697,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1692,6 +1761,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
@@ -1716,14 +1788,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1733,6 +1802,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1768,6 +1843,9 @@ font-style: italic;
 
     <!--Todo: process Response Object and its headers, schema, examples -->
 
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
@@ -1831,14 +1909,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1848,6 +1923,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -1918,6 +1999,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
@@ -1942,14 +2026,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -1959,6 +2040,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -2030,6 +2117,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
@@ -2055,14 +2145,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -2072,6 +2159,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -2107,6 +2200,9 @@ font-style: italic;
 
     <!--Todo: process Response Object and its headers, schema, examples -->
 
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
@@ -2215,14 +2311,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -2232,6 +2325,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -2292,6 +2391,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
@@ -2317,14 +2419,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -2334,6 +2433,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -2400,6 +2505,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "page" : {
@@ -2440,14 +2548,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -2457,6 +2562,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -2529,6 +2640,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "components" : [ {
@@ -2612,14 +2726,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -2629,6 +2740,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -2701,6 +2818,9 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
@@ -2726,14 +2846,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -2743,6 +2860,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -2808,11 +2931,14 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
   "role" : "USER",
-  "avatarKey" : "avatarKey",
+  "avatarUrl" : "avatarUrl",
   "displayName" : "displayName",
   "active" : true,
   "id" : 0,
@@ -2836,14 +2962,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -2853,6 +2976,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -2917,11 +3046,14 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
   "role" : "USER",
-  "avatarKey" : "avatarKey",
+  "avatarUrl" : "avatarUrl",
   "displayName" : "displayName",
   "active" : true,
   "id" : 0,
@@ -2945,14 +3077,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -2963,9 +3092,111 @@ font-style: italic;
     <h4 class="field-label">500</h4>
     Internal Server Error
         <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
         <a href="#UserDTO">UserDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="getAvatar"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/users/me/avatar</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getAvatar</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+    <h3 class="field-label">Query parameters</h3>
+    <div class="field-items">
+      <div class="param">v (optional)</div>
+
+      <div class="param-desc"><span class="param-type">Query Parameter</span> &mdash;  default: null </div>
+    </div>  <!-- field-items -->
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+
+      byte[]
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">429</h4>
+    Too Many Requests
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#byte[]">byte[]</a>
   </div> <!-- method -->
   <hr/>
   <div class="method"><a name="getUserLogged"/>
@@ -3014,11 +3245,14 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
   "role" : "USER",
-  "avatarKey" : "avatarKey",
+  "avatarUrl" : "avatarUrl",
   "displayName" : "displayName",
   "active" : true,
   "id" : 0,
@@ -3042,14 +3276,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -3059,6 +3290,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -3123,11 +3360,14 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
   "role" : "USER",
-  "avatarKey" : "avatarKey",
+  "avatarUrl" : "avatarUrl",
   "displayName" : "displayName",
   "active" : true,
   "id" : 0,
@@ -3151,14 +3391,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -3168,6 +3405,229 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#UserDTO">UserDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="removeAvatar"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="delete"><code class="huge"><span class="http-method">delete</span> /api/v1/users/me/avatar</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">removeAvatar</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#UserDTO">UserDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "role" : "USER",
+  "avatarUrl" : "avatarUrl",
+  "displayName" : "displayName",
+  "active" : true,
+  "id" : 0,
+  "email" : "email",
+  "username" : "username",
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">429</h4>
+    Too Many Requests
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#UserDTO">UserDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="replaceAvatar"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="put"><code class="huge"><span class="http-method">put</span> /api/v1/users/me/avatar</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">replaceAvatar</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>multipart/form-data</code></li>
+    </ul>
+
+
+
+
+    <h3 class="field-label">Form parameters</h3>
+    <div class="field-items">
+      <div class="param">file (required)</div>
+
+      <div class="param-desc"><span class="param-type">Form Parameter</span> &mdash;  default: null format: binary</div>
+    </div>  <!-- field-items -->
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#UserDTO">UserDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "createdAt" : "2000-01-23T04:56:07.000+00:00",
+  "role" : "USER",
+  "avatarUrl" : "avatarUrl",
+  "displayName" : "displayName",
+  "active" : true,
+  "id" : 0,
+  "email" : "email",
+  "username" : "username",
+  "updatedAt" : "2000-01-23T04:56:07.000+00:00"
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">429</h4>
+    Too Many Requests
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -3232,11 +3692,14 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "createdAt" : "2000-01-23T04:56:07.000+00:00",
   "role" : "USER",
-  "avatarKey" : "avatarKey",
+  "avatarUrl" : "avatarUrl",
   "displayName" : "displayName",
   "active" : true,
   "id" : 0,
@@ -3260,14 +3723,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -3277,6 +3737,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -3305,6 +3771,9 @@ font-style: italic;
 
     <!--Todo: process Response Object and its headers, schema, examples -->
 
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
     <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: application/problem+json</div>
     <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
@@ -3388,14 +3857,11 @@ font-style: italic;
     <h4 class="field-label">422</h4>
     Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">400</h4>
-    Bad Request
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">409</h4>
     Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">401</h4>
-    Unauthorized
+    <h4 class="field-label">400</h4>
+    Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">404</h4>
     Not Found
@@ -3405,6 +3871,12 @@ font-style: italic;
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">500</h4>
     Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">503</h4>
+    Service Unavailable
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">200</h4>
     OK
@@ -3870,7 +4342,7 @@ font-style: italic;
         <div class="param-enum-header">Enum:</div>
         <div class="param-enum">USER</div><div class="param-enum">ADMIN</div>
 <div class="param">active (optional)</div><div class="param-desc"><span class="param-type"><a href="#boolean">Boolean</a></span>  </div>
-<div class="param">avatarKey (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">avatarUrl (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">createdAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
 <div class="param">updatedAt (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
     </div>  <!-- field-items -->

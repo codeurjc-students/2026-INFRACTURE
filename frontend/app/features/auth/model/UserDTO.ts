@@ -5,7 +5,8 @@ export interface UserDTO {
   email: string;
   role: "USER" | "ADMIN";
   active: boolean;
-  avatarKey: string | null;
+  // Null without an avatar; served by the backend (the storage key never leaves it).
+  avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }

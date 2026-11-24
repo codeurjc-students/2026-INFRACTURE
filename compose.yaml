@@ -16,6 +16,25 @@ services:
       retries: 10
       start_period: 10s
 
+  # S3-compatible storage for images (avatars, covers, icons). Only the backend talks to it.
+  platform-storage:
+    image: rustfs/rustfs:1.0.6
+    environment:
+      RUSTFS_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-infracture}
+      RUSTFS_SECRET_KEY: ${STORAGE_SECRET_KEY:-infracture_dev}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "127.0.0.1:9000:9000" # S3 API
+      - "127.0.0.1:9002:9001" # web console (9001 is the JMX port of the openapi build)
+    volumes:
+      - platform-storage-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   # Only this container mounts the Docker socket; the backend reaches Docker through it
   docker-proxy:
     image: haproxy:3.2.26-alpine
@@ -46,12 +65,17 @@ services:
     depends_on:
       platform-postgres:
         condition: service_healthy
+      platform-storage:
+        condition: service_healthy
       docker-proxy:
         condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://platform-postgres:5432/${POSTGRES_DB:-infracture}
       POSTGRES_USER: ${POSTGRES_USER:-infracture}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-infracture_dev}
+      STORAGE_ENDPOINT: http://platform-storage:9000
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-infracture}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-infracture_dev}
       INFRACTURE_ADMIN_USERNAME: ${INFRACTURE_ADMIN_USERNAME:-}
       INFRACTURE_ADMIN_EMAIL: ${INFRACTURE_ADMIN_EMAIL:-}
       INFRACTURE_ADMIN_DISPLAY_NAME: ${INFRACTURE_ADMIN_DISPLAY_NAME:-}
@@ -79,3 +103,4 @@ services:
 
 volumes:
   platform-postgres-data:
+  platform-storage-data:

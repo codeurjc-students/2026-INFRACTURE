@@ -23,12 +23,12 @@ api (controlador + DTO + mapper) → application (servicio) → domain (entidade
 
 | Módulo | Responsabilidad |
 | --- | --- |
-| `identity` | Cuentas, registro, administrador inicial y política de contraseñas. |
+| `identity` | Cuentas, registro, administrador inicial, política de contraseñas y foto de perfil. |
 | `security` | Inicio de sesión con JWT en cookies, CSRF y qué rutas son públicas. |
 | `catalog` | Plantillas de componentes y el contrato de cada tipo: perfiles, parámetros, puertos y capacidades. |
 | `project` | Proyectos, escenarios, el grafo (nodos y conexiones) y su validación. |
 | `execution` | Run y Stop: reserva, plan de Compose, motor de Docker y bucle de control. |
-| `shared` | Excepciones comunes y su traducción a respuestas HTTP. |
+| `shared` | Excepciones comunes, su traducción a respuestas HTTP y el almacenamiento de objetos (S3). |
 
 **Frontend** ([`frontend/app`](../frontend/app)). Es una SPA de React con React Router ([ADR 0020](adr/0020-react-router-en-modo-spa.md)). Cada ruta de `routes/` carga sus datos en un `clientLoader` y guarda en un `clientAction`; la lógica de cada área vive en `features/<área>/`, con `api/` (llamadas HTTP), `model/` (tipos de los DTO) y `components/`.
 
@@ -66,16 +66,18 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 
 | Clase | Qué hace | Quién la usa |
 | --- | --- | --- |
-| `UserController` | `POST /api/v1/users` (registro), `GET` y `PATCH /api/v1/users/me`, y `PUT /api/v1/users/me/email` y `/password`. | Front: `auth-service`. |
+| `UserController` | `POST /api/v1/users` (registro), `GET` y `PATCH /api/v1/users/me`, `PUT /api/v1/users/me/email` y `/password`, y `PUT`, `GET` y `DELETE /api/v1/users/me/avatar`. | Front: `auth-service`, `<img>` de la foto. |
 | `AuthController` | `login`, `refresh`, `logout` y `csrf` bajo `/api/v1/auth`. | Front: `auth-service`, `api-fetch`. |
 | `UserExceptionHandler` | Convierte usuario repetido y contraseña rechazada en errores 409 y 400. | Spring, ante esas excepciones. |
-| `RegisterUserDTO`, `UserDTO`, `UserMapper` | Datos de registro y de la cuenta visible; rechazan campos desconocidos. | Controladores de `identity`. |
+| `RegisterUserDTO`, `UserDTO`, `UserMapper` | Datos de registro y de la cuenta visible; rechazan campos desconocidos. `UserMapper` convierte la clave de la foto en `avatarUrl` con su versión. | Controladores de `identity`. |
 | `UserService` | Registra usuarios, edita la cuenta propia, comprueba duplicados y crea el administrador inicial. | Controladores, `AdminInitializer`, seguridad. |
+| `AvatarService` | Sustituye, quita y lee la foto: guarda la nueva, cambia la clave en una transacción corta y borra la anterior. Al arrancar borra las imágenes que ninguna cuenta usa. | `UserController`, Spring al iniciar. |
+| `AvatarImage` | Acepta solo PNG o JPEG cuadrados de 128 a 1024 px y hasta 2 MB, mira el tamaño antes de decodificar y los vuelve a codificar como PNG sin metadatos. | `AvatarService`. |
 | `PasswordPolicy` | Exige de 15 a 128 caracteres y rechaza las contraseñas más comunes de una lista incluida. | `UserService`. |
 | `AdminInitializer` | Crea al arrancar el único administrador con las variables `INFRACTURE_ADMIN_*`. | Spring, al iniciar. |
 | `PasswordPolicyException`, `UserAlreadyExistsException` | Errores de registro con su mensaje para el usuario. | `UserService`, `UserExceptionHandler`. |
-| `User`, `UserRole` | La cuenta: nombre, correo, contraseña cifrada, rol y si está activa. | Todo `identity` y `project`. |
-| `UserRepository` | Búsquedas por correo y nombre, sin distinguir mayúsculas. | `UserService`, `RepositoryUserDetailsService`. |
+| `User`, `UserRole` | La cuenta: nombre, correo, contraseña cifrada, rol, si está activa y la clave de su foto. | Todo `identity` y `project`. |
+| `UserRepository` | Búsquedas por correo y nombre, sin distinguir mayúsculas, y las claves de foto en uso. | `UserService`, `AvatarService`, `RepositoryUserDetailsService`. |
 
 ### `security`
 
@@ -167,7 +169,10 @@ Rutas relativas a `backend/src/main/java/es/codeurjc/infracture/`. Los `*DTO` so
 | Clase | Qué hace | Quién la usa |
 | --- | --- | --- |
 | `ConflictException`, `InvalidDataException`, `NotFoundException` | Errores de negocio comunes: 409, 400 y 404. | Todos los servicios. |
-| `ApiExceptionHandler` | Traduce cualquier error a `application/problem+json` con un mensaje claro ([ADR 0024](adr/0024-errores-de-la-api-como-problemdetail.md)). | Spring. |
+| `ApiExceptionHandler` | Traduce cualquier error a `application/problem+json` con un mensaje claro ([ADR 0024](adr/0024-errores-de-la-api-como-problemdetail.md)); el almacenamiento caído es un 503. | Spring. |
+| `storage/ObjectStorage`, `StoredObject` | Guarda, lee, borra y lista ficheros por clave; el resto del código no sabe qué servidor hay detrás ([ADR 0033](adr/0033-rustfs-como-almacenamiento-s3.md)). | `AvatarService`. |
+| `storage/S3ObjectStorage`, `StorageConfiguration` | Implementación con el SDK de AWS sobre un bucket que crea en la primera escritura, y el único `S3Client`, configurado con `infracture.storage.*`. | Spring. |
+| `storage/StorageUnavailableException` | El servidor de almacenamiento no pudo completar la operación. | `ApiExceptionHandler`, `AvatarService`. |
 | `InfractureBackendApplication` | Punto de entrada de Spring Boot. | `./mvnw spring-boot:run`, imagen. |
 
 ## Frontend
@@ -189,14 +194,15 @@ Rutas relativas a `frontend/app/`. Los ficheros de `features/*/model/` son los t
 | Fichero | Qué hace |
 | --- | --- |
 | `shared/api/api-fetch.ts` | Todas las llamadas HTTP: añade CSRF, renueva la sesión ante un 401 y convierte los errores en `HttpError`. |
-| `components/app-header.tsx`, `logo.tsx`, `paged-list.tsx` | Barra de las páginas privadas, isotipo y lista paginada. `components/ui/` son los componentes de shadcn sin cambios. |
+| `components/app-header.tsx`, `logo.tsx`, `paged-list.tsx`, `user-avatar.tsx` | Barra de las páginas privadas, isotipo, lista paginada y la foto de la cuenta en círculo, con las iniciales si no hay. `components/ui/` son los componentes de shadcn sin cambios. |
 
 ### `features/auth` y `features/projects`
 
 | Fichero | Qué hace |
 | --- | --- |
 | `auth/api/auth-service.ts`, `auth/session.ts` | Llamadas de cuenta y sesión; `requireUser` y la redirección segura tras iniciar sesión. |
-| `auth/components/*` | Formularios de acceso y registro, campo de contraseña y la banda térmica de la portada de acceso. |
+| `auth/components/*` | Formularios de acceso, registro y cuenta, campo de contraseña y la banda térmica de la portada de acceso. `avatar-form.tsx` elige, recorta en círculo y sube o quita la foto. |
+| `auth/crop-image.ts` | Dibuja el recorte elegido en un PNG de 512 px antes de subirlo. |
 | `projects/api/*` | Llamadas de proyectos y escenarios. |
 | `projects/components/*`, `details-form-data.ts` | Tarjetas, migas, formulario de nombre y descripción, edición en la propia página y página de error o 404. |
 

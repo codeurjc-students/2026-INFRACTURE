@@ -3,6 +3,7 @@ package es.codeurjc.infracture.shared.api;
 import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.InvalidDataException;
 import es.codeurjc.infracture.shared.NotFoundException;
+import es.codeurjc.infracture.shared.storage.StorageUnavailableException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import java.util.Set;
@@ -59,6 +60,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     ProblemDetail handleNotFound(NotFoundException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(StorageUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    ProblemDetail handleStorageUnavailable(StorageUnavailableException exception) {
+        log.warn("Image storage is unavailable", exception);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "Image storage is unavailable. Try again later.");
     }
 
     @ExceptionHandler(AuthenticationException.class)

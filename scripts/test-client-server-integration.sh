@@ -37,7 +37,7 @@ cleanup() {
   set +e
 
   if [[ -n "${BACKEND_PID}" ]] && kill -0 "${BACKEND_PID}" >/dev/null 2>&1; then
-    log "Stopping Spring Boot and its disposable PostgreSQL container"
+    log "Stopping Spring Boot and its disposable PostgreSQL and storage containers"
     kill "${BACKEND_PID}" >/dev/null 2>&1
     wait "${BACKEND_PID}" >/dev/null 2>&1
   fi
@@ -90,7 +90,7 @@ if curl --silent --output /dev/null --connect-timeout 1 "${BACKEND_URL}"; then
   fail "Port 8081 is already serving another process."
 fi
 
-log "Starting Spring Boot with a Testcontainers PostgreSQL database"
+log "Starting Spring Boot with Testcontainers PostgreSQL and image storage"
 (
   cd "${BACKEND_DIRECTORY}"
   exec ./mvnw \

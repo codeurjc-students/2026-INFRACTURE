@@ -123,4 +123,15 @@ class UserPersistenceIntegrationTests {
                 .isInstanceOf(PersistenceException.class)
                 .hasMessageContaining("ck_users_role");
     }
+
+    @Test
+    void listsOnlyTheAvatarKeysThatAccountsReference() {
+        User alice = new User("alice", "encoded-password", "alice@example.com", "Alice", UserRole.USER);
+        alice.setAvatarKey("avatars/1/a.png");
+        entityManager.persist(alice);
+        entityManager.persist(new User("bob", "encoded-password", "bob@example.com", "Bob", UserRole.USER));
+        entityManager.flush();
+
+        assertThat(repository.findAvatarKeys()).containsExactly("avatars/1/a.png");
+    }
 }

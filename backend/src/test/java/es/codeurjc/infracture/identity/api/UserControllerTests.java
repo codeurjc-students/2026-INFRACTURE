@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import es.codeurjc.infracture.identity.application.AvatarService;
 import es.codeurjc.infracture.identity.application.PasswordPolicyException;
 import es.codeurjc.infracture.identity.application.UserAlreadyExistsException;
 import es.codeurjc.infracture.identity.application.UserService;
@@ -73,10 +74,14 @@ class UserControllerTests {
     @MockitoBean
     private UserRepository users;
 
+    @MockitoBean
+    private AvatarService avatarService;
+
     @Test
     void returnsCurrentAccountUsingAuthenticatedEmail() throws Exception {
         User account = new User("alice", "stored-password-hash", "ALICE@EXAMPLE.COM", "Alice", UserRole.USER);
         account.setId(7L);
+        account.setAvatarKey("avatars/7/0b5e2c1a.png");
         var authenticated = AuthenticatedUser.from(account);
         when(users.findById(7L)).thenReturn(Optional.of(account));
         when(userService.getUserByEmail(account.getEmail())).thenReturn(account);
@@ -87,7 +92,9 @@ class UserControllerTests {
                 .andExpect(jsonPath("$.id").value(7))
                 .andExpect(jsonPath("$.username").value("alice"))
                 .andExpect(jsonPath("$.email").value("ALICE@EXAMPLE.COM"))
-                .andExpect(jsonPath("$.encodedPassword").doesNotExist());
+                .andExpect(jsonPath("$.encodedPassword").doesNotExist())
+                .andExpect(jsonPath("$.avatarUrl").value("/api/v1/users/me/avatar?v=0b5e2c1a"))
+                .andExpect(jsonPath("$.avatarKey").doesNotExist());
 
         verify(userService).getUserByEmail(account.getEmail());
     }

@@ -1,5 +1,5 @@
 import { CircleAlertIcon, CircleCheckIcon } from "lucide-react";
-import { useId, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, type ReactNode, type Ref } from "react";
 import { useFetcher } from "react-router";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -17,6 +17,40 @@ type AccountFormProps = {
   savedMessage: string;
   children: ReactNode;
 };
+
+// The outcome of a save. It takes the focus, so keyboard and screen reader users hear it.
+export function FormResult({
+  ref,
+  result,
+  savedMessage,
+}: {
+  ref: Ref<HTMLDivElement>;
+  result: AccountFormResult;
+  savedMessage: string;
+}) {
+  return "error" in result ? (
+    <Alert
+      ref={ref}
+      tabIndex={-1}
+      variant="destructive"
+      className="enter-soft scroll-mt-20"
+    >
+      <CircleAlertIcon />
+      <AlertTitle>Could not save the changes</AlertTitle>
+      <AlertDescription>{result.error}</AlertDescription>
+    </Alert>
+  ) : (
+    <Alert
+      ref={ref}
+      tabIndex={-1}
+      role="status"
+      className="enter-soft scroll-mt-20"
+    >
+      <CircleCheckIcon className="text-healthy-text" />
+      <AlertTitle>{savedMessage}</AlertTitle>
+    </Alert>
+  );
+}
 
 // One card of the account page. Each card saves on its own and shows only its own result.
 export default function AccountForm({
@@ -66,28 +100,8 @@ export default function AccountForm({
           <p className="type-body text-muted-foreground">{description}</p>
         )}
       </div>
-      {result && "error" in result && (
-        <Alert
-          ref={resultRef}
-          tabIndex={-1}
-          variant="destructive"
-          className="enter-soft scroll-mt-20"
-        >
-          <CircleAlertIcon />
-          <AlertTitle>Could not save the changes</AlertTitle>
-          <AlertDescription>{result.error}</AlertDescription>
-        </Alert>
-      )}
-      {result && "saved" in result && (
-        <Alert
-          ref={resultRef}
-          tabIndex={-1}
-          role="status"
-          className="enter-soft scroll-mt-20"
-        >
-          <CircleCheckIcon className="text-healthy-text" />
-          <AlertTitle>{savedMessage}</AlertTitle>
-        </Alert>
+      {result && (
+        <FormResult ref={resultRef} result={result} savedMessage={savedMessage} />
       )}
       <fetcher.Form ref={formRef} method="post" noValidate>
         <input type="hidden" name="intent" value={intent} />
