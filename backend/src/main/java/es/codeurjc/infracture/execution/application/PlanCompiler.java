@@ -154,6 +154,20 @@ public class PlanCompiler {
         return parameter.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toUpperCase(Locale.ROOT);
     }
 
+    // The limits a node ran with, read from its stored plan so the history keeps them if they change later.
+    // CPU is a percentage of one core: 0.5 CPUs is 50%.
+    @SuppressWarnings("unchecked")
+    static ResourceUsage limits(Map<String, Object> plan, ExecutedComponent component) {
+        Map<String, Object> services = (Map<String, Object>) plan.get("services");
+        Map<String, Object> service = (Map<String, Object>) services.get(serviceName(component));
+        Map<String, Object> deploy = (Map<String, Object>) service.get("deploy");
+        Map<String, Object> resources = (Map<String, Object>) deploy.get("resources");
+        Map<String, Object> limits = (Map<String, Object>) resources.get("limits");
+        String memory = (String) limits.get("memory");
+        return new ResourceUsage(Double.parseDouble((String) limits.get("cpus")) * 100,
+                Long.parseLong(memory.substring(0, memory.length() - 1)) << 20);
+    }
+
     static String serviceName(ExecutedComponent component) {
         return "c-" + component.getKey();
     }

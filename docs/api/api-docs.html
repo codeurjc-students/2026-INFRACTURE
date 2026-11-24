@@ -212,6 +212,10 @@ font-style: italic;
   <li><a href="#run"><code><span class="http-method">post</span> /api/v1/projects/{projectId}/scenarios/{scenarioId}/executions</code></a></li>
   <li><a href="#stop"><code><span class="http-method">post</span> /api/v1/projects/{projectId}/scenarios/{scenarioId}/executions/{executionId}/stop</code></a></li>
   </ul>
+  <h4><a href="#ExecutionMetricsController">ExecutionMetricsController</a></h4>
+  <ul>
+  <li><a href="#getMetrics"><code><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios/{scenarioId}/executions/{executionId}/metrics</code></a></li>
+  </ul>
   <h4><a href="#ProjectController">ProjectController</a></h4>
   <ul>
   <li><a href="#createProject"><code><span class="http-method">post</span> /api/v1/projects</code></a></li>
@@ -291,23 +295,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -394,23 +398,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -472,23 +476,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -563,23 +567,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -799,23 +803,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -910,23 +914,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -1055,23 +1059,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -1212,23 +1216,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -1359,23 +1363,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -1386,6 +1390,148 @@ font-style: italic;
     <h4 class="field-label">200</h4>
     OK
         <a href="#ExecutionDTO">ExecutionDTO</a>
+  </div> <!-- method -->
+  <hr/>
+  <h1><a name="ExecutionMetricsController">ExecutionMetricsController</a></h1>
+  <div class="method"><a name="getMetrics"/>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /api/v1/projects/{projectId}/scenarios/{scenarioId}/executions/{executionId}/metrics</code></pre></div>
+    <div class="method-summary"> (<span class="nickname">getMetrics</span>)</div>
+    <div class="method-notes"></div>
+
+    <h3 class="field-label">Path parameters</h3>
+    <div class="field-items">
+      <div class="param">projectId (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div><div class="param">scenarioId (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div><div class="param">executionId (required)</div>
+
+      <div class="param-desc"><span class="param-type">Path Parameter</span> &mdash;  default: null format: int64</div>
+    </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Query parameters</h3>
+    <div class="field-items">
+      <div class="param">from (optional)</div>
+
+      <div class="param-desc"><span class="param-type">Query Parameter</span> &mdash;  default: null format: date-time</div><div class="param">to (optional)</div>
+
+      <div class="param-desc"><span class="param-type">Query Parameter</span> &mdash;  default: null format: date-time</div><div class="param">after (optional)</div>
+
+      <div class="param-desc"><span class="param-type">Query Parameter</span> &mdash;  default: 0 format: int64</div><div class="param">limit (optional)</div>
+
+      <div class="param-desc"><span class="param-type">Query Parameter</span> &mdash;  default: 1000 format: int32</div>
+    </div>  <!-- field-items -->
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ExecutionMetricsDTO">ExecutionMetricsDTO</a>
+
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/problem+json</div>
+    <pre class="example"><code>Custom MIME type example not yet supported: application/problem+json</code></pre>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: */*</div>
+    <pre class="example"><code>{
+  "components" : [ {
+    "name" : "name",
+    "memoryLimitBytes" : 5,
+    "cpuLimitPercent" : 1.4658129805029452,
+    "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
+  }, {
+    "name" : "name",
+    "memoryLimitBytes" : 5,
+    "cpuLimitPercent" : 1.4658129805029452,
+    "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
+  } ],
+  "memoryUnit" : "memoryUnit",
+  "capturing" : true,
+  "hasMore" : true,
+  "nextAfter" : 6,
+  "source" : "source",
+  "cpuUnit" : "cpuUnit",
+  "samples" : [ {
+    "memoryBytes" : 7,
+    "at" : "2000-01-23T04:56:07.000+00:00",
+    "id" : 5,
+    "cpuPercent" : 2.3021358869347655,
+    "componentKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
+  }, {
+    "memoryBytes" : 7,
+    "at" : "2000-01-23T04:56:07.000+00:00",
+    "id" : 5,
+    "cpuPercent" : 2.3021358869347655,
+    "componentKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
+  } ],
+  "intervalSeconds" : 0
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/problem+json</code></li>
+      <li><code>*/*</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">429</h4>
+    Too Many Requests
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">400</h4>
+    Bad Request
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">409</h4>
+    Conflict
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">401</h4>
+    Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">403</h4>
+    Forbidden
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">500</h4>
+    Internal Server Error
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#ExecutionMetricsDTO">ExecutionMetricsDTO</a>
   </div> <!-- method -->
   <hr/>
   <h1><a name="ProjectController">ProjectController</a></h1>
@@ -1465,23 +1611,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -1564,23 +1710,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -1679,23 +1825,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -1790,23 +1936,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -1903,23 +2049,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -2063,23 +2209,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -2165,23 +2311,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -2288,23 +2434,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -2460,23 +2606,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -2574,23 +2720,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -2684,23 +2830,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -2793,23 +2939,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -2890,23 +3036,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -2999,23 +3145,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -3108,23 +3254,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -3236,23 +3382,23 @@ font-style: italic;
     </ul>
 
     <h3 class="field-label">Responses</h3>
-    <h4 class="field-label">422</h4>
-    Unprocessable Content
-        <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">429</h4>
     Too Many Requests
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">409</h4>
-    Conflict
+    <h4 class="field-label">422</h4>
+    Unprocessable Content
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">400</h4>
     Bad Request
         <a href="#ProblemDetail">ProblemDetail</a>
-    <h4 class="field-label">404</h4>
-    Not Found
+    <h4 class="field-label">409</h4>
+    Conflict
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">401</h4>
     Unauthorized
+        <a href="#ProblemDetail">ProblemDetail</a>
+    <h4 class="field-label">404</h4>
+    Not Found
         <a href="#ProblemDetail">ProblemDetail</a>
     <h4 class="field-label">403</h4>
     Forbidden
@@ -3281,8 +3427,11 @@ font-style: italic;
     <li><a href="#ExecutedComponentDTO"><code>ExecutedComponentDTO</code> - </a></li>
     <li><a href="#ExecutedWorkloadDTO"><code>ExecutedWorkloadDTO</code> - </a></li>
     <li><a href="#ExecutionDTO"><code>ExecutionDTO</code> - </a></li>
+    <li><a href="#ExecutionMetricsDTO"><code>ExecutionMetricsDTO</code> - </a></li>
     <li><a href="#LoadSummaryDTO"><code>LoadSummaryDTO</code> - </a></li>
     <li><a href="#LoginRequest"><code>LoginRequest</code> - </a></li>
+    <li><a href="#MetricComponentDTO"><code>MetricComponentDTO</code> - </a></li>
+    <li><a href="#MetricSampleDTO"><code>MetricSampleDTO</code> - </a></li>
     <li><a href="#PageMetadata"><code>PageMetadata</code> - </a></li>
     <li><a href="#PagedModelComponentTemplateDTO"><code>PagedModelComponentTemplateDTO</code> - </a></li>
     <li><a href="#PagedModelProjectDTO"><code>PagedModelProjectDTO</code> - </a></li>
@@ -3445,6 +3594,21 @@ font-style: italic;
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="ExecutionMetricsDTO"><code>ExecutionMetricsDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">source (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">cpuUnit (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">memoryUnit (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">intervalSeconds (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">capturing (optional)</div><div class="param-desc"><span class="param-type"><a href="#boolean">Boolean</a></span>  </div>
+<div class="param">hasMore (optional)</div><div class="param-desc"><span class="param-type"><a href="#boolean">Boolean</a></span>  </div>
+<div class="param">nextAfter (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">components (optional)</div><div class="param-desc"><span class="param-type"><a href="#MetricComponentDTO">array[MetricComponentDTO]</a></span>  </div>
+<div class="param">samples (optional)</div><div class="param-desc"><span class="param-type"><a href="#MetricSampleDTO">array[MetricSampleDTO]</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="LoadSummaryDTO"><code>LoadSummaryDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
     <div class='model-description'></div>
     <div class="field-items">
@@ -3461,6 +3625,27 @@ font-style: italic;
     <div class="field-items">
       <div class="param">email (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">password (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="MetricComponentDTO"><code>MetricComponentDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">key (optional)</div><div class="param-desc"><span class="param-type"><a href="#UUID">UUID</a></span>  format: uuid</div>
+<div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
+<div class="param">cpuLimitPercent (optional)</div><div class="param-desc"><span class="param-type"><a href="#double">Double</a></span>  format: double</div>
+<div class="param">memoryLimitBytes (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="MetricSampleDTO"><code>MetricSampleDTO</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">id (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">componentKey (optional)</div><div class="param-desc"><span class="param-type"><a href="#UUID">UUID</a></span>  format: uuid</div>
+<div class="param">at (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
+<div class="param">cpuPercent (optional)</div><div class="param-desc"><span class="param-type"><a href="#double">Double</a></span>  format: double</div>
+<div class="param">memoryBytes (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">

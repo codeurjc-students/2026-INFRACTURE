@@ -228,6 +228,93 @@ test("sends real traffic with a constant load, stops it first and keeps its summ
   });
 });
 
+test("charts the real CPU and memory of every component under the canvas, live and after Stop", async ({
+  page,
+}, testInfo) => {
+  const shot = (name: string) =>
+    page.screenshot({
+      path: testInfo.outputPath(`metrics-${name}.png`),
+      fullPage: true,
+    });
+  const metrics = page.getByRole("region", { name: "CPU and memory" });
+  const toggle = metrics.getByRole("button", { name: "CPU and memory" });
+  const rows = metrics.getByRole("list", { name: "Components" });
+  const ordersCpu = metrics.getByRole("figure", {
+    name: "orders-api CPU, percent of one core",
+  });
+  const ordersMemory = metrics.getByRole("figure", {
+    name: "orders-api memory, MiB",
+  });
+  const usersMemory = metrics.getByRole("figure", {
+    name: "users-api memory, MiB",
+  });
+
+  await test.step("Run a scenario with two HTTP Services", async () => {
+    await register(page, "metrics");
+    const project = await post(page, "/api/v1/projects", "Metrics lab");
+    const scenario = await post(
+      page,
+      `/api/v1/projects/${project.id}/scenarios`,
+      "Two services",
+    );
+    await page.goto(`/projects/${project.id}/scenarios/${scenario.id}`);
+    await expect(metrics).toHaveCount(0);
+    for (const name of ["orders-api", "users-api"]) {
+      await page.getByRole("button", { name: "Add HTTP Service" }).click();
+      await inspector(page).getByLabel("Name").fill(name);
+    }
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Saved", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Run" }).click();
+    // Run opens the panel under the canvas.
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(status(page)).toHaveText("Running", { timeout: 180_000 });
+  });
+
+  await test.step("See every component's real samples at once", async () => {
+    await expect(ordersCpu).toContainText(/Latest \d+(\.\d+)?%/, {
+      timeout: 30_000,
+    });
+    await expect(ordersCpu).toContainText("Limit 50%");
+    await expect(ordersMemory).toContainText(/Latest [1-9]\d*(\.\d+)? MiB/);
+    await expect(ordersMemory).toContainText("Limit 384 MiB");
+    await expect(usersMemory).toContainText(/Latest [1-9]\d*(\.\d+)? MiB/);
+    await expect(metrics).toContainText("Live · every 5 s");
+    await expect(metrics).toContainText("2 components");
+    // Two real readings at different moments draw a line over time.
+    await expect(ordersCpu.locator("path.recharts-line-curve")).toHaveAttribute(
+      "d",
+      /^M[^L]+[LC]/,
+      { timeout: 20_000 },
+    );
+    await shot("1-live");
+  });
+
+  await test.step("Fold the panel and open it again", async () => {
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(rows).toBeHidden();
+    await shot("2-folded");
+    await toggle.click();
+    await expect(rows).toBeVisible();
+  });
+
+  await test.step("Keep the series after Stop and after reloading", async () => {
+    await page.getByRole("button", { name: "Stop" }).click();
+    await expect(status(page)).toHaveText("Completed", { timeout: 120_000 });
+    await expect(ordersMemory).toContainText(/Latest/);
+    await page.reload();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(ordersCpu).toContainText(/Latest/);
+    await expect(usersMemory).toContainText(/Latest/);
+    await expect(metrics).toContainText("Docker stats · every 5 s");
+    expect(experimentResources()).toEqual([]);
+    await shot("3-after-stop");
+  });
+});
+
 async function savedStatelessScenario(page: Page, user: string) {
   await register(page, user);
   const project = await post(page, "/api/v1/projects", "Recovery lab");

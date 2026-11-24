@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -41,6 +44,12 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     private static final Duration CANCEL_CHECK = Duration.ofSeconds(1);
     private static final Duration GRACEFUL_EXIT = Duration.ofSeconds(10);
     private static final BooleanSupplier NEVER = () -> false;
+    // docker stats needs about two seconds. A Docker that does not answer costs one sample, not the loop.
+    private static final Duration USAGE_TIMEOUT = Duration.ofSeconds(4);
+    private static final String STOPPED_MEMORY = "0B / 0B";
+    private static final Pattern MEMORY_USED = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)(B|KiB|MiB|GiB|TiB) ");
+    private static final Map<String, Long> MEMORY_UNITS = Map.of("B", 1L, "KiB", 1L << 10, "MiB", 1L << 20,
+            "GiB", 1L << 30, "TiB", 1L << 40);
 
     private final JsonMapper jsonMapper;
     // The backend's own container in the distribution; empty when it runs on
@@ -117,6 +126,49 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         return lines;
     }
 
+    // One command reads every container at once. A name that no longer exists fails the whole command, so
+    // only the running containers are asked for.
+    @Override
+    public Map<String, ResourceUsage> usage(Map<String, Object> plan) {
+        Map<String, String> services = new HashMap<>();
+        for (PsLine container : ps(plan, USAGE_TIMEOUT)) {
+            if ("running".equals(container.state())) {
+                services.put(container.name(), container.service());
+            }
+        }
+        if (services.isEmpty()) {
+            return Map.of();
+        }
+        List<String> command = new ArrayList<>(List.of("docker", "stats", "--no-stream", "--format", "json"));
+        command.addAll(services.keySet());
+        Map<String, ResourceUsage> usage = new LinkedHashMap<>();
+        for (String line : execute("docker stats", command, null, USAGE_TIMEOUT, NEVER).split("\\R")) {
+            if (line.startsWith("{")) {
+                StatsLine stats = jsonMapper.readValue(line, StatsLine.class);
+                ResourceUsage reading = parseUsage(stats.cpu(), stats.memory());
+                if (services.containsKey(stats.name())
+                        && (reading.cpuPercent() != null || reading.memoryBytes() != null)) {
+                    usage.put(services.get(stats.name()), reading);
+                }
+            }
+        }
+        return usage;
+    }
+
+    // Docker prints "49.60%" and "572KiB / 384MiB", or "--" when it has no value. A container that is not
+    // running prints 0.00% and 0B / 0B: that is no reading, not a real zero.
+    static ResourceUsage parseUsage(String cpu, String memory) {
+        if (STOPPED_MEMORY.equals(memory)) {
+            return new ResourceUsage(null, null);
+        }
+        Double percent = cpu.endsWith("%") ? Double.valueOf(cpu.substring(0, cpu.length() - 1)) : null;
+        Matcher used = MEMORY_USED.matcher(memory);
+        Long bytes = used.lookingAt()
+                ? Math.round(Double.parseDouble(used.group(1)) * MEMORY_UNITS.get(used.group(2)))
+                : null;
+        return new ResourceUsage(percent, bytes);
+    }
+
     // With --timestamps each line reads "<service>-<index> | <time> <text>". The service keeps its own
     // hyphens and only the last "-<index>" goes. Null for any other line. Plain index searches, not a regex,
     // so a long line is read in one pass.
@@ -143,10 +195,14 @@ class ComposeRuntimeEngine implements RuntimeEngine {
 
     // Compose prints one JSON object per container and line.
     private List<PsLine> ps(Map<String, Object> plan, String... services) {
+        return ps(plan, STOP_TIMEOUT, services);
+    }
+
+    private List<PsLine> ps(Map<String, Object> plan, Duration timeout, String... services) {
         List<String> flags = new ArrayList<>(List.of("--all", "--format", "json"));
         flags.addAll(List.of(services));
         List<PsLine> containers = new ArrayList<>();
-        String output = compose(plan, STOP_TIMEOUT, WITH_LOAD, "ps", flags.toArray(String[]::new));
+        String output = compose(plan, timeout, WITH_LOAD, "ps", flags.toArray(String[]::new));
         for (String line : output.split("\\R")) {
             if (!line.isBlank()) {
                 containers.add(jsonMapper.readValue(line, PsLine.class));
@@ -308,8 +364,14 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record PsLine(@JsonProperty("Service") String service, @JsonProperty("State") String state,
-            @JsonProperty("Health") String health, @JsonProperty("ExitCode") Integer exitCode) {
+    private record PsLine(@JsonProperty("Name") String name, @JsonProperty("Service") String service,
+            @JsonProperty("State") String state, @JsonProperty("Health") String health,
+            @JsonProperty("ExitCode") Integer exitCode) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record StatsLine(@JsonProperty("Name") String name, @JsonProperty("CPUPerc") String cpu,
+            @JsonProperty("MemUsage") String memory) {
     }
 
     private static String tail(String text) {

@@ -28,6 +28,10 @@ public interface RuntimeEngine {
     // includes lines printed exactly at since, so the caller drops what it already has.
     List<LogLine> logs(Map<String, Object> plan, Instant since);
 
+    // What each running service consumes now, by service name. A service without a reading is missing.
+    // It ends within a few seconds, so a Docker that does not answer only costs one sample.
+    Map<String, ResourceUsage> usage(Map<String, Object> plan);
+
     // Removes the plan's project and anything else carrying all the given labels. Calling it again
     // after a partial cleanup is safe. Returns only when nothing with those labels is left.
     void down(Map<String, Object> plan, Map<String, String> labels);
