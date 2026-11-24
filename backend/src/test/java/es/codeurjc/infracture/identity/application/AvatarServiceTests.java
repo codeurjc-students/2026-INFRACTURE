@@ -121,7 +121,7 @@ class AvatarServiceTests {
 
         assertThat(service.read(USER_ID)).hasValueSatisfying(avatar -> {
             assertThat(avatar.version()).isEqualTo("old");
-            assertThat(avatar.content()).containsExactly(1);
+            assertThat(avatar.image().content()).containsExactly(1);
         });
     }
 

@@ -32,7 +32,7 @@ public class AvatarService implements SmartInitializingSingleton {
         this.transactions = new TransactionTemplate(transactionManager);
     }
 
-    public record Avatar(String version, byte[] content, String contentType) {
+    public record Avatar(String version, StoredObject image) {
     }
 
     private record Change(User user, String previousKey) {
@@ -64,7 +64,7 @@ public class AvatarService implements SmartInitializingSingleton {
         if (key == null) {
             return Optional.empty();
         }
-        return storage.get(key).map(object -> avatar(key, object));
+        return storage.get(key).map(image -> new Avatar(version(key), image));
     }
 
     public static String version(String key) {
@@ -107,9 +107,5 @@ public class AvatarService implements SmartInitializingSingleton {
         } catch (StorageUnavailableException e) {
             log.warn("Avatar object {} was not deleted; the next startup removes it", key);
         }
-    }
-
-    private static Avatar avatar(String key, StoredObject object) {
-        return new Avatar(version(key), object.content(), object.contentType());
     }
 }

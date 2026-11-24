@@ -107,7 +107,8 @@ public class UserController {
         CacheControl cache = avatar.version().equals(version)
                 ? CacheControl.maxAge(Duration.ofDays(365)).cachePrivate().immutable()
                 : CacheControl.noCache().cachePrivate();
-        return ResponseEntity.ok().cacheControl(cache).contentType(MediaType.parseMediaType(avatar.contentType()))
-                .body(avatar.content());
+        return ResponseEntity.ok().cacheControl(cache)
+                .contentType(MediaType.parseMediaType(avatar.image().contentType()))
+                .body(avatar.image().content());
     }
 }
