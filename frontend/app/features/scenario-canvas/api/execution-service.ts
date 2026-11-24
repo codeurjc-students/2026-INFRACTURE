@@ -1,5 +1,6 @@
 import { apiFetch } from "~/shared/api/api-fetch";
 import type { ExecutionDTO } from "../model/ExecutionDTO";
+import type { ExecutionMetricsDTO } from "../model/ExecutionMetricsDTO";
 
 // URL of a scenario's executions. Ids are encoded because they come from the route.
 function executionsPath(projectId: string, scenarioId: string) {
@@ -37,6 +38,17 @@ export function executionEventsUrl(
 ) {
   const url = `${executionsPath(projectId, scenarioId)}/${executionId}/events`;
   return after ? `${url}?after=${after}` : url;
+}
+
+// One page of the CPU and memory of every node, after the last sample already read.
+export function getExecutionMetrics(
+  projectId: string,
+  scenarioId: string,
+  executionId: number,
+  after = 0,
+): Promise<ExecutionMetricsDTO> {
+  const url = `${executionsPath(projectId, scenarioId)}/${executionId}/metrics`;
+  return apiFetch<ExecutionMetricsDTO>(after ? `${url}?after=${after}` : url);
 }
 
 export function stopExecution(

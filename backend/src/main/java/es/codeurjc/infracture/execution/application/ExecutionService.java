@@ -120,7 +120,7 @@ public class ExecutionService {
         return view(execution);
     }
 
-    private Execution ownExecution(String ownerEmail, Long projectId, Long scenarioId, Long executionId,
+    public Execution ownExecution(String ownerEmail, Long projectId, Long scenarioId, Long executionId,
             boolean lock) {
         Scenario scenario = scenarioService.getScenario(ownerEmail, projectId, scenarioId);
         Optional<Execution> found = lock ? repository.findForUpdateById(executionId) : repository.findById(executionId);

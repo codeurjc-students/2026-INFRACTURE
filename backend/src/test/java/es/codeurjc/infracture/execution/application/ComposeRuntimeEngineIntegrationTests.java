@@ -57,6 +57,20 @@ class ComposeRuntimeEngineIntegrationTests {
         assertThat(engine.status(plan("true"))).containsExactly(Map.entry("probe", ComponentStatus.EXITED));
     }
 
+    @Test
+    void readsTheRealUsageOfARunningServiceAndNothingOnceItStops() {
+        engine.up(plan("true"), NEVER);
+
+        ResourceUsage usage = engine.usage(plan("true")).get("probe");
+
+        assertThat(usage.cpuPercent()).isNotNull().isGreaterThanOrEqualTo(0.0);
+        assertThat(usage.memoryBytes()).isNotNull().isPositive();
+
+        docker("container", "stop", "-t", "1", "infracture-" + instance + "-exec-1-probe-1");
+
+        assertThat(engine.usage(plan("true"))).isEmpty();
+    }
+
     // Compose would replace ${HOME} with the value from the backend's own environment, and reject "$5".
     @Test
     void passesTextWithDollarSignsToTheContainerAsWritten() {

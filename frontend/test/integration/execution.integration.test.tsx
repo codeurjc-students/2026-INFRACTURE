@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   executionEventsUrl,
   getCurrentExecution,
+  getExecutionMetrics,
   runScenario,
   stopExecution,
 } from "~/features/scenario-canvas/api/execution-service";
@@ -195,6 +196,33 @@ describe("execution client against the real API", () => {
     }).catch((caught: unknown) => caught);
     expect(edit).toBeInstanceOf(HttpError);
     expect(edit).toMatchObject({ status: 409 });
+
+    // This job has no demo image, so no node reaches RUNNING: the series is real but empty.
+    await expect(
+      getExecutionMetrics(projectId, scenarioId, current.id),
+    ).resolves.toMatchObject({
+      source: "DOCKER_STATS",
+      cpuUnit: "PERCENT_OF_ONE_CORE",
+      memoryUnit: "BYTES",
+      intervalSeconds: 5,
+      hasMore: false,
+      components: [
+        {
+          key: current.components[0].key,
+          name: "orders-api",
+          cpuLimitPercent: 50,
+          memoryLimitBytes: 384 * 1024 * 1024,
+        },
+      ],
+      samples: [],
+    });
+    const unknownExecution = await getExecutionMetrics(
+      projectId,
+      scenarioId,
+      current.id + 1000,
+    ).catch((caught: unknown) => caught);
+    expect(unknownExecution).toBeInstanceOf(HttpError);
+    expect(unknownExecution).toMatchObject({ status: 404 });
 
     current = await stopExecution(projectId, scenarioId, current.id);
     expect(current).toMatchObject({

@@ -640,6 +640,11 @@ class ExecutionReconcilerTests {
         }
 
         @Override
+        public Map<String, ResourceUsage> usage(Map<String, Object> plan) {
+            return Map.of();
+        }
+
+        @Override
         public void down(Map<String, Object> plan, Map<String, String> labels) {
             calls.add("down " + plan.get("name") + " " + labels);
             if (downFailure != null) {

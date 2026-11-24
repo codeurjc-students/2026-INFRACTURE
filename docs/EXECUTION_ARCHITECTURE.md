@@ -439,12 +439,13 @@ El proxy quita la versión de la ruta (`/v1.51/containers/create` pasa a `/conta
 | --- | --- | --- |
 | Motor | `GET`/`HEAD /_ping`, `GET /version` | El CLI al conectar. |
 | Contenedores | Listar, inspeccionar, `create`, `start`, `stop`, `kill` y borrar. | `compose up`, `ps`, `down` y la limpieza. |
+| Estadísticas | Una sola lectura: `GET /containers/{id}/stats?stream=false`. El flujo continuo recibe `403`. | `docker stats --no-stream` (#93). |
 | Redes | Listar, inspeccionar, `create`, `connect`, `disconnect` y borrar. | `compose` y el backend al unirse a la red. |
 | Volúmenes | Listar, inspeccionar, `create` y borrar. | `compose down -v` y la limpieza. |
 | Imágenes | Inspeccionar y descargar (`POST /images/create`). | `compose up`. |
 | Todo lo demás (`exec`, `build`, `info`, `swarm`, `archive`…) | `403 Forbidden`, registrado en el log. | Nadie. |
 
-La lista sale de registrar las llamadas reales del motor. Una llamada nueva, como las estadísticas de CPU de la observación, se añade a propósito.
+La lista sale de registrar las llamadas reales del motor. Una llamada nueva se añade a propósito, como la lectura de estadísticas de #93.
 
 | | Docker de la máquina con proxy (elegida) | Docker in Docker (descartada) |
 | --- | --- | --- |
@@ -649,11 +650,11 @@ Así lo hace hoy el motor (#86):
 
 ### 11.2 Qué mide cada tipo
 
-Cada `ComponentDriver` declara sus métricas y de dónde se leen. Un único `TelemetryCollector` las recoge todas con el mismo bucle.
+Cada `ComponentDriver` declarará sus métricas y de dónde se leen, y un único `TelemetryCollector` las recogerá con el mismo bucle. Desde #93 el colector lee la CPU y la memoria de todos los nodos; los contadores propios de cada tipo llegan con sus issues.
 
 | Tipo | Salud | Métricas propias | Fuente |
 | --- | --- | --- | --- |
-| Todos | — | CPU y memoria | API de estadísticas de Docker. |
+| Todos | — | CPU (% de un núcleo) y memoria (bytes) | `docker stats --no-stream`, cada 5 s con la ejecución en `RUNNING`. |
 | HTTP Service | `GET /health` | Peticiones, errores, latencia, `cache_hits`, `cache_misses`, `database_queries`, tareas publicadas | Endpoint `/metrics` (formato Prometheus) de la imagen de demostración. |
 | Worker | Señal de salud de la imagen | Tareas procesadas, fallidas y reintentadas; tiempo de proceso | `/metrics` de la imagen de demostración. |
 | PostgreSQL | `pg_isready` | Conexiones activas | Docker y consulta de estado. |
@@ -666,7 +667,8 @@ Para leer esas fuentes, el backend se une a la red de la ejecución. No hace fal
 
 ### 11.3 Muestras, eventos y SSE
 
-- **`MetricSample`.** Valor agregado por intervalo y ligado a un `ExecutedComponent`. Nunca se guarda una fila por petición.
+- **`MetricSample`.** Lectura de un nodo en un instante, ligada a su `ExecutedComponent` (V19). Nunca se guarda una fila por petición: son como mucho 360 muestras por nodo en una ejecución de 30 minutos.
+- **`TelemetryCollector`.** Corre cada 5 s en su propio hilo del planificador (`spring.task.scheduling.pool.size=2`), así un arranque largo del reconciler no lo frena. Lee Docker fuera de cualquier transacción, con un plazo de 4 s por comando. Antes de guardar vuelve a comprobar, con la fila bloqueada, que la ejecución sigue en `RUNNING` y sin causa de parada. Una lectura fallida deja un hueco y el experimento sigue.
 - **`ExecutionEvent`.** Lo que pasa en una ejecución, en la tabla `execution_events` (#92). Hay tres tipos: `STATE`, cuando un nodo cambia de estado; `EVENT`, un paso del ciclo de vida (`PHASE`, `STOP`, `CLEANUP_FAILED`, `RESPONSE` o `LOGS_OMITTED`); y `LOG`, una línea que imprimió un nodo o la carga. El `ExecutionReconciler` y el servicio los escriben en la misma transacción que el cambio que describen. El `id` crece con cada evento y sirve de cursor.
 - **Logs acotados y limpios.** En cada vuelta con la ejecución en `RUNNING`, el motor lee `docker compose logs --timestamps --since` desde la última línea leída. Guarda como mucho 100 líneas por vuelta (el resto, en la siguiente, sin separar nunca las líneas de un mismo instante) y 1.000 por nodo y ejecución; lo que pase de ahí solo se cuenta en un `LOGS_OMITTED`. Antes de guardarla, cada línea pierde los secretos del propio backend, el valor tras `password=`, `token=` o `api_key=`, los tokens Bearer y los JWT, y se corta a 500 caracteres. Si Docker no da los logs, el experimento sigue: son evidencia, no salud.
 - **SSE.** `GET …/executions/{id}/events` envía los eventos en orden, cada uno con `id:` (el cursor), `event:` (`state`, `event` o `log`) y en `data:` el evento en JSON. Solo lo abre el propietario. Cada flujo lee la base de datos cuando PostgreSQL avisa de que su ejecución tiene eventos nuevos, y como mucho cada 15 s aunque no llegue ningún aviso. Cierra cuando la ejecución se libera y ya lo envió todo, o cuando el backend se apaga.
@@ -674,8 +676,8 @@ Para leer esas fuentes, el backend se une a la red de la ejecución. No hace fal
 - **Reconexión sin pérdidas ni duplicados.** Tras un corte, el navegador reabre con `Last-Event-ID` y recibe solo lo posterior. Si ese cursor ya no existe (por ejemplo, purgado) o es de otra ejecución, recibe `reset` con el estado actual completo y sigue desde el último evento, sin inventar los que faltan.
 - **Sesión.** El flujo termina cuando caduca el token de acceso con el que se abrió (5 min): antes envía `renew` con su cursor, la página renueva la sesión y reabre con `?after=`. El usuario no ve ningún corte. Si la cuenta deja de estar activa o cambia su versión de token (nuevo correo o contraseña), el flujo se corta en su siguiente lectura: en menos de 15 s. Un logout cierra el de esa pestaña; una copia robada de la cookie sirve como mucho hasta que caduca ([ADR 0007](adr/0007-revocacion-jwt-como-mejora-opcional.md)).
 - **Límites.** Como mucho 200 eventos por envío, un comentario de latido cada 15 s y cinco flujos abiertos por cuenta (el sexto recibe `429`; el contador es de cada proceso). Un flujo bloqueado nunca frena al reconciler ni a otras pestañas.
-- **Muestras.** Las métricas por intervalo (`MetricSample`) llegan con #93 y se recuperarán tras un corte del mismo modo.
-- **Ausente no es cero.** Una muestra que no se pudo recoger se muestra como ausente, y un resultado incompleto como incompleto.
+- **Las muestras no van por SSE.** `GET …/executions/{id}/metrics` devuelve la serie de todos los nodos de la ejecución, con su fuente, sus unidades y los límites de cada nodo, con `from`, `to`, `after` y `limit` (máximo 1000). Una sola lectura cubre todos los nodos, así que observar muchos cuesta una petición. El cursor es el id de la muestra, que solo escribe el colector, así que sus ids se confirman en orden. Solo la lee el propietario. La página pide lo nuevo cada 5 s mientras la ejecución sigue activa y la pestaña está visible, y hace una última lectura al terminar. La misma ruta sirve para recargar y para consultar después de Stop. Así las muestras no comparten el cursor único del SSE ni su lote de 200 eventos, y como solo cambian cada 5 s, preguntar no añade un retraso apreciable.
+- **Ausente no es cero.** Una lectura fallida se guarda con los valores vacíos y la gráfica muestra un hueco. Docker imprime `0.00%` y `0B / 0B` para un contenedor parado, y eso también se guarda como ausente; un `0` de un contenedor en marcha es un cero real. Un resultado incompleto se muestra como incompleto.
 
 ```json
 {
@@ -779,7 +781,8 @@ El backend es un monolito modular ([ADR 0018](adr/0018-monolito-modular-con-spri
 | `Workload`, `WorkloadContract`, `ExecutedWorkload` | `project`, `catalog`, `execution` | Implementado para `CONSTANT_HTTP` (#87), con su panel en el lienzo y `GET /api/v1/workload-profiles`. Los otros tres perfiles, pendientes. |
 | Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86). El resto de tipos, en P07. |
 | Eventos, logs y SSE: `ExecutionEvent`, `ExecutionJournal`, `ExecutionEventStream` | `execution` | Implementado (#92). |
-| Métricas e historial | `observation` | Pendiente (P08). |
+| CPU y memoria: `TelemetryCollector`, `MetricSample`, `ExecutionMetricsService` | `execution` | Implementado (#93). |
+| Contadores de cada tipo e historial | `observation` | Pendiente (P07 y P08). |
 | Load Balancer | `catalog`, `execution` | Pendiente (P07). |
 
 Los nombres de las piezas pendientes son los previstos y pueden ajustarse al implementarlas. Lo que hace cada clase que ya existe, y quién la usa, está en el [mapa del código](CODE_MAP.md).

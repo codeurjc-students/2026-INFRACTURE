@@ -18,20 +18,14 @@ paths:
               $ref: "#/components/schemas/ChangePasswordDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -42,14 +36,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -84,20 +84,14 @@ paths:
               $ref: "#/components/schemas/ChangeEmailDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -108,14 +102,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -157,20 +157,14 @@ paths:
           type: integer
           format: int64
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -181,14 +175,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -235,20 +235,14 @@ paths:
               $ref: "#/components/schemas/SaveScenarioDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -259,14 +253,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -308,20 +308,14 @@ paths:
           type: integer
           format: int64
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -332,14 +326,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -386,20 +386,14 @@ paths:
               $ref: "#/components/schemas/SaveScenarioGraphDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -410,14 +404,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -453,20 +453,14 @@ paths:
           type: integer
           format: int64
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -477,14 +471,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -525,20 +525,14 @@ paths:
               $ref: "#/components/schemas/SaveProjectDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -549,14 +543,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -591,20 +591,14 @@ paths:
               $ref: "#/components/schemas/RegisterUserDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -615,14 +609,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -669,20 +669,14 @@ paths:
           maximum: 100
           minimum: 1
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -693,14 +687,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -734,20 +734,14 @@ paths:
               $ref: "#/components/schemas/SaveProjectDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -758,14 +752,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -818,20 +818,14 @@ paths:
           maximum: 100
           minimum: 1
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -842,14 +836,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -890,20 +890,14 @@ paths:
               $ref: "#/components/schemas/SaveScenarioDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -914,14 +908,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -969,20 +969,14 @@ paths:
               $ref: "#/components/schemas/RunExecutionDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -993,14 +987,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1048,20 +1048,14 @@ paths:
           type: integer
           format: int64
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1072,14 +1066,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1114,20 +1114,14 @@ paths:
         schema:
           type: string
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1138,14 +1132,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1174,20 +1174,14 @@ paths:
       - auth-controller
       operationId: logout
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1198,14 +1192,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1236,20 +1236,14 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1260,14 +1254,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1296,20 +1296,14 @@ paths:
       - user-controller
       operationId: getUserLogged
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1320,14 +1314,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1361,20 +1361,14 @@ paths:
               $ref: "#/components/schemas/UpdateProfileDTO"
         required: true
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1385,14 +1379,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1421,20 +1421,14 @@ paths:
       - workload-profile-controller
       operationId: getWorkloadProfiles
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1445,14 +1439,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1477,6 +1477,111 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/WorkloadProfileDTO"
+  /api/v1/projects/{projectId}/scenarios/{scenarioId}/executions/{executionId}/metrics:
+    get:
+      tags:
+      - execution-metrics-controller
+      operationId: getMetrics
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: scenarioId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: executionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: after
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1000
+      responses:
+        "429":
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "400":
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "403":
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "500":
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExecutionMetricsDTO"
   /api/v1/projects/{projectId}/scenarios/{scenarioId}/executions/{executionId}/events:
     get:
       tags:
@@ -1514,20 +1619,14 @@ paths:
           type: integer
           format: int64
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1538,14 +1637,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1587,20 +1692,14 @@ paths:
           type: integer
           format: int64
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1611,14 +1710,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1682,20 +1787,14 @@ paths:
           maximum: 100
           minimum: 1
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1706,14 +1805,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -1742,20 +1847,14 @@ paths:
       - auth-controller
       operationId: csrf
       responses:
-        "422":
-          description: Unprocessable Content
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Content
           content:
             application/problem+json:
               schema:
@@ -1766,14 +1865,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "404":
+          description: Not Found
           content:
             application/problem+json:
               schema:
@@ -2320,6 +2425,65 @@ components:
             $ref: "#/components/schemas/ScenarioDTO"
         page:
           $ref: "#/components/schemas/PageMetadata"
+    ExecutionMetricsDTO:
+      type: object
+      properties:
+        source:
+          type: string
+        cpuUnit:
+          type: string
+        memoryUnit:
+          type: string
+        intervalSeconds:
+          type: integer
+          format: int64
+        capturing:
+          type: boolean
+        hasMore:
+          type: boolean
+        nextAfter:
+          type: integer
+          format: int64
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetricComponentDTO"
+        samples:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetricSampleDTO"
+    MetricComponentDTO:
+      type: object
+      properties:
+        key:
+          type: string
+          format: uuid
+        name:
+          type: string
+        cpuLimitPercent:
+          type: number
+          format: double
+        memoryLimitBytes:
+          type: integer
+          format: int64
+    MetricSampleDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        componentKey:
+          type: string
+          format: uuid
+        at:
+          type: string
+          format: date-time
+        cpuPercent:
+          type: number
+          format: double
+        memoryBytes:
+          type: integer
+          format: int64
     SseEmitter:
       type: object
       properties:

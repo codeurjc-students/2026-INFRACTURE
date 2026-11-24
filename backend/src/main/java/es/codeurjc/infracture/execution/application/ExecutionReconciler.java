@@ -45,7 +45,7 @@ public class ExecutionReconciler {
     // earlier one (#90). Each one is interrupted once per process; the set only holds those leftovers.
     private final Instant processStartedAt;
     private final Set<Long> recovered = new HashSet<>();
-    // Until when the logs of each running execution were read. Only the scheduler thread uses it.
+    // Until when the logs of each running execution were read. Only the ticks use it, one at a time.
     private final Map<Long, Instant> logsReadUntil = new HashMap<>();
 
     public ExecutionReconciler(ExecutionRepository repository, RuntimeEngine engine, PlanCompiler planCompiler,
@@ -65,7 +65,7 @@ public class ExecutionReconciler {
         this.processStartedAt = clock.instant();
     }
 
-    // Spring runs scheduled methods on a single thread, so two ticks never overlap.
+    // Spring never runs a scheduled method twice at once, so two ticks never overlap.
     @Scheduled(fixedDelayString = "${infracture.execution.reconcile-interval:2s}")
     public void reconcile() {
         Execution execution = transactions.execute(status -> nextStep());

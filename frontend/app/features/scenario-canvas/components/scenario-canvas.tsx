@@ -58,6 +58,10 @@ import {
 } from "../execution-status";
 import { useExecution } from "../use-execution";
 import ExecutionActivity from "./execution-activity";
+import ExecutionMetrics, {
+  readPanelOpen,
+  writePanelOpen,
+} from "./execution-metrics";
 import { ExecutionBadge } from "./execution-badge";
 import { RunButton } from "./run-button";
 import {
@@ -471,6 +475,12 @@ function Editor({
   const [panel, setPanel] = useState<"details" | "issues" | "load" | "activity" | null>(
     null,
   );
+  // The CPU and memory panel under the canvas: Run opens it and it stays as the person leaves it.
+  const [metricsOpen, setMetricsOpen] = useState(readPanelOpen);
+  function showMetrics(open: boolean) {
+    setMetricsOpen(open);
+    writePanelOpen(open);
+  }
   // Templates by key, to find a node's template quickly.
   const templatesByKey = useMemo(
     () => new Map(templates.map((template) => [template.key, template])),
@@ -711,6 +721,7 @@ function Editor({
       revision = saved.revision;
     }
     const error = await experiment.run(revision);
+    if (!error) showMetrics(true);
     if (!(error instanceof HttpError) || error.status !== 409) return;
     if (await reservedElsewhere()) return;
     // Another tab saved a newer revision. This tab shows it and never runs it without a new click.
@@ -909,14 +920,14 @@ function Editor({
       </header>
 
       <div
-        className={`grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] max-lg:content-start ${
+        className={`grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] max-lg:content-start lg:grid-rows-[minmax(0,1fr)_auto] ${
           panelOpen
             ? "lg:grid-cols-[15rem_minmax(0,1fr)_20rem]"
             : "lg:grid-cols-[15rem_minmax(0,1fr)]"
         }`}
       >
         {/* Left: the component list. */}
-        <aside className="flex min-h-0 flex-col border-b lg:border-r lg:border-b-0">
+        <aside className="flex min-h-0 flex-col border-b lg:row-span-2 lg:border-r lg:border-b-0">
           <ComponentPalette
             templates={templates}
             count={state.nodes.length}
@@ -1268,11 +1279,24 @@ function Editor({
           </div>
         </div>
 
+        {/* Under the canvas: the CPU and memory of the latest execution, in view while it runs. */}
+        {experiment.execution && (
+          <div className="min-w-0 lg:col-start-2 lg:row-start-2">
+            <ExecutionMetrics
+              projectId={projectId}
+              scenarioId={scenarioId}
+              execution={experiment.execution}
+              open={metricsOpen}
+              onOpenChange={showMetrics}
+            />
+          </div>
+        )}
+
         {/* Right: the selected node's configuration, the issues, the scenario details or the load. */}
         {panelOpen && (
           <aside
             aria-label="Inspector"
-            className="min-h-0 overflow-y-auto border-t p-4 lg:border-t-0 lg:border-l lg:p-5"
+            className="min-h-0 overflow-y-auto border-t p-4 lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:border-t-0 lg:border-l lg:p-5"
           >
             {selected && (
               <NodeInspector
