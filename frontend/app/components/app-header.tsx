@@ -1,15 +1,7 @@
 import { Link, NavLink, useRouteLoaderData } from "react-router";
 import Logo from "~/components/logo";
+import UserAvatar from "~/components/user-avatar";
 import type { clientLoader as privateLoader } from "~/routes/private-layout";
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0].toUpperCase())
-    .join("");
-}
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-2.5 py-1.5 type-body no-underline active:bg-accent motion-safe:transition-colors ${
@@ -51,9 +43,12 @@ export default function AppHeader() {
           <Link
             to="/account"
             aria-label="Your account"
-            className="col-start-3 grid size-8 justify-self-end place-items-center rounded-md border bg-card type-caption font-semibold text-foreground active:bg-accent pointer-fine:hover:bg-accent motion-safe:transition-colors"
+            className="col-start-3 justify-self-end rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            {initials(user.displayName)}
+            <UserAvatar
+              user={user}
+              className="size-8 type-caption active:bg-accent pointer-fine:hover:bg-accent motion-safe:transition-colors"
+            />
           </Link>
         )}
       </div>

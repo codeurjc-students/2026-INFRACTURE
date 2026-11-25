@@ -53,3 +53,17 @@ export function changePassword(change: {
     body: JSON.stringify(change),
   });
 }
+
+// The browser sets the multipart boundary itself, so no Content-Type header is given.
+export function uploadAvatar(image: Blob): Promise<UserDTO> {
+  const form = new FormData();
+  form.append("file", image, "avatar.png");
+  return apiFetch<UserDTO>("/api/v1/users/me/avatar", {
+    method: "PUT",
+    body: form,
+  });
+}
+
+export function removeAvatar(): Promise<UserDTO> {
+  return apiFetch<UserDTO>("/api/v1/users/me/avatar", { method: "DELETE" });
+}

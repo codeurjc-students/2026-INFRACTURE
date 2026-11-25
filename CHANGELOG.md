@@ -11,6 +11,7 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - User accounts: sign up, sign in and sign out. Signing up signs you in automatically.
 - A session lasts 7 days and the web app renews it on its own in the meantime. Restarting the backend ends all sessions.
 - Account page at `/account` to view and edit your name, username, email and password. Changing the email or password signs you out on your other devices.
+- A profile photo on `/account`: choose a PNG, JPEG or WebP image, crop it in a circle and save it, or remove it. It shows in the top bar, and a failed upload keeps the previous photo.
 - Private projects at `/projects`: each account creates, lists and edits its own, and nobody else can see them. They cannot be deleted or published yet.
 - Scenarios inside each project, with an editable name and description. They cannot be deleted yet.
 - Public catalogue at `/catalogue` with the HTTP Service, Worker, PostgreSQL, Redis and RabbitMQ templates, with search by name and a filter by type.
@@ -30,5 +31,6 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - Light or dark theme following the system preference.
 - REST API under `/api/v1` for all of the above. Requests that change data must send the `X-XSRF-TOKEN` header, obtained with `GET /api/v1/auth/csrf`, and errors arrive as `application/problem+json`. The OpenAPI contract and the Postman collection are in [`docs/api`](docs/api).
 - A single administrator created on first start. Before starting, copy `.env.example` to `.env` in the repository root and fill it in, or define the `INFRACTURE_ADMIN_*` variables.
+- Docker Compose also starts RustFS, the S3 storage that keeps the photos, on `127.0.0.1:9000` with a web console on `127.0.0.1:9002`. Set `STORAGE_ACCESS_KEY` and `STORAGE_SECRET_KEY` in `.env` to change its default development keys.
 - `docker compose --profile app up -d --wait --build` runs the backend in a container that reaches Docker only through a restricted proxy. Build the demo and load images first with `docker build -t infracture/demo-app:0.1.0 demo-app` and `docker build -t infracture/load-generator:0.1.0 load-generator`; see the [development guide](docs/development-guide.md).
-- Local run with `scripts/start-dev.sh`, which starts PostgreSQL in Docker Compose, the backend and the frontend. It requires Java 25 and Node.js 24 at the exact versions in `.java-version` and `.nvmrc`; the steps are in the [development guide](docs/development-guide.md).
+- Local run with `scripts/start-dev.sh`, which starts PostgreSQL and RustFS in Docker Compose, the backend and the frontend. It requires Java 25 and Node.js 24 at the exact versions in `.java-version` and `.nvmrc`; the steps are in the [development guide](docs/development-guide.md).

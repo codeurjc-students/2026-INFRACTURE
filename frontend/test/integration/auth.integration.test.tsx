@@ -1,3 +1,4 @@
+import { Blob as NodeBlob, File as NodeFile } from "node:buffer";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { getCurrentUser, login, logout } from "~/features/auth/api/auth-service";
@@ -37,6 +38,27 @@ beforeAll(() => {
 });
 
 afterAll(() => vi.unstubAllGlobals());
+
+// Valid PNG files: a 128 px square, the smallest side the server takes, and a 160 x 128 rectangle.
+const SQUARE_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAAAAADmVT4XAAABEklEQVR42u3O4UZDAQCA0Wsyk8xkkslMkslMJjOZTCaZZDKTZJJkMjOZmZnJzEwmSTJJkkmSTJIkyWSSJDMzmcxMkklmMjOzx+jPd57gCIKoSyzp7pHKeuV9/YoBpWpwaFg9otGO6sb0hnHjhGnSPDVtmZm1ztns8wuLjqXllVXnmsvtWff6/IFgaCMcicY241vbO7t7if2Dw6Pj5Mnp2flF6vLq+ub27v4h/Zh5en55fcvm8oX34kepXPn8+q7+/Nbqf41mqy0QIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBP470AF7D8HSZO7hZAAAAABJRU5ErkJggg==";
+const RECTANGLE_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAKAAAACACAAAAACpCD3HAAABH0lEQVR42u3O0UYdAAAA0CtJkiRJkmSSJEmSJJMkk0ySJEmSJEmSJEkmSZLMJEkmSZIkSZIkSZIkSZIkSZIkSZL0CT30er7gnEAgKDgkNCw8IjIqOiY2Lj4h8UdSckpqWnpGZlZ2Tm7ez/yCwqJfxSW/S8vKKyqrqmtq6+obGpuaW1rb2js6u7p7ev/09Q8MDg2P/P03OjY+Mfl/anpmdm5+YXFpeWV1bX1jc2t7Z3dv/+Dw6Pjk9Oz84vLq+ub27v7h8en55fXt/eMrPyAoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj43eAnbdqx8C/FX8sAAAAASUVORK5CYII=";
+
+// Node's Request and fetch only read Node's FormData and Blob, and jsdom replaces them with its own.
+function useNodeFormData() {
+  vi.stubGlobal("FormData", NodeFormData);
+  vi.stubGlobal("Blob", NodeBlob);
+  vi.stubGlobal("File", NodeFile);
+}
+const NodeFormData = (await new Response(new URLSearchParams()).formData()).constructor as typeof FormData;
+
+function submitPhoto(base64: string) {
+  const body = new NodeFormData();
+  body.set("intent", "avatar");
+  body.set("avatar", new NodeBlob([Buffer.from(base64, "base64")], { type: "image/png" }) as Blob, "avatar.png");
+  return { request: new Request(new URL("/account", window.location.origin), { method: "POST", body }) };
+}
 
 function submit(path: string, fields: Record<string, string> = {}) {
   const body = new FormData();
@@ -165,6 +187,26 @@ describe("auth client against the real API", () => {
       await expect(login(changedEmail, account.password)).rejects.toMatchObject({ status: 401 });
       await login(changedEmail, newPassword);
       await expect(getCurrentUser()).resolves.toMatchObject({ email: changedEmail });
+    });
+
+    it("uploads, refuses and removes the profile photo through the real API and storage", async () => {
+      useNodeFormData();
+
+      await expect(accountAction(submitPhoto(SQUARE_PNG) as never)).resolves.toEqual({ saved: true });
+      const { avatarUrl } = await getCurrentUser();
+      expect(avatarUrl).toMatch(/^\/api\/v1\/users\/me\/avatar\?v=/);
+      const image = await fetch(avatarUrl!);
+      expect(image.status).toBe(200);
+      expect(image.headers.get("Content-Type")).toBe("image/png");
+
+      await expect(accountAction(submitPhoto(RECTANGLE_PNG) as never))
+        .resolves.toEqual({ error: "The avatar must be square" });
+      await expect(getCurrentUser()).resolves.toMatchObject({ avatarUrl });
+
+      await expect(accountAction(submit("/account", { intent: "remove-avatar" }) as never))
+        .resolves.toEqual({ saved: true });
+      await expect(getCurrentUser()).resolves.toMatchObject({ avatarUrl: null });
+      expect((await fetch(avatarUrl!)).status).toBe(404);
     });
 
     it("sends a session the API revoked to the login", async () => {

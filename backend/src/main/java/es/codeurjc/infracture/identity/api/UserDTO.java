@@ -10,7 +10,8 @@ public record UserDTO(
         String email,
         UserRole role,
         boolean active,
-        String avatarKey,
+        // Null when the account has no avatar. The storage key stays in the backend.
+        String avatarUrl,
         Instant createdAt,
         Instant updatedAt) {
 }

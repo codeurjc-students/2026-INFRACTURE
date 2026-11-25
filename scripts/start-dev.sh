@@ -143,7 +143,7 @@ cleanup() {
   fi
 
   if [[ "${STARTED_DATABASE}" == true ]]; then
-    log "Stopping PostgreSQL without deleting its volume"
+    log "Stopping PostgreSQL and the image storage without deleting their volumes"
     (cd "${REPOSITORY_ROOT}" && docker compose down)
   fi
 
@@ -168,12 +168,14 @@ select_node_runner
 
 docker info >/dev/null 2>&1 || fail "Docker is not running. Start Docker Desktop and try again."
 
-if (cd "${REPOSITORY_ROOT}" &&
-  docker compose ps --status running --services | grep -qx 'platform-postgres'); then
-  log "PostgreSQL is already running"
+RUNNING_SERVICES="$(cd "${REPOSITORY_ROOT}" && docker compose ps --status running --services)"
+if grep -qx 'platform-postgres' <<<"${RUNNING_SERVICES}" &&
+  grep -qx 'platform-storage' <<<"${RUNNING_SERVICES}"; then
+  log "PostgreSQL and the image storage are already running"
 else
-  log "Starting PostgreSQL"
-  STARTED_DATABASE=true
+  # Stop on exit only what this script started: a PostgreSQL that was already running stays up.
+  grep -qx 'platform-postgres' <<<"${RUNNING_SERVICES}" || STARTED_DATABASE=true
+  log "Starting PostgreSQL and the image storage"
   (cd "${REPOSITORY_ROOT}" && docker compose up -d --wait)
 fi
 

@@ -28,6 +28,7 @@
 	</scm>
 	<properties>
 		<argLine></argLine>
+		<aws-sdk.version>2.59.8</aws-sdk.version>
 		<bouncycastle.version>1.86</bouncycastle.version>
 		<jacoco.version>0.8.15</jacoco.version>
 		<java.version>25</java.version>
@@ -100,6 +101,18 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>${aws-sdk.version}</version>
+			<exclusions>
+				<!-- Only the synchronous client is used; Netty serves the asynchronous one. -->
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>netty-nio-client</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -229,6 +242,11 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}</argLine>
+					<environmentVariables>
+						<!-- Nothing listens here: a test never reaches the developer's image storage and its startup
+						     cleanup. Tests that need storage start their own server. -->
+						<STORAGE_ENDPOINT>http://127.0.0.1:9</STORAGE_ENDPOINT>
+					</environmentVariables>
 				</configuration>
 			</plugin>
 			<plugin>

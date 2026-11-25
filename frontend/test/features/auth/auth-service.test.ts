@@ -7,7 +7,9 @@ import {
   login,
   logout,
   register,
+  removeAvatar,
   updateProfile,
+  uploadAvatar,
 } from "~/features/auth/api/auth-service";
 import type { UserDTO } from "~/features/auth/model/UserDTO";
 
@@ -18,7 +20,7 @@ const user: UserDTO = {
   email: "alice@example.com",
   role: "USER",
   active: true,
-  avatarKey: null,
+  avatarUrl: null,
   createdAt: "2026-10-17T10:00:00Z",
   updatedAt: "2026-10-17T10:00:00Z",
 };
@@ -127,5 +129,37 @@ describe("auth service", () => {
     await expect(save()).resolves.toEqual(user);
 
     expect(requestOf(fetch)).toEqual({ path, method, body: JSON.stringify(body) });
+  });
+
+  it("uploads the avatar as a multipart file with the CSRF token", async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json(user));
+    vi.stubGlobal("fetch", fetch);
+    const image = new Blob(["png bytes"], { type: "image/png" });
+
+    await expect(uploadAvatar(image)).resolves.toEqual(user);
+
+    const [path, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe("/api/v1/users/me/avatar");
+    expect(init.method).toBe("PUT");
+    const file = (init.body as FormData).get("file") as File;
+    expect(file.name).toBe("avatar.png");
+    expect(await file.text()).toBe("png bytes");
+    const headers = new Headers(init.headers);
+    expect(headers.get("X-XSRF-TOKEN")).toBe("token-123");
+    // The browser writes the multipart boundary; a JSON type would break the upload.
+    expect(headers.has("Content-Type")).toBe(false);
+  });
+
+  it("removes the avatar", async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json(user));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(removeAvatar()).resolves.toEqual(user);
+
+    expect(requestOf(fetch)).toEqual({
+      path: "/api/v1/users/me/avatar",
+      method: "DELETE",
+      body: undefined,
+    });
   });
 });

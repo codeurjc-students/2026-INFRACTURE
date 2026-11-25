@@ -6,11 +6,14 @@ import { Input } from "~/components/ui/input";
 import {
   changeEmail,
   changePassword,
+  removeAvatar,
   updateProfile,
+  uploadAvatar,
 } from "~/features/auth/api/auth-service";
 import AccountForm, {
   type AccountFormResult,
 } from "~/features/auth/components/account-form";
+import AvatarForm from "~/features/auth/components/avatar-form";
 import PasswordInput from "~/features/auth/components/password-input";
 import { HttpError } from "~/shared/api/api-fetch";
 import type { clientLoader as privateLoader } from "./private-layout";
@@ -27,6 +30,10 @@ function saveAccount(form: FormData) {
         displayName: form.has("displayName") ? field("displayName") : undefined,
         username: form.has("username") ? field("username") : undefined,
       });
+    case "avatar":
+      return uploadAvatar(form.get("avatar") as Blob);
+    case "remove-avatar":
+      return removeAvatar();
     case "email":
       return changeEmail({
         email: field("email"),
@@ -39,6 +46,10 @@ function saveAccount(form: FormData) {
       });
   }
 }
+
+// Messages the server writes for the user: invalid data, a taken name or email, an image too large and
+// the image storage being down.
+const USER_ERRORS = [400, 409, 413, 503];
 
 // The route revalidates after this action, so the page and the header show the stored account.
 export async function clientAction({
@@ -55,8 +66,7 @@ export async function clientAction({
     }
     return {
       error:
-        error instanceof HttpError &&
-        (error.status === 400 || error.status === 409)
+        error instanceof HttpError && USER_ERRORS.includes(error.status)
           ? error.message
           : "Something went wrong. Try again in a moment.",
     };
@@ -82,6 +92,7 @@ export default function AccountRoute() {
             <dt className="text-muted-foreground">Email</dt>
             <dd className="[overflow-wrap:anywhere]">{user.email}</dd>
           </dl>
+          <AvatarForm user={user} />
           <AccountForm
             intent="profile"
             title="Profile"

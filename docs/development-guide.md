@@ -16,7 +16,7 @@ Esta guía describe la vertical del catálogo de Infracture Local, iniciada en F
 
 ## Introducción
 
-Infracture se desarrolla como una aplicación web **SPA**: el navegador carga el cliente React y cambia de vistas sin solicitar una página HTML nueva para cada navegación. El cliente solicita datos mediante HTTP a una API REST de Spring Boot; el servidor conserva los datos en PostgreSQL. Son tres procesos independientes en desarrollo: Vite en `localhost:5173`, Spring Boot en `localhost:8080` y PostgreSQL en `localhost:5432`. Vite reenvía las peticiones `/api` al backend. Docker Compose inicia únicamente PostgreSQL.
+Infracture se desarrolla como una aplicación web **SPA**: el navegador carga el cliente React y cambia de vistas sin solicitar una página HTML nueva para cada navegación. El cliente solicita datos mediante HTTP a una API REST de Spring Boot; el servidor conserva los datos en PostgreSQL. Son tres procesos independientes en desarrollo: Vite en `localhost:5173`, Spring Boot en `localhost:8080` y PostgreSQL en `localhost:5432`. Vite reenvía las peticiones `/api` al backend. Docker Compose inicia PostgreSQL y RustFS, el almacenamiento S3 de las imágenes, con su API en `localhost:9000` y su consola en `localhost:9002` ([ADR 0033](adr/0033-rustfs-como-almacenamiento-s3.md)).
 
 | Aspecto | Estado de Fase 2 |
 | --- | --- |
@@ -32,7 +32,7 @@ Infracture se desarrolla como una aplicación web **SPA**: el navegador carga el
 - [Eclipse Temurin (Java)](https://adoptium.net/) 25 LTS y [Spring Boot](https://spring.io/projects/spring-boot/) implementan la API y las capas de aplicación, dominio y persistencia.
 - [PostgreSQL](https://www.postgresql.org/) 18.7 almacena el catálogo; [Flyway](https://documentation.red-gate.com/fd) aplica las migraciones versionadas al arrancar el backend.
 - [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [React Router](https://reactrouter.com/) y [Vite](https://vite.dev/) forman el cliente SPA. React Router se configura con `ssr: false`.
-- [Docker](https://docs.docker.com/) y [Docker Compose](https://docs.docker.com/compose/) proporcionan el PostgreSQL de desarrollo. El motor Docker también es necesario para los PostgreSQL desechables de las pruebas con Testcontainers.
+- [Docker](https://docs.docker.com/) y [Docker Compose](https://docs.docker.com/compose/) proporcionan el PostgreSQL y el RustFS de desarrollo. El motor Docker también es necesario para los PostgreSQL y RustFS desechables de las pruebas con Testcontainers.
 
 La versión mayor de Java y la versión exacta de Node.js que requieren los scripts están en [`.java-version`](../.java-version) y [`.nvmrc`](../.nvmrc). El contenedor y las credenciales por defecto del entorno local están declarados en [`compose.yaml`](../compose.yaml).
 
@@ -140,7 +140,7 @@ Al 25 de septiembre de 2026, `main` acumulaba **53 commits** y se habían creado
 
 ### Requisitos y clonación
 
-Se necesita Git, Docker con el motor iniciado, Java y Node.js en las versiones fijadas arriba, npm y un navegador. El servidor usa `localhost:8080`, la SPA `localhost:5173` y PostgreSQL `localhost:5432`; estos puertos deben estar libres. Las pruebas cliente-servidor y de navegador usan `localhost:8081`; las de navegador también usan `localhost:5174`. Ambas suites deben ejecutarse por separado porque comparten el puerto del backend.
+Se necesita Git, Docker con el motor iniciado, Java y Node.js en las versiones fijadas arriba, npm y un navegador. El servidor usa `localhost:8080`, la SPA `localhost:5173` PostgreSQL `localhost:5432` y RustFS `localhost:9000` y `localhost:9002`; estos puertos deben estar libres. Las pruebas cliente-servidor y de navegador usan `localhost:8081`; las de navegador también usan `localhost:5174`. Ambas suites deben ejecutarse por separado porque comparten el puerto del backend.
 
 ```bash
 git clone https://github.com/codeurjc-students/2026-INFRACTURE.git
@@ -214,7 +214,7 @@ Desde la terminal integrada, ejecuta `docker compose` en la raíz, Maven Wrapper
 
 Para interactuar con la API, mantén PostgreSQL y el backend en marcha e importa en Postman la [colección del proyecto](api/infracture.postman_collection.json). Abre **Get Component Templates** y pulsa **Send**: la petición `GET {{baseUrl}}/api/v1/component-templates` debe responder `200 OK` con una página que contiene las seis plantillas iniciales en `content`. Prueba `?q=worker&type=WORKER&page=0&size=2` para combinar filtros y paginación. La colección ya define `baseUrl` como `http://localhost:8080`. Es la única operación REST implementada actualmente.
 
-Al terminar el arranque manual, detén cliente y backend con `Ctrl+C`. Desde la raíz, detén PostgreSQL sin borrar sus datos:
+Al terminar el arranque manual, detén cliente y backend con `Ctrl+C`. Desde la raíz, detén PostgreSQL y RustFS sin borrar sus datos:
 
 ```bash
 docker compose down

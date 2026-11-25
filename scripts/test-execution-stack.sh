@@ -56,7 +56,7 @@ log "Building the demo and load images used by the experiment"
 docker build --quiet -t infracture/demo-app:0.1.0 "${REPOSITORY_ROOT}/demo-app" >/dev/null
 docker build --quiet -t infracture/load-generator:0.1.0 "${REPOSITORY_ROOT}/load-generator" >/dev/null
 
-log "Starting PostgreSQL, docker-proxy and the backend in containers"
+log "Starting PostgreSQL, the image storage, docker-proxy and the backend in containers"
 "${COMPOSE[@]}" up -d --wait --build
 
 log "Platform ready at ${BACKEND_URL}"
