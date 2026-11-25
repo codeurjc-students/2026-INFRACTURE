@@ -41,7 +41,7 @@ El recorrido completo tiene cinco etapas:
 1. **Diseñar.** El usuario coloca nodos en el canvas, elige su perfil y sus parámetros, los une con flechas y configura la carga.
 2. **Guardar.** El grafo completo se guarda con un número de revisión. Un borrador incompleto también se puede guardar.
 3. **Validar.** El backend comprueba que el diseño cumple los contratos del catálogo. Los errores bloquean la ejecución; los avisos no.
-4. **Ejecutar.** `Run` congela esa revisión en un snapshot, la traduce a un plan con forma de fichero Docker Compose y lo aplica sobre Docker.
+4. **Ejecutar.** `Run` congela esa revisión en un snapshot, la traduce a un plan y el motor lo aplica sobre Docker con Docker Compose.
 5. **Observar.** El backend espera a que todo esté sano, lanza la carga y recoge métricas y eventos hasta que alguien pulsa `Stop` o se agota el tiempo.
 
 Tres ideas sostienen todo el diseño:
@@ -67,7 +67,7 @@ Tres ideas sostienen todo el diseño:
 | `ValidationIssue` | Problema que encuentra la validación, con severidad y objetivo. | ERROR en el puerto `cache`. |
 | `Execution` | Experimento lanzado desde una revisión. | Ejecución del 30 de octubre. |
 | `Execution snapshot` | Copia inmutable de lo que se ejecutó. | Revisión 8, imágenes y plan. |
-| `ExecutionPlan` | Traducción del snapshot a servicios Docker, con forma de fichero Compose. | Servicios, red y salud. |
+| `ExecutionPlan` | Traducción del snapshot a los servicios que se ejecutan, en términos de Infracture. Solo el motor la pasa a Compose. | Nodos por clave, imagen, salud, límites y carga. |
 | `ExecutedComponent` | Identidad histórica de un nodo dentro de una ejecución. | `orders-api` en la ejecución 12. |
 
 ## 3. Plataforma y experimento
@@ -335,7 +335,32 @@ Se llama *reconciler* y no *controller* porque en el repositorio el sufijo `Cont
 
 ### 9.3 El ExecutionPlan
 
-El plan tiene la forma de un fichero Docker Compose. Este es un extracto simplificado para el escenario `CACHE_ASIDE`:
+El plan describe el experimento con conceptos propios, no con los de Compose: un servicio por nodo, identificado por su clave, con su imagen, sus variables, su sonda de salud, la dirección donde el backend pide su respuesta real y sus límites, y la carga con su nodo objetivo. `PlanCompiler` lo construye y se guarda tal cual en `executions.plan`, como evidencia de lo que se ejecutó. Así queda un HTTP Service `STATELESS` con carga `CONSTANT_HTTP` (recortado):
+
+```json
+{
+  "project": "infracture-local-exec-12",
+  "labels": { "io.infracture.instance": "local", "io.infracture.execution": "12" },
+  "nodes": [{
+    "key": "3f0c8a1e-…",
+    "host": "c-3f0c8a1e-…",
+    "image": "infracture/demo-app:0.1.0",
+    "command": null,
+    "environment": { "APP_ROLE": "http", "APP_MODE": "STATELESS", "COMPONENT_NAME": "orders-api" },
+    "health": { "port": 8080, "path": "/health", "intervalSeconds": 2, "timeoutSeconds": 2, "retries": 15, "startPeriodSeconds": 60 },
+    "evidence": "http://c-3f0c8a1e-…:8080/",
+    "limits": { "cpus": 0.5, "memoryBytes": 402653184, "pids": 200 }
+  }],
+  "load": {
+    "image": "infracture/load-generator:0.1.0",
+    "environment": { "WORKLOAD_PROFILE": "CONSTANT_HTTP", "TARGET_URL": "http://c-3f0c8a1e-…:8080/", "REQUESTS_PER_SECOND": "10" },
+    "target": "3f0c8a1e-…",
+    "limits": { "cpus": 0.5, "memoryBytes": 402653184, "pids": 200 }
+  }
+}
+```
+
+Solo `ComposeRuntimeEngine` convierte el plan en un fichero Compose, al aplicarlo. Cada nodo pasa a ser un servicio llamado como su `host`, la sonda se escribe como `healthcheck` con `wget`, y la carga es el servicio `workload` con el perfil `load` y `depends_on` de su objetivo. El motor añade además lo que comparten todos los contenedores: la red de la ejecución, las etiquetas, `read_only` con `tmpfs` y sin privilegios ([ADR 0030](adr/0030-contenedores-sin-privilegios.md)). El reconciler, el diario de eventos y el colector de métricas nombran los nodos por su clave y no conocen nombres de servicio de Compose. Con los tipos de P07, el fichero Compose de un `CACHE_ASIDE` quedará así (extracto simplificado):
 
 ```yaml
 name: infracture-exec-12
@@ -369,7 +394,7 @@ services:
     labels: { io.infracture.execution: "12", io.infracture.component: "orders-api" }
 ```
 
-- **Todo lo genera Infracture.** El usuario no escribe imágenes, puertos, comandos, montajes ni variables. Nombres de contenedor, alias de red, credenciales temporales, comprobaciones de salud y etiquetas salen del contrato y del driver de cada tipo.
+- **Todo lo genera Infracture.** El usuario no escribe imágenes, puertos, comandos, montajes ni variables. Un driver puede fijar el comando de su imagen, siempre el mismo ([ADR 0030](adr/0030-contenedores-sin-privilegios.md)). Nombres de contenedor, alias de red, credenciales temporales, comprobaciones de salud y etiquetas salen del contrato y del driver de cada tipo.
 - **Direcciones por variable.** Cada servicio recibe la dirección de sus dependencias por variable de entorno, como `CACHE_URL`. En el futuro se podrá interponer un proxy de fallos sin tocar las imágenes ([sección 15](#15-evolución-fuera-de-la-fase-3)).
 - **Una imagen para servicio y Worker.** `infracture/demo-app` es un único programa. `APP_ROLE=http|worker` elige el papel y `APP_MODE` el perfil. Hay un solo build y un solo digest por release.
 - **Imágenes fijadas por digest.** Cada imagen se referencia por su digest, y el snapshot lo guarda. Así se sabe exactamente qué se ejecutó.

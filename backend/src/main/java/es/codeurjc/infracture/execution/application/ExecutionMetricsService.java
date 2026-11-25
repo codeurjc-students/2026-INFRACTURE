@@ -2,6 +2,8 @@ package es.codeurjc.infracture.execution.application;
 
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
 import es.codeurjc.infracture.execution.domain.MetricSample;
 import es.codeurjc.infracture.execution.persistence.MetricSampleRepository;
 import es.codeurjc.infracture.shared.InvalidDataException;
@@ -42,6 +44,13 @@ public class ExecutionMetricsService {
             List<MetricSample> samples, boolean hasMore, long nextAfter) {
     }
 
+    // The limits a node ran with, read from its stored plan so the history keeps them if they change later.
+    // CPU is a percentage of one core: 0.5 CPUs is 50%.
+    private static ResourceUsage limits(ExecutionPlan plan, ExecutedComponent component) {
+        Limits limits = plan.node(component.getKey()).limits();
+        return new ResourceUsage(limits.cpus() * 100, limits.memoryBytes());
+    }
+
     @Transactional(readOnly = true)
     public MetricsView read(String ownerEmail, Long projectId, Long scenarioId, Long executionId, Instant from,
             Instant to, long after, int limit) {
@@ -56,7 +65,7 @@ public class ExecutionMetricsService {
         }
         Execution execution = executions.ownExecution(ownerEmail, projectId, scenarioId, executionId, false);
         List<NodeLimits> nodes = execution.getComponents().stream()
-                .map(component -> new NodeLimits(component, PlanCompiler.limits(execution.getPlan(), component)))
+                .map(component -> new NodeLimits(component, limits(execution.getPlan(), component)))
                 .toList();
         List<Long> ids = execution.getComponents().stream().map(ExecutedComponent::getId).toList();
 

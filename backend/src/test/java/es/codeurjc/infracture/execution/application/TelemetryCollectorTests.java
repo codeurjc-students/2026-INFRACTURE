@@ -2,7 +2,7 @@ package es.codeurjc.infracture.execution.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
-import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -15,6 +15,7 @@ import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
 import es.codeurjc.infracture.execution.domain.MetricSample;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
@@ -60,7 +61,7 @@ class TelemetryCollectorTests {
         for (ExecutedComponent component : execution.getComponents()) {
             ReflectionTestUtils.setField(component, "id", id++);
         }
-        execution.attachPlan(Map.of("name", "infracture-local-exec-12"));
+        execution.attachPlan(new ExecutionPlan("infracture-local-exec-12", Map.of(), List.of(), null));
         execution.startStarting();
         execution.markRunning(NOW, Duration.ofMinutes(30));
         when(executions.findByReleasedAtIsNull())
@@ -74,9 +75,9 @@ class TelemetryCollectorTests {
 
     @Test
     void storesOneSamplePerNodeWhileRunning() {
-        when(engine.usage(anyMap())).thenReturn(Map.of(
-                "c-" + ORDERS, new ResourceUsage(25.5, 1_000L),
-                "c-" + USERS, new ResourceUsage(0.0, 2_000L)));
+        when(engine.usage(any())).thenReturn(Map.of(
+                ORDERS, new ResourceUsage(25.5, 1_000L),
+                USERS, new ResourceUsage(0.0, 2_000L)));
 
         collector.collect();
 
@@ -87,7 +88,7 @@ class TelemetryCollectorTests {
 
     @Test
     void recordsANodeWithoutAReadingAsAbsent() {
-        when(engine.usage(anyMap())).thenReturn(Map.of("c-" + ORDERS, new ResourceUsage(10.0, 500L)));
+        when(engine.usage(any())).thenReturn(Map.of(ORDERS, new ResourceUsage(10.0, 500L)));
 
         collector.collect();
 
@@ -99,7 +100,7 @@ class TelemetryCollectorTests {
     // Metrics are evidence, not health: a failed read leaves a gap and the experiment goes on.
     @Test
     void leavesAGapWhenDockerCannotAnswerAndKeepsTheExecutionRunning() {
-        when(engine.usage(anyMap())).thenThrow(new RuntimeEngineException("docker stats did not finish"));
+        when(engine.usage(any())).thenThrow(new RuntimeEngineException("docker stats did not finish"));
 
         collector.collect();
 
@@ -116,7 +117,7 @@ class TelemetryCollectorTests {
 
         collector.collect();
 
-        verify(engine, never()).usage(anyMap());
+        verify(engine, never()).usage(any());
         assertThat(stored).isEmpty();
     }
 
@@ -126,7 +127,7 @@ class TelemetryCollectorTests {
 
         collector.collect();
 
-        verify(engine, never()).usage(anyMap());
+        verify(engine, never()).usage(any());
         assertThat(stored).isEmpty();
     }
 
@@ -136,15 +137,15 @@ class TelemetryCollectorTests {
 
         collector.collect();
 
-        verify(engine, never()).usage(anyMap());
+        verify(engine, never()).usage(any());
     }
 
     @Test
     void discardsTheReadingWhenStopArrivesWhileDockerAnswers() {
         doAnswer(invocation -> {
             execution.requestStop();
-            return Map.of("c-" + ORDERS, new ResourceUsage(10.0, 500L));
-        }).when(engine).usage(anyMap());
+            return Map.of(ORDERS, new ResourceUsage(10.0, 500L));
+        }).when(engine).usage(any());
 
         collector.collect();
 

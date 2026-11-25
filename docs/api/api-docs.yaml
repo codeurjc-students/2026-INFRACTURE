@@ -18,14 +18,20 @@ paths:
               $ref: "#/components/schemas/ChangePasswordDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -36,8 +42,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -56,18 +68,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -90,14 +90,20 @@ paths:
               $ref: "#/components/schemas/ChangeEmailDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -108,8 +114,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -128,18 +140,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -162,14 +162,20 @@ paths:
         schema:
           type: string
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -180,8 +186,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -200,18 +212,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -239,14 +239,20 @@ paths:
               required:
               - file
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -257,8 +263,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -277,18 +289,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -304,14 +304,20 @@ paths:
       - user-controller
       operationId: removeAvatar
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -322,8 +328,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -342,18 +354,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -383,14 +383,20 @@ paths:
           type: integer
           format: int64
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -401,8 +407,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -421,18 +433,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -467,14 +467,20 @@ paths:
               $ref: "#/components/schemas/SaveScenarioDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -485,8 +491,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -505,18 +517,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -546,14 +546,20 @@ paths:
           type: integer
           format: int64
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -564,8 +570,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -584,18 +596,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -630,14 +630,20 @@ paths:
               $ref: "#/components/schemas/SaveScenarioGraphDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -648,8 +654,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -668,18 +680,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -703,14 +703,20 @@ paths:
           type: integer
           format: int64
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -721,8 +727,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -741,18 +753,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -781,14 +781,20 @@ paths:
               $ref: "#/components/schemas/SaveProjectDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -799,8 +805,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -819,18 +831,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -853,14 +853,20 @@ paths:
               $ref: "#/components/schemas/RegisterUserDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -871,8 +877,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -891,18 +903,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -937,14 +937,20 @@ paths:
           maximum: 100
           minimum: 1
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -955,8 +961,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -975,18 +987,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1008,14 +1008,20 @@ paths:
               $ref: "#/components/schemas/SaveProjectDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1026,8 +1032,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1046,18 +1058,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1098,14 +1098,20 @@ paths:
           maximum: 100
           minimum: 1
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1116,8 +1122,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1136,18 +1148,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1176,14 +1176,20 @@ paths:
               $ref: "#/components/schemas/SaveScenarioDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1194,8 +1200,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1214,18 +1226,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1261,14 +1261,20 @@ paths:
               $ref: "#/components/schemas/RunExecutionDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1279,8 +1285,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1299,18 +1311,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1346,14 +1346,20 @@ paths:
           type: integer
           format: int64
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1364,8 +1370,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1384,18 +1396,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1418,14 +1418,20 @@ paths:
         schema:
           type: string
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1436,8 +1442,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1456,18 +1468,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1484,14 +1484,20 @@ paths:
       - auth-controller
       operationId: logout
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1502,8 +1508,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1522,18 +1534,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1552,14 +1552,20 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1570,8 +1576,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1590,18 +1602,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1618,14 +1618,20 @@ paths:
       - user-controller
       operationId: getUserLogged
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1636,8 +1642,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1656,18 +1668,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1689,14 +1689,20 @@ paths:
               $ref: "#/components/schemas/UpdateProfileDTO"
         required: true
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1707,8 +1713,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1727,18 +1739,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1755,14 +1755,20 @@ paths:
       - workload-profile-controller
       operationId: getWorkloadProfiles
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1773,8 +1779,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1793,18 +1805,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1868,14 +1868,20 @@ paths:
           format: int32
           default: 1000
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1886,8 +1892,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1906,18 +1918,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -1965,14 +1965,20 @@ paths:
           type: integer
           format: int64
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -1983,8 +1989,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -2003,18 +2015,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -2044,14 +2044,20 @@ paths:
           type: integer
           format: int64
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -2062,8 +2068,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -2082,18 +2094,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -2145,14 +2145,20 @@ paths:
           maximum: 100
           minimum: 1
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -2163,8 +2169,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -2183,18 +2195,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -2211,14 +2211,20 @@ paths:
       - auth-controller
       operationId: csrf
       responses:
+        "422":
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "429":
           description: Too Many Requests
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: Unprocessable Content
+        "400":
+          description: Bad Request
           content:
             application/problem+json:
               schema:
@@ -2229,8 +2235,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "400":
-          description: Bad Request
+        "503":
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -2249,18 +2261,6 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
         "500":
           description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
-          description: Service Unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: Unauthorized
           content:
             application/problem+json:
               schema:
@@ -2678,8 +2678,72 @@ components:
         workload:
           $ref: "#/components/schemas/ExecutedWorkloadDTO"
         plan:
+          $ref: "#/components/schemas/ExecutionPlan"
+    ExecutionPlan:
+      type: object
+      properties:
+        project:
+          type: string
+        labels:
           type: object
-          additionalProperties: {}
+          additionalProperties:
+            type: string
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Node"
+        load:
+          $ref: "#/components/schemas/Load"
+    HttpProbe:
+      type: object
+      properties:
+        port:
+          type: integer
+          format: int32
+        path:
+          type: string
+        intervalSeconds:
+          type: integer
+          format: int32
+        timeoutSeconds:
+          type: integer
+          format: int32
+        retries:
+          type: integer
+          format: int32
+        startPeriodSeconds:
+          type: integer
+          format: int32
+    Limits:
+      type: object
+      properties:
+        cpus:
+          type: number
+          format: double
+        memoryBytes:
+          type: integer
+          format: int64
+        pids:
+          type: integer
+          format: int32
+    Load:
+      type: object
+      properties:
+        image:
+          type: string
+        command:
+          type: array
+          items:
+            type: string
+        environment:
+          type: object
+          additionalProperties:
+            type: string
+        target:
+          type: string
+          format: uuid
+        limits:
+          $ref: "#/components/schemas/Limits"
     LoadSummaryDTO:
       type: object
       properties:
@@ -2698,6 +2762,31 @@ components:
         p95LatencyMs:
           type: number
           format: double
+    Node:
+      type: object
+      properties:
+        key:
+          type: string
+          format: uuid
+        host:
+          type: string
+        image:
+          type: string
+        command:
+          type: array
+          items:
+            type: string
+        environment:
+          type: object
+          additionalProperties:
+            type: string
+        health:
+          $ref: "#/components/schemas/HttpProbe"
+        evidence:
+          type: string
+          format: uri
+        limits:
+          $ref: "#/components/schemas/Limits"
     AuthResponse:
       type: object
       properties:

@@ -1,6 +1,8 @@
 package es.codeurjc.infracture.execution.api;
 
 import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.ORDERS;
+import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.ORDERS_HEALTHY;
+import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.ORDERS_KEY;
 import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.run;
 import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.statelessScenario;
 import static io.restassured.RestAssured.given;
@@ -10,10 +12,9 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import es.codeurjc.infracture.execution.application.ComponentStatus;
 import es.codeurjc.infracture.execution.application.ExecutionReconciler;
 import es.codeurjc.infracture.execution.application.ResourceUsage;
 import es.codeurjc.infracture.execution.application.RuntimeEngine;
@@ -46,8 +47,6 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "infracture.execution.events.poll-interval=1h" })
 @Testcontainers
 class ExecutionMetricsApiSystemTests {
-
-    private static final String SERVICE = "c-" + ORDERS;
 
     @Container
     @ServiceConnection
@@ -86,7 +85,7 @@ class ExecutionMetricsApiSystemTests {
         executions.deleteAllInBatch();
         scenarios.deleteAllInBatch();
         projects.deleteAllInBatch();
-        when(engine.status(anyMap())).thenReturn(Map.of(SERVICE, ComponentStatus.HEALTHY));
+        when(engine.status(any())).thenReturn(ORDERS_HEALTHY);
         alice = ApiSession.signUp(port);
         scenario = statelessScenario(alice);
         execution = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
@@ -97,7 +96,7 @@ class ExecutionMetricsApiSystemTests {
 
     @Test
     void showsRealSamplesWithUnitsAndLimitsWhileRunningAndAfterStop() {
-        when(engine.usage(anyMap())).thenReturn(Map.of(SERVICE, new ResourceUsage(25.5, 1_048_576L)));
+        when(engine.usage(any())).thenReturn(Map.of(ORDERS_KEY, new ResourceUsage(25.5, 1_048_576L)));
         telemetry.collect();
 
         alice.read().get(metrics()).then().statusCode(200)
@@ -130,9 +129,9 @@ class ExecutionMetricsApiSystemTests {
 
     @Test
     void tellsAMissingReadingApartFromARealZero() {
-        when(engine.usage(anyMap())).thenReturn(Map.of(SERVICE, new ResourceUsage(0.0, 0L)));
+        when(engine.usage(any())).thenReturn(Map.of(ORDERS_KEY, new ResourceUsage(0.0, 0L)));
         telemetry.collect();
-        when(engine.usage(anyMap())).thenThrow(new RuntimeEngineException("docker stats did not finish"));
+        when(engine.usage(any())).thenThrow(new RuntimeEngineException("docker stats did not finish"));
         telemetry.collect();
 
         alice.read().get(metrics()).then().statusCode(200)
@@ -145,7 +144,7 @@ class ExecutionMetricsApiSystemTests {
 
     @Test
     void readsOnlyWhatFollowsACursorInsideARangeAndInPages() {
-        when(engine.usage(anyMap())).thenReturn(Map.of(SERVICE, new ResourceUsage(1.0, 1L)));
+        when(engine.usage(any())).thenReturn(Map.of(ORDERS_KEY, new ResourceUsage(1.0, 1L)));
         telemetry.collect();
         telemetry.collect();
         telemetry.collect();
@@ -180,7 +179,7 @@ class ExecutionMetricsApiSystemTests {
 
     @Test
     void hidesTheMetricsFromOtherAccountsAndVisitors() {
-        when(engine.usage(anyMap())).thenReturn(Map.of(SERVICE, new ResourceUsage(1.0, 1L)));
+        when(engine.usage(any())).thenReturn(Map.of(ORDERS_KEY, new ResourceUsage(1.0, 1L)));
         telemetry.collect();
         ApiSession bob = ApiSession.signUp(port);
 

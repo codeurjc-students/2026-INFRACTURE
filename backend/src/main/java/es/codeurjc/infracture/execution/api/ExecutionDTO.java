@@ -1,11 +1,11 @@
 package es.codeurjc.infracture.execution.api;
 
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
 import es.codeurjc.infracture.execution.domain.Outcome;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.domain.StopCause;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 public record ExecutionDTO(
         Long id,
@@ -32,5 +32,6 @@ public record ExecutionDTO(
         List<ExecutedComponentDTO> components,
         // Null when the scenario had no load.
         ExecutedWorkloadDTO workload,
-        Map<String, Object> plan) {
+        // What ran, in Infracture's own terms rather than Compose.
+        ExecutionPlan plan) {
 }

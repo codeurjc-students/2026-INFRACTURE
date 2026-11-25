@@ -83,7 +83,7 @@ class ExecutionServiceTests {
         assertThat(execution.getComponents()).singleElement()
                 .satisfies(component -> assertThat(component.getContractVersion())
                         .isEqualTo(contracts.find(ComponentType.HTTP_SERVICE).orElseThrow().version()));
-        assertThat(execution.getPlan()).containsEntry("name", "infracture-local-exec-12");
+        assertThat(execution.getPlan().project()).isEqualTo("infracture-local-exec-12");
     }
 
     @Test

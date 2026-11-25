@@ -4,13 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Load;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
+import es.codeurjc.infracture.execution.domain.LoadSummary;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import es.codeurjc.infracture.execution.domain.LoadSummary;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,73 +23,75 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
-// Runs the real docker CLI against the Docker engine that Testcontainers also uses. A small busybox
-// plan stands in for the demo image, which CI does not build.
+// Runs the real docker CLI against the Docker engine that Testcontainers also uses. A busybox node that
+// serves its health page with httpd stands in for the demo image, which CI does not build.
 class ComposeRuntimeEngineIntegrationTests {
 
     private final String instance = "test-" + UUID.randomUUID().toString().replace("-", "");
     private final Map<String, String> labels =
             Map.of(PlanCompiler.INSTANCE_LABEL, instance, PlanCompiler.EXECUTION_LABEL, "1");
     private final ComposeRuntimeEngine engine = new ComposeRuntimeEngine(JsonMapper.builder().build(), "");
+    private static final UUID PROBE = UUID.fromString("0b6c1f4e-8a2d-4e7b-9c3f-5d1a2b3c4d5e");
+    private static final Limits LIMITS = new Limits(0.5, 384L << 20, 200);
     private static final LoadSummary SUMMARY = new LoadSummary(3L, 0L, 0L, 1.5, 2.0);
     private static final BooleanSupplier NEVER = () -> false;
 
     @AfterEach
     void removeEverything() {
-        engine.down(plan("true"), labels);
+        engine.down(plan());
     }
 
     @Test
     void startsAHealthyPlanAndLeavesNothingAfterDown() {
-        engine.up(plan("true"), NEVER);
+        engine.up(plan(), NEVER);
 
         assertThat(docker("container", "ls", "-q", "--filter", "health=healthy", "--filter", label())).hasSize(1);
         assertThat(docker("network", "ls", "-q", "--filter", label())).hasSize(1);
 
-        engine.down(plan("true"), labels);
+        engine.down(plan());
 
         assertThat(labelled()).isEmpty();
     }
 
     @Test
     void reportsTheStatusOfEachService() {
-        engine.up(plan("true"), NEVER);
-        assertThat(engine.status(plan("true"))).containsExactly(Map.entry("probe", ComponentStatus.HEALTHY));
+        engine.up(plan(), NEVER);
+        assertThat(engine.status(plan())).isEqualTo(new RuntimeStatus(Map.of(PROBE, ComponentStatus.HEALTHY), null));
 
         docker("container", "stop", "-t", "1", "infracture-" + instance + "-exec-1-probe-1");
 
-        assertThat(engine.status(plan("true"))).containsExactly(Map.entry("probe", ComponentStatus.EXITED));
+        assertThat(engine.status(plan())).isEqualTo(new RuntimeStatus(Map.of(PROBE, ComponentStatus.EXITED), null));
     }
 
     @Test
     void readsTheRealUsageOfARunningServiceAndNothingOnceItStops() {
-        engine.up(plan("true"), NEVER);
+        engine.up(plan(), NEVER);
 
-        ResourceUsage usage = engine.usage(plan("true")).get("probe");
+        ResourceUsage usage = engine.usage(plan()).get(PROBE);
 
         assertThat(usage.cpuPercent()).isNotNull().isGreaterThanOrEqualTo(0.0);
         assertThat(usage.memoryBytes()).isNotNull().isPositive();
 
         docker("container", "stop", "-t", "1", "infracture-" + instance + "-exec-1-probe-1");
 
-        assertThat(engine.usage(plan("true"))).isEmpty();
+        assertThat(engine.usage(plan())).isEmpty();
     }
 
     // Compose would replace ${HOME} with the value from the backend's own environment, and reject "$5".
     @Test
     void passesTextWithDollarSignsToTheContainerAsWritten() {
-        Map<String, Object> plan = withEnvironment(Map.of("COMPONENT_NAME", "${HOME} costs $5"));
+        ExecutionPlan plan = plan(SERVE, Map.of("COMPONENT_NAME", "${HOME} costs $5"));
 
         engine.up(plan, NEVER);
 
         assertThat(docker("container", "inspect", "-f", "{{range .Config.Env}}{{println .}}{{end}}",
                 "infracture-" + instance + "-exec-1-probe-1")).contains("COMPONENT_NAME=${HOME} costs $5");
-        assertThat(engine.status(plan)).containsExactly(Map.entry("probe", ComponentStatus.HEALTHY));
+        assertThat(engine.status(plan).nodes()).containsExactly(Map.entry(PROBE, ComponentStatus.HEALTHY));
     }
 
     @Test
     void readsWhatEachServicePrintedWithItsTimeAndFromAGivenTime() throws InterruptedException {
-        Map<String, Object> plan = withCommand(List.of("sh", "-c", "echo first line; echo 'second | line'; sleep 300"));
+        ExecutionPlan plan = plan("echo first line; echo 'second | line'; " + SERVE, Map.of());
         engine.up(plan, NEVER);
         List<LogLine> lines = engine.logs(plan, null);
         for (int attempt = 0; attempt < 20 && lines.size() < 2; attempt++) {
@@ -93,8 +99,8 @@ class ComposeRuntimeEngineIntegrationTests {
             lines = engine.logs(plan, null);
         }
 
-        assertThat(lines).extracting(LogLine::service, LogLine::text)
-                .containsExactly(tuple("probe", "first line"), tuple("probe", "second | line"));
+        assertThat(lines).extracting(LogLine::node, LogLine::text)
+                .containsExactly(tuple(PROBE, "first line"), tuple(PROBE, "second | line"));
         assertThat(lines.getFirst().at()).isBeforeOrEqualTo(lines.getLast().at())
                 .isAfter(Instant.now().minusSeconds(60));
         assertThat(engine.logs(plan, lines.getLast().at().plusNanos(1))).isEmpty();
@@ -112,7 +118,7 @@ class ComposeRuntimeEngineIntegrationTests {
         ComposeRuntimeEngine inContainer = new ComposeRuntimeEngine(JsonMapper.builder().build(), backend);
         try {
             String defaultRoute = defaultRoute(backend);
-            inContainer.up(plan("true"), NEVER);
+            inContainer.up(plan(), NEVER);
             assertThat(docker("container", "inspect", "-f", "{{range $name, $n := .NetworkSettings.Networks}}"
                     + "{{$name}} {{end}}", backend).getFirst())
                     .contains("infracture-" + instance + "-exec-1_exec");
@@ -120,7 +126,7 @@ class ComposeRuntimeEngineIntegrationTests {
             // without their replies on Linux.
             assertThat(defaultRoute(backend)).isEqualTo(defaultRoute);
 
-            inContainer.down(plan("true"), labels);
+            inContainer.down(plan());
 
             assertThat(labelled()).isEmpty();
         } finally {
@@ -136,29 +142,29 @@ class ComposeRuntimeEngineIntegrationTests {
 
     @Test
     void startsTheLoadOnlyWhenAskedAndKeepsItsSummaryWhenStopped() {
-        Map<String, Object> plan = withLoad("while true; do sleep 1; done");
+        ExecutionPlan plan = withLoad("while true; do sleep 1; done");
         engine.up(plan, NEVER);
-        assertThat(engine.status(plan)).containsOnlyKeys("probe");
+        assertThat(engine.status(plan)).isEqualTo(new RuntimeStatus(Map.of(PROBE, ComponentStatus.HEALTHY), null));
         assertThat(engine.stopLoad(plan)).isEqualTo(new LoadReport(null, null));
 
         engine.startLoad(plan, NEVER);
-        assertThat(engine.status(plan)).containsEntry(PlanCompiler.LOAD_SERVICE, ComponentStatus.HEALTHY);
+        assertThat(engine.status(plan).load()).isEqualTo(ComponentStatus.HEALTHY);
 
         LoadReport report = engine.stopLoad(plan);
         assertThat(report).isEqualTo(new LoadReport(105, SUMMARY));
         assertThat(report.completed()).isFalse();
         assertThat(engine.stopLoad(plan)).isEqualTo(report);
 
-        engine.down(plan, labels);
+        engine.down(plan);
         assertThat(labelled()).isEmpty();
     }
 
     @Test
     void readsTheSummaryOfALoadThatEndedOnItsOwn() throws InterruptedException {
-        Map<String, Object> plan = withLoad("true");
+        ExecutionPlan plan = withLoad("true");
         engine.up(plan, NEVER);
         engine.startLoad(plan, NEVER);
-        while (engine.status(plan).get(PlanCompiler.LOAD_SERVICE) != ComponentStatus.EXITED) {
+        while (engine.status(plan).load() != ComponentStatus.EXITED) {
             Thread.sleep(200);
         }
 
@@ -167,12 +173,12 @@ class ComposeRuntimeEngineIntegrationTests {
 
     @Test
     void reportsAnUnhealthyServiceAndCleansUpWhatItCreated() {
-        assertThatThrownBy(() -> engine.up(plan("false"), NEVER))
+        assertThatThrownBy(() -> engine.up(unhealthy(), NEVER))
                 .isInstanceOf(RuntimeEngineException.class)
                 .hasMessageStartingWith("docker compose up failed:")
                 .hasMessageContaining("unhealthy");
 
-        engine.down(plan("false"), labels);
+        engine.down(unhealthy());
 
         assertThat(labelled()).isEmpty();
     }
@@ -180,7 +186,7 @@ class ComposeRuntimeEngineIntegrationTests {
     // The first health check runs only after its interval, so the start waits until Stop cancels it.
     @Test
     void cancelsAStartThatWaitsForHealthAndLeavesNothingAfterDown() {
-        Map<String, Object> slow = plan("true", "300s");
+        ExecutionPlan slow = plan(SERVE, Map.of(), new HttpProbe(8080, "/health", 300, 2, 1, 10));
         Instant stopAt = Instant.now().plusSeconds(2);
 
         assertThatThrownBy(() -> engine.up(slow, () -> Instant.now().isAfter(stopAt)))
@@ -188,7 +194,7 @@ class ComposeRuntimeEngineIntegrationTests {
                 .hasMessage("docker compose up was cancelled because the execution is stopping");
         assertThat(Duration.between(stopAt, Instant.now())).isLessThan(Duration.ofSeconds(30));
 
-        engine.down(slow, labels);
+        engine.down(slow);
 
         assertThat(labelled()).isEmpty();
     }
@@ -202,7 +208,7 @@ class ComposeRuntimeEngineIntegrationTests {
         String other = docker("container", "run", "-d", "--quiet", "-v", volume + ":/data", "busybox:1.37",
                 "sleep", "300").getLast();
         try {
-            assertThatThrownBy(() -> engine.down(plan("true"), labels))
+            assertThatThrownBy(() -> engine.down(plan()))
                     .isInstanceOf(RuntimeEngineException.class)
                     .hasMessageStartingWith("docker volume rm failed:");
             assertThat(docker("container", "ls", "-q", "--no-trunc", "--filter", "id=" + other)).hasSize(1);
@@ -210,7 +216,7 @@ class ComposeRuntimeEngineIntegrationTests {
             docker("container", "rm", "-f", other);
         }
 
-        engine.down(plan("true"), labels);
+        engine.down(plan());
 
         assertThat(labelled()).isEmpty();
     }
@@ -220,7 +226,7 @@ class ComposeRuntimeEngineIntegrationTests {
         docker("container", "run", "-d", "--quiet", "--label", label(PlanCompiler.INSTANCE_LABEL),
                 "--label", label(PlanCompiler.EXECUTION_LABEL), "busybox:1.37", "sleep", "300");
 
-        engine.down(plan("true"), labels);
+        engine.down(plan());
 
         assertThat(labelled()).isEmpty();
     }
@@ -230,7 +236,7 @@ class ComposeRuntimeEngineIntegrationTests {
         String other = docker("container", "run", "-d", "--quiet", "--label", label(PlanCompiler.INSTANCE_LABEL),
                 "--label", PlanCompiler.EXECUTION_LABEL + "=2", "busybox:1.37", "sleep", "300").getLast();
         try {
-            engine.down(plan("true"), labels);
+            engine.down(plan());
 
             assertThat(docker("container", "ls", "-aq", "--no-trunc", "--filter", "id=" + other)).hasSize(1);
         } finally {
@@ -238,62 +244,37 @@ class ComposeRuntimeEngineIntegrationTests {
         }
     }
 
-    private Map<String, Object> plan(String healthCommand) {
-        return plan(healthCommand, "1s");
+    // Serves /health from /tmp, the only writable place, and ends at once on SIGTERM so down does not wait.
+    private static final String SERVE = "mkdir -p /tmp/www && echo ok > /tmp/www/health && httpd -p 8080 -h /tmp/www"
+            + " && trap 'exit 0' TERM && while true; do sleep 1; done";
+
+    private ExecutionPlan plan() {
+        return plan(SERVE, Map.of());
     }
 
-    private Map<String, Object> plan(String healthCommand, String healthInterval) {
-        Map<String, Object> service = Map.of(
-                "image", "busybox:1.37",
-                "command", List.of("sleep", "300"),
-                // An init process passes the stop signal on, so down does not wait for its timeout.
-                "init", true,
-                "healthcheck", Map.of("test", List.of("CMD", healthCommand), "interval", healthInterval, "retries", 1),
-                "networks", List.of(PlanCompiler.NETWORK),
-                "labels", labels);
-        return Map.of(
-                "name", "infracture-" + instance + "-exec-1",
-                "networks", Map.of(PlanCompiler.NETWORK, Map.of("labels", labels)),
-                "services", Map.of("probe", service));
+    // The probe asks for a page httpd does not have, so the node never becomes healthy.
+    private ExecutionPlan unhealthy() {
+        return plan(SERVE, Map.of(), new HttpProbe(8080, "/missing", 1, 2, 1, 0));
     }
 
-    private Map<String, Object> withEnvironment(Map<String, String> environment) {
-        Map<String, Object> plan = new HashMap<>(plan("true"));
-        @SuppressWarnings("unchecked")
-        Map<String, Object> probe =
-                new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
-        probe.put("environment", environment);
-        plan.put("services", Map.of("probe", probe));
-        return plan;
+    private ExecutionPlan plan(String script, Map<String, String> environment) {
+        return plan(script, environment, new HttpProbe(8080, "/health", 1, 2, 1, 10));
     }
 
-    private Map<String, Object> withCommand(List<String> command) {
-        Map<String, Object> plan = new HashMap<>(plan("true"));
-        @SuppressWarnings("unchecked")
-        Map<String, Object> probe =
-                new HashMap<>(((Map<String, Map<String, Object>>) plan.get("services")).get("probe"));
-        probe.put("command", command);
-        plan.put("services", Map.of("probe", probe));
-        return plan;
+    private ExecutionPlan plan(String script, Map<String, String> environment, HttpProbe health) {
+        Node probe = new Node(PROBE, "probe", "busybox:1.37", List.of("sh", "-c", script), environment, health,
+                null, LIMITS);
+        return new ExecutionPlan("infracture-" + instance + "-exec-1", labels, List.of(probe), null);
     }
 
     // A shell stands in for k6: it prints the summary line when it ends, as the load scripts do.
-    private Map<String, Object> withLoad(String body) {
+    private ExecutionPlan withLoad(String body) {
         String summary = ComposeRuntimeEngine.SUMMARY_MARKER + "{\"requests\":3,\"failedRequests\":0,"
                 + "\"droppedIterations\":0,\"averageLatencyMs\":1.5,\"p95LatencyMs\":2.0}";
-        Map<String, Object> load = Map.of(
-                "image", "busybox:1.37",
-                "command", List.of("sh", "-c", "finish() { echo '" + summary + "'; }; "
-                        + "trap 'finish; exit 105' TERM; " + body + "; finish"),
-                "profiles", List.of(PlanCompiler.LOAD_PROFILE),
-                "networks", List.of(PlanCompiler.NETWORK),
-                "labels", labels);
-        Map<String, Object> plan = new HashMap<>(plan("true"));
-        @SuppressWarnings("unchecked")
-        Map<String, Object> services = new HashMap<>((Map<String, Object>) plan.get("services"));
-        services.put(PlanCompiler.LOAD_SERVICE, load);
-        plan.put("services", services);
-        return plan;
+        Load load = new Load("busybox:1.37", List.of("sh", "-c", "finish() { echo '" + summary + "'; }; "
+                + "trap 'finish; exit 105' TERM; " + body + "; finish"), Map.of(), PROBE, LIMITS);
+        ExecutionPlan plan = plan();
+        return new ExecutionPlan(plan.project(), plan.labels(), plan.nodes(), load);
     }
 
     private List<String> labelled() {

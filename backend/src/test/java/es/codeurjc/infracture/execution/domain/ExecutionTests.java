@@ -291,10 +291,11 @@ class ExecutionTests {
 
     @Test
     void acceptsThePlanOnlyOnce() {
-        execution.attachPlan(Map.of("name", "infracture-local-exec-12"));
+        ExecutionPlan plan = new ExecutionPlan("infracture-local-exec-12", Map.of(), List.of(), null);
+        execution.attachPlan(plan);
 
-        assertThat(execution.getPlan()).containsEntry("name", "infracture-local-exec-12");
-        assertThatIllegalStateException().isThrownBy(() -> execution.attachPlan(Map.of()));
+        assertThat(execution.getPlan()).isEqualTo(plan);
+        assertThatIllegalStateException().isThrownBy(() -> execution.attachPlan(plan));
     }
 
     @Test

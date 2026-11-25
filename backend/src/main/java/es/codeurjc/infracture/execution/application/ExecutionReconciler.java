@@ -3,9 +3,9 @@ package es.codeurjc.infracture.execution.application;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.ExecutedWorkload;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
-import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -34,7 +34,6 @@ public class ExecutionReconciler {
 
     private final ExecutionRepository repository;
     private final RuntimeEngine engine;
-    private final PlanCompiler planCompiler;
     private final ExecutionJournal journal;
     private final ServiceProbe probe;
     private final Duration maxDuration;
@@ -48,14 +47,13 @@ public class ExecutionReconciler {
     // Until when the logs of each running execution were read. Only the ticks use it, one at a time.
     private final Map<Long, Instant> logsReadUntil = new HashMap<>();
 
-    public ExecutionReconciler(ExecutionRepository repository, RuntimeEngine engine, PlanCompiler planCompiler,
-            ExecutionJournal journal, ServiceProbe probe,
+    public ExecutionReconciler(ExecutionRepository repository, RuntimeEngine engine, ExecutionJournal journal,
+            ServiceProbe probe,
             @Value("${infracture.execution.max-duration:30m}") Duration maxDuration,
             @Value("${infracture.execution.cleanup-retry-pause:10s}") Duration cleanupPause,
             Clock clock, PlatformTransactionManager transactionManager) {
         this.repository = repository;
         this.engine = engine;
-        this.planCompiler = planCompiler;
         this.journal = journal;
         this.probe = probe;
         this.maxDuration = maxDuration;
@@ -143,10 +141,10 @@ public class ExecutionReconciler {
             return;
         }
         update(execution.getId(), locked -> locked.markRunning(clock.instant(), maxDuration));
-        for (Map.Entry<UUID, URI> target : planCompiler.evidence(execution).entrySet()) {
-            String response = probe.get(target.getValue());
+        for (ExecutionPlan.Node node : execution.getPlan().nodes()) {
+            String response = node.evidence() == null ? null : probe.get(node.evidence());
             if (response != null) {
-                transactions.executeWithoutResult(status -> journal.recordResponse(execution.getId(), target.getKey(),
+                transactions.executeWithoutResult(status -> journal.recordResponse(execution.getId(), node.key(),
                         response, clock.instant()));
             }
         }
@@ -154,7 +152,7 @@ public class ExecutionReconciler {
 
     // Started is not the same as working: a node that falls over later fails the execution.
     private void watch(Execution execution) {
-        Map<String, ComponentStatus> statuses;
+        RuntimeStatus statuses;
         try {
             statuses = engine.status(execution.getPlan());
         } catch (RuntimeEngineException exception) {
@@ -162,7 +160,7 @@ public class ExecutionReconciler {
             return;
         }
         String nodeDown = recordStatuses(execution, statuses);
-        String broken = nodeDown == null && statuses.get(PlanCompiler.LOAD_SERVICE) == ComponentStatus.EXITED
+        String broken = nodeDown == null && statuses.load() == ComponentStatus.EXITED
                 ? collectEndedLoad(execution)
                 : nodeDown;
         if (broken != null) {
@@ -172,12 +170,11 @@ public class ExecutionReconciler {
     }
 
     // Returns why the execution fails when a node is down, or null when all are up.
-    private String recordStatuses(Execution execution, Map<String, ComponentStatus> statuses) {
+    private String recordStatuses(Execution execution, RuntimeStatus statuses) {
         String broken = null;
         Map<UUID, ComponentStatus> byNode = new LinkedHashMap<>();
         for (ExecutedComponent component : execution.getComponents()) {
-            ComponentStatus status =
-                    statuses.getOrDefault(PlanCompiler.serviceName(component), ComponentStatus.EXITED);
+            ComponentStatus status = statuses.nodes().getOrDefault(component.getKey(), ComponentStatus.EXITED);
             byNode.put(component.getKey(), status);
             if (broken == null && status == ComponentStatus.UNHEALTHY) {
                 broken = component.getName() + " is unhealthy";
@@ -235,7 +232,7 @@ public class ExecutionReconciler {
             }
         }
         try {
-            engine.down(execution.getPlan(), planCompiler.labels(execution.getId()));
+            engine.down(execution.getPlan());
         } catch (RuntimeEngineException exception) {
             update(execution.getId(), locked -> locked.recordCleanupFailure(exception.getMessage(), clock.instant()));
             return;

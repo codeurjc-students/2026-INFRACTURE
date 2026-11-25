@@ -2,14 +2,14 @@ package es.codeurjc.infracture.execution.application;
 
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import java.net.URI;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-//Compiler of the Componente to its Docker compose info.
+// Runs an HTTP Service node on the demo-app image.
 @Component
 class HttpServiceDriver implements ComponentDriver {
 
@@ -27,32 +27,22 @@ class HttpServiceDriver implements ComponentDriver {
     }
 
     @Override
-    public Map<String, Object> service(ExecutedComponent component) {
-        Map<String, Object> environment = new LinkedHashMap<>();
+    public Service service(ExecutedComponent component) {
+        Map<String, String> environment = new LinkedHashMap<>();
         environment.put("APP_ROLE", "http");
         environment.put("APP_MODE", component.getProfile());
         environment.put("COMPONENT_NAME", component.getName());
         environment.put("RESPONSE_DELAY_MS", String.valueOf(component.getParameters().get("responseDelayMs")));
-
-        Map<String, Object> service = new LinkedHashMap<>();
-        service.put("image", image);
-        service.put("environment", environment);
-        service.put("healthcheck", Map.of(
-                "test", List.of("CMD", "wget", "-qO-", "http://127.0.0.1:" + PORT + "/health"),
-                "interval", "2s",
-                "timeout", "2s",
-                "retries", 15,
-                "start_period", "60s"));
-        return service;
+        return new Service(image, null, environment, new HttpProbe(PORT, "/health", 2, 2, 15, 60));
     }
 
     @Override
-    public URI evidence(String serviceName) {
-        return httpUrl(serviceName);
+    public URI evidence(String host) {
+        return httpUrl(host);
     }
 
     @Override
-    public URI httpUrl(String serviceName) {
-        return URI.create("http://" + serviceName + ":" + PORT + "/");
+    public URI httpUrl(String host) {
+        return URI.create("http://" + host + ":" + PORT + "/");
     }
 }
