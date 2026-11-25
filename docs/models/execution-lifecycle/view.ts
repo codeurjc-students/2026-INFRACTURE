@@ -14,6 +14,7 @@ const label = (v: any) => {
   if (p === "RESERVED") return v.desired.A === "STOPPED" ? "Reservada, Stop pedido" : "Reservada";
   if (p === "STARTING") return v.desired.A === "STOPPED" ? "Arrancando, Stop pedido" : "Arrancando";
   if (p === "RUNNING" && v.desired.A === "STOPPED") {
+    if (v.cause.A === "failure") return "En marcha, fallo detectado";
     return v.cause.A === "limit" ? "En marcha, tiempo agotado" : "En marcha, Stop pedido";
   }
   if (p === "RUNNING") return "En marcha";
@@ -41,6 +42,7 @@ const labels: Record<string, string> = {
   PlanCompiled: "el plan se compila",
   UpSucceeds: "todo arranca sano",
   UpFails: "falla la descarga, el arranque o la salud",
+  NodeFails: "un nodo o la carga se cae",
   UserStop: "pulsas Stop",
   TimeLimitReached: "se agota el tiempo",
   StartCancelled: "el arranque se cancela",

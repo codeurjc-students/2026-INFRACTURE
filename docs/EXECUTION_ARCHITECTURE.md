@@ -478,39 +478,45 @@ stateDiagram-v2
     s7: Limpiando tras una caída
     s8: Limpiando tras un fallo
     s9: Limpiando tras Stop
-    s10: En marcha, tiempo agotado
-    s11: En marcha, Stop pedido
-    s12: Limpiando tras el tiempo límite
+    s10: En marcha, fallo detectado
+    s11: En marcha, tiempo agotado
+    s12: En marcha, Stop pedido
+    s13: Limpiando tras el tiempo límite
   }
-  s13: Backend caído
-  s14: Terminada con éxito
-  s15: Terminada con fallo
+  s14: Backend caído
+  s15: Terminada con éxito
+  s16: Terminada con fallo
   [*] --> s0
   s0 --> s2: pulsas Run
   s2 --> s3: pulsas Stop
   s2 --> s4: el plan se compila
-  s13 --> s7: el backend arranca y reconcilia
+  s14 --> s7: el backend arranca y reconcilia
   s3 --> s9: empieza la limpieza
   s4 --> s5: todo arranca sano
   s4 --> s6: pulsas Stop
   s4 --> s8: falla la descarga, el arranque o la salud
-  s5 --> s10: se agota el tiempo
-  s5 --> s11: pulsas Stop
+  s5 --> s10: un nodo o la carga se cae
+  s5 --> s11: se agota el tiempo
+  s5 --> s12: pulsas Stop
   s6 --> s8: falla la descarga, el arranque o la salud
-  s6 --> s11: todo arranca sano
+  s6 --> s12: todo arranca sano
   s6 --> s9: el arranque se cancela
-  s7 --> s15: no queda nada con la etiqueta
-  s8 --> s15: no queda nada con la etiqueta
-  s9 --> s14: no queda nada con la etiqueta
-  s14 --> s2: pulsas Run
+  s7 --> s16: no queda nada con la etiqueta
+  s8 --> s16: no queda nada con la etiqueta
+  s9 --> s15: no queda nada con la etiqueta
   s15 --> s2: pulsas Run
-  s10 --> s12: empieza la limpieza
-  s11 --> s9: empieza la limpieza
-  s12 --> s14: no queda nada con la etiqueta
-  s1 --> s13: el backend se cae
+  s16 --> s2: pulsas Run
+  s10 --> s8: empieza la limpieza
+  s11 --> s10: un nodo o la carga se cae
+  s11 --> s13: empieza la limpieza
+  s12 --> s10: un nodo o la carga se cae
+  s12 --> s9: empieza la limpieza
+  s13 --> s15: no queda nada con la etiqueta
+  s1 --> s14: el backend se cae
 ```
 
 - **Stop corta el arranque (#88).** Mientras espera a Docker (descarga, creación o salud), el motor pregunta cada segundo si hay una causa de parada. Si la hay, termina `docker compose up` y la siguiente vuelta limpia lo que dejó. Cancelar no es un fallo: la causa sigue siendo Stop. Si el arranque ya había fallado o termina justo antes, manda lo que pasó primero según la regla de la peor causa.
+- **Un fallo después de Stop sigue siendo un fallo.** El motor lee el estado de Docker fuera del bloqueo de la fila, así que un nodo puede caerse justo después de pulsar Stop o de agotarse el tiempo. La regla de la peor causa registra ese fallo y la ejecución termina con fallo.
 - **Toda salida pasa por la limpieza.** Stop, el tiempo límite, un fallo o una caída llevan a `Limpiando…`, y la reserva solo se libera cuando no queda nada con la etiqueta de la ejecución.
 - **Una interrupción nunca es un éxito.** Tras una caída, la ejecución se reconcilia, conserva su snapshot y sus evidencias, y se limpia sin reanudarse.
 - **Cerrar el navegador no es Stop.** La ejecución sigue hasta que alguien la detiene o se agota el tiempo, y se puede volver a consultar.
@@ -591,16 +597,16 @@ Si el backend se cae con un experimento abierto, al volver lo cierra como interr
 | Parte | Contenido |
 | --- | --- |
 | Variables | Fase, fase deseada, causa, recursos en Docker, reserva liberada, revisión del escenario y del snapshot, si hubo problema, backend encendido. |
-| Acciones | Pulsar Run, guardar el grafo, compilar el plan, `up --wait` bien o mal, pulsar Stop, agotar el tiempo, empezar y terminar la limpieza, caída y reinicio del backend. |
+| Acciones | Pulsar Run, guardar el grafo, compilar el plan, `up --wait` bien o mal, caerse un nodo o la carga con el experimento en marcha, pulsar Stop, agotar el tiempo, empezar y terminar la limpieza, caída y reinicio del backend. |
 | Reglas (invariantes) | `OneActiveExecution`: como mucho una ejecución sin liberar. `ReleasedLeavesNothing`: liberada implica cero recursos con la etiqueta. `RunsTheSavedRevision`: mientras hay ejecución, el escenario no cambia de revisión. `TroubleIsNeverSuccess`: una ejecución con fallo o caída nunca acaba con éxito. |
 
 **El resultado.** La constante `FirstCauseWins` permite comparar las dos reglas posibles para la causa:
 
 | Configuración | Escenarios | Regla de la causa | Estados distintos | Resultado |
 | --- | --- | --- | --- | --- |
-| [`first-cause.cfg`](models/execution-lifecycle/first-cause.cfg) | 2 | Manda la primera | 4.160 | Se rompe `TroubleIsNeverSuccess` |
-| [`worst-cause.cfg`](models/execution-lifecycle/worst-cause.cfg) | 2 | Manda la peor | 2.160 | Se cumplen las cuatro reglas y no hay bloqueos |
-| [`worst-cause-one.cfg`](models/execution-lifecycle/worst-cause-one.cfg) | 1 | Manda la peor | 78 | Se cumplen; genera el diagrama de la sección 10.1 |
+| [`first-cause.cfg`](models/execution-lifecycle/first-cause.cfg) | 2 | Manda la primera | 4.472 | Se rompe `TroubleIsNeverSuccess` |
+| [`worst-cause.cfg`](models/execution-lifecycle/worst-cause.cfg) | 2 | Manda la peor | 2.232 | Se cumplen las cuatro reglas y no hay bloqueos |
+| [`worst-cause-one.cfg`](models/execution-lifecycle/worst-cause-one.cfg) | 1 | Manda la peor | 80 | Se cumplen; genera el diagrama de la sección 10.1 |
 
 Con la regla más natural, "manda la primera causa", TLC encontró este camino de cinco pasos:
 
