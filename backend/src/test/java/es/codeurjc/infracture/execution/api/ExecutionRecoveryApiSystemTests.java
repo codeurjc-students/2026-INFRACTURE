@@ -1,24 +1,22 @@
 package es.codeurjc.infracture.execution.api;
 
 import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.ANOTHER_RUNNING;
-import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.ORDERS;
+import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.ORDERS_HEALTHY;
 import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.run;
 import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.statelessScenario;
 import static es.codeurjc.infracture.shared.api.ProblemResponses.problem;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
-import es.codeurjc.infracture.execution.application.ComponentStatus;
 import es.codeurjc.infracture.execution.application.ExecutionReconciler;
 import es.codeurjc.infracture.execution.application.RuntimeEngine;
 import es.codeurjc.infracture.execution.application.RuntimeEngineException;
 import es.codeurjc.infracture.execution.application.ServiceProbe;
 import es.codeurjc.infracture.project.api.ApiSession;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
@@ -62,7 +60,7 @@ class ExecutionRecoveryApiSystemTests {
 
     @Test
     void interruptsTheExperimentAfterARestartAndKeepsRunBlockedUntilItsContainersAreGone() {
-        when(engine.status(anyMap())).thenReturn(Map.of("c-" + ORDERS, ComponentStatus.HEALTHY));
+        when(engine.status(any())).thenReturn(ORDERS_HEALTHY);
         ApiSession alice = ApiSession.signUp(port);
         ApiSession bob = ApiSession.signUp(port);
         String scenario = statelessScenario(alice);
@@ -73,7 +71,7 @@ class ExecutionRecoveryApiSystemTests {
         reconciler.reconcile();
         doThrow(new RuntimeEngineException("docker compose down failed: Cannot connect to the Docker daemon"))
                 .doNothing()
-                .when(engine).down(anyMap(), anyMap());
+                .when(engine).down(any());
 
         ExecutionReconciler restarted = beans.createBean(ExecutionReconciler.class);
         restarted.reconcile();

@@ -3,15 +3,14 @@ package es.codeurjc.infracture.execution.api;
 import static es.codeurjc.infracture.shared.api.ProblemResponses.problem;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.matchesPattern;
-import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -25,6 +24,7 @@ import es.codeurjc.infracture.execution.application.LoadReport;
 import es.codeurjc.infracture.execution.application.LogLine;
 import es.codeurjc.infracture.execution.application.RuntimeEngine;
 import es.codeurjc.infracture.execution.application.RuntimeEngineException;
+import es.codeurjc.infracture.execution.application.RuntimeStatus;
 import es.codeurjc.infracture.execution.application.ServiceProbe;
 import es.codeurjc.infracture.execution.application.StartCancelledException;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -73,6 +74,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 class ExecutionApiSystemTests {
 
     static final String ORDERS = "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10";
+    static final UUID ORDERS_KEY = UUID.fromString(ORDERS);
+    static final RuntimeStatus ORDERS_HEALTHY = new RuntimeStatus(Map.of(ORDERS_KEY, ComponentStatus.HEALTHY), null);
     private static final String CACHE = "0b9c8d7e-6f5a-4b3c-8d2e-1f0a9b8c7d6e";
     static final String ANOTHER_RUNNING = "Another experiment is running. Run this scenario when it ends.";
 
@@ -104,7 +107,7 @@ class ExecutionApiSystemTests {
 
     @BeforeEach
     void clearData() {
-        when(engine.status(anyMap())).thenReturn(Map.of("c-" + ORDERS, ComponentStatus.HEALTHY));
+        when(engine.status(any())).thenReturn(ORDERS_HEALTHY);
         executions.deleteAllInBatch();
         scenarios.deleteAllInBatch();
         projects.deleteAllInBatch();
@@ -121,14 +124,15 @@ class ExecutionApiSystemTests {
                 .body("scenarioRevision", equalTo(2))
                 .body("stopCause", nullValue())
                 .body("outcome", nullValue())
-                .body("plan.services.c-" + ORDERS + ".image", equalTo("infracture/demo-app:0.1.0"))
-                .body("plan.services.c-" + ORDERS + ".environment.COMPONENT_NAME", equalTo("orders-api"))
+                .body("plan.nodes[0].key", equalTo(ORDERS))
+                .body("plan.nodes[0].image", equalTo("infracture/demo-app:0.1.0"))
+                .body("plan.nodes[0].environment.COMPONENT_NAME", equalTo("orders-api"))
                 .extract().jsonPath().getLong("id");
 
         alice.read().get(scenario + "/executions/current").then().statusCode(200)
                 .body("id", equalTo((int) id)).body("phase", equalTo("RESERVED"))
-                .body("plan.name", matchesPattern("infracture-test-[0-9a-f]{32}-exec-" + id))
-                .body("plan.networks.exec.labels['io.infracture.instance']", startsWith("test-"));
+                .body("plan.project", matchesPattern("infracture-test-[0-9a-f]{32}-exec-" + id))
+                .body("plan.labels['io.infracture.instance']", startsWith("test-"));
         String readOnly = "The scenario is read-only while an experiment uses it. Stop it to edit the scenario.";
         alice.write().body(graph(2, "")).put(scenario + "/graph").then().spec(problem(409, readOnly));
         alice.write().body("{\"name\":\"Renamed\"}").put(scenario).then().spec(problem(409, readOnly));
@@ -151,10 +155,10 @@ class ExecutionApiSystemTests {
                 .body("workload.profile", equalTo("CONSTANT_HTTP"))
                 .body("workload.parameters.requestsPerSecond", equalTo(10))
                 .body("workload.seed", equalTo(42))
-                .body("plan.services.workload.image", equalTo("infracture/load-generator:0.1.0"))
-                .body("plan.services.workload.profiles", equalTo(List.of("load")))
-                .body("plan.services.workload.environment.TARGET_URL", equalTo("http://c-" + ORDERS + ":8080/"))
-                .body("plan.services.workload.environment.REQUESTS_PER_SECOND", equalTo("10"));
+                .body("plan.load.image", equalTo("infracture/load-generator:0.1.0"))
+                .body("plan.load.target", equalTo(ORDERS))
+                .body("plan.load.environment.TARGET_URL", equalTo("http://c-" + ORDERS + ":8080/"))
+                .body("plan.load.environment.REQUESTS_PER_SECOND", equalTo("10"));
         alice.read().get(scenario + "/executions/current").then().body("workload.seed", equalTo(42))
                 .body("workload.summaryCollectedAt", nullValue()).body("workload.summary", nullValue());
     }
@@ -170,7 +174,7 @@ class ExecutionApiSystemTests {
                 """.formatted(http(ORDERS), ORDERS)).put(scenario + "/graph").then().statusCode(200);
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
                 .extract().jsonPath().getLong("id");
-        when(engine.stopLoad(anyMap())).thenReturn(new LoadReport(105, new LoadSummary(120L, 1L, 0L, 52.5, null)));
+        when(engine.stopLoad(any())).thenReturn(new LoadReport(105, new LoadSummary(120L, 1L, 0L, 52.5, null)));
         reconciler.reconcile();
         reconciler.reconcile();
 
@@ -178,10 +182,10 @@ class ExecutionApiSystemTests {
         reconciler.reconcile();
 
         InOrder order = inOrder(engine);
-        order.verify(engine).up(anyMap(), any());
-        order.verify(engine).startLoad(anyMap(), any());
-        order.verify(engine).stopLoad(anyMap());
-        order.verify(engine).down(anyMap(), anyMap());
+        order.verify(engine).up(any(), any());
+        order.verify(engine).startLoad(any(), any());
+        order.verify(engine).stopLoad(any());
+        order.verify(engine).down(any());
         alice.read().get(scenario + "/executions/current").then()
                 .body("phase", equalTo("RELEASED"))
                 .body("workload.completed", equalTo(false))
@@ -218,9 +222,9 @@ class ExecutionApiSystemTests {
                 .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"));
         alice.write().post(stop).then().statusCode(202).body("outcome", equalTo("COMPLETED"));
         alice.write().body(graph(2, http(ORDERS))).put(scenario + "/graph").then().statusCode(200);
-        verify(engine).up(anyMap(), any());
-        verify(engine).down(anyMap(), eq(Map.of("io.infracture.instance", instanceOf(alice, scenario),
-                "io.infracture.execution", String.valueOf(id))));
+        verify(engine).up(any(), any());
+        verify(engine).down(argThat(plan -> plan.labels().equals(Map.of("io.infracture.instance",
+                instanceOf(alice, scenario), "io.infracture.execution", String.valueOf(id)))));
     }
 
     @Test
@@ -228,7 +232,7 @@ class ExecutionApiSystemTests {
         ApiSession alice = ApiSession.signUp(port);
         String scenario = statelessScenario(alice);
         doThrow(new RuntimeEngineException("docker compose up failed: container is unhealthy"))
-                .when(engine).up(anyMap(), any());
+                .when(engine).up(any(), any());
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202);
 
         reconciler.reconcile();
@@ -255,7 +259,7 @@ class ExecutionApiSystemTests {
             BooleanSupplier cancelled = invocation.getArgument(1);
             assertThat(cancelled.getAsBoolean()).isTrue();
             throw new StartCancelledException("docker compose up was cancelled because the execution is stopping");
-        }).when(engine).up(anyMap(), any());
+        }).when(engine).up(any(), any());
 
         reconciler.reconcile();
         alice.read().get(scenario + "/executions/current").then()
@@ -265,7 +269,7 @@ class ExecutionApiSystemTests {
         alice.read().get(scenario + "/executions/current").then()
                 .body("phase", equalTo("RELEASED")).body("outcome", equalTo("COMPLETED"))
                 .body("failureReason", nullValue());
-        verify(engine).down(anyMap(), anyMap());
+        verify(engine).down(any());
         alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202);
     }
 
@@ -285,7 +289,7 @@ class ExecutionApiSystemTests {
                 .doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
                 .doThrow(new RuntimeEngineException("docker volume rm failed: volume is in use"))
                 .doNothing()
-                .when(engine).down(anyMap(), anyMap());
+                .when(engine).down(any());
         alice.write().post(stop).then().statusCode(202);
 
         for (int tick = 0; tick < 4; tick++) {
@@ -318,7 +322,7 @@ class ExecutionApiSystemTests {
         long id = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
                 .extract().jsonPath().getLong("id");
         String events = scenario + "/executions/" + id + "/events";
-        when(engine.logs(anyMap(), any())).thenReturn(List.of(new LogLine("c-" + ORDERS,
+        when(engine.logs(any(), any())).thenReturn(List.of(new LogLine(ORDERS_KEY,
                 Instant.parse("2026-11-21T10:00:00Z"), "connected with password=hunter2")));
         reconciler.reconcile();
         reconciler.reconcile();
@@ -540,7 +544,7 @@ class ExecutionApiSystemTests {
 
     private static String instanceOf(ApiSession session, String scenario) {
         return session.read().get(scenario + "/executions/current").then().extract()
-                .path("plan.networks.exec.labels['io.infracture.instance']");
+                .path("plan.labels['io.infracture.instance']");
     }
 
     static String statelessScenario(ApiSession session) {

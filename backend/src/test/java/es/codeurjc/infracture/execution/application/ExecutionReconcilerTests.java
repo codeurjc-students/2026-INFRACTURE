@@ -11,6 +11,7 @@ import es.codeurjc.infracture.execution.application.ExecutionView.Node;
 import es.codeurjc.infracture.execution.domain.Execution;
 import es.codeurjc.infracture.execution.domain.ExecutionEvent;
 import es.codeurjc.infracture.execution.domain.ExecutionEvent.Kind;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
 import es.codeurjc.infracture.execution.domain.Outcome;
 import es.codeurjc.infracture.execution.domain.Phase;
@@ -44,6 +45,11 @@ class ExecutionReconcilerTests {
     private static final String UP = "up infracture-local-exec-12";
     private static final String DOWN = "down infracture-local-exec-12 "
             + "{io.infracture.instance=local, io.infracture.execution=12}";
+    private static final RuntimeStatus HEALTHY = new RuntimeStatus(Map.of(ORDERS, ComponentStatus.HEALTHY), null);
+    private static final RuntimeStatus UNHEALTHY =
+            new RuntimeStatus(Map.of(ORDERS, ComponentStatus.UNHEALTHY), null);
+    private static final RuntimeStatus LOAD_ENDED =
+            new RuntimeStatus(Map.of(ORDERS, ComponentStatus.HEALTHY), ComponentStatus.EXITED);
     private static final String START_LOAD = "start-load";
     private static final String STOP_LOAD = "stop-load";
     private static final Workload LOAD = new Workload(ORDERS, "CONSTANT_HTTP",
@@ -314,7 +320,7 @@ class ExecutionReconcilerTests {
     @Test
     void failsWhenANodeFallsOverWhileRunning() {
         reconciler.reconcile();
-        engine.status = Map.of("c-" + ORDERS, ComponentStatus.UNHEALTHY);
+        engine.status = UNHEALTHY;
 
         reconciler.reconcile();
 
@@ -326,7 +332,7 @@ class ExecutionReconcilerTests {
     @Test
     void failsWhenANodeDisappears() {
         reconciler.reconcile();
-        engine.status = Map.of();
+        engine.status = new RuntimeStatus(Map.of(), null);
 
         reconciler.reconcile();
 
@@ -404,7 +410,7 @@ class ExecutionReconcilerTests {
         reconciler.reconcile();
         reconciler.reconcile();
         reconciler.reconcile();
-        engine.status = Map.of("c-" + ORDERS, ComponentStatus.UNHEALTHY);
+        engine.status = UNHEALTHY;
         reconciler.reconcile();
 
         assertThat(events.of(12L, Kind.STATE)).extracting(event -> event.getPayload().get("status"))
@@ -414,10 +420,9 @@ class ExecutionReconcilerTests {
     @Test
     void keepsTheLinesTheNodesAndTheLoadPrintOnceAndCleaned() {
         Instant printed = STARTED.plusSeconds(1);
-        engine.logLines.add(new LogLine("c-" + ORDERS, printed, "Started DemoApplication"));
-        engine.logLines.add(new LogLine("c-" + ORDERS, printed.plusMillis(1), "connecting with password=hunter2"));
-        engine.logLines.add(new LogLine(PlanCompiler.LOAD_SERVICE, printed.plusMillis(2), "running (01m00s)"));
-        engine.logLines.add(new LogLine("unknown", printed.plusMillis(3), "not part of the plan"));
+        engine.logLines.add(new LogLine(ORDERS, printed, "Started DemoApplication"));
+        engine.logLines.add(new LogLine(ORDERS, printed.plusMillis(1), "connecting with password=hunter2"));
+        engine.logLines.add(new LogLine(null, printed.plusMillis(2), "running (01m00s)"));
 
         reconciler.reconcile();
         reconciler.reconcile();
@@ -472,8 +477,7 @@ class ExecutionReconcilerTests {
     void keepsTheExperimentRunningWhenTheLoadEndsOnItsOwn() {
         reserve(LOAD);
         reconciler.reconcile();
-        engine.status = Map.of("c-" + ORDERS, ComponentStatus.HEALTHY, PlanCompiler.LOAD_SERVICE,
-                ComponentStatus.EXITED);
+        engine.status = LOAD_ENDED;
         engine.loadReport = new LoadReport(0, SUMMARY);
 
         reconciler.reconcile();
@@ -491,8 +495,7 @@ class ExecutionReconcilerTests {
     void failsWhenTheLoadEndsWithAnErrorAndKeepsWhatItReported() {
         reserve(LOAD);
         reconciler.reconcile();
-        engine.status = Map.of("c-" + ORDERS, ComponentStatus.HEALTHY, PlanCompiler.LOAD_SERVICE,
-                ComponentStatus.EXITED);
+        engine.status = LOAD_ENDED;
         engine.loadReport = new LoadReport(107, null);
 
         reconciler.reconcile();
@@ -555,7 +558,7 @@ class ExecutionReconcilerTests {
     }
 
     private ExecutionReconciler reconciler(Duration cleanupPause, Clock clock) {
-        return new ExecutionReconciler(repository, engine, planCompiler, journal, probe, Duration.ofMinutes(30),
+        return new ExecutionReconciler(repository, engine, journal, probe, Duration.ofMinutes(30),
                 cleanupPause, clock, mock(PlatformTransactionManager.class));
     }
 
@@ -583,13 +586,13 @@ class ExecutionReconcilerTests {
         // What happens while the engine waits, such as a Stop from the owner.
         private Runnable duringUp = () -> {};
         private Runnable duringStartLoad = () -> {};
-        private Map<String, ComponentStatus> status = Map.of("c-" + ORDERS, ComponentStatus.HEALTHY);
+        private RuntimeStatus status = HEALTHY;
         // k6 exits with 105 when Stop interrupts it.
         private LoadReport loadReport = new LoadReport(105, SUMMARY);
 
         @Override
-        public void up(Map<String, Object> plan, BooleanSupplier cancelled) {
-            calls.add("up " + plan.get("name"));
+        public void up(ExecutionPlan plan, BooleanSupplier cancelled) {
+            calls.add("up " + plan.project());
             duringUp.run();
             if (upFailure != null) {
                 throw upFailure;
@@ -598,7 +601,7 @@ class ExecutionReconcilerTests {
         }
 
         @Override
-        public void startLoad(Map<String, Object> plan, BooleanSupplier cancelled) {
+        public void startLoad(ExecutionPlan plan, BooleanSupplier cancelled) {
             calls.add("start-load");
             duringStartLoad.run();
             if (startLoadFailure != null) {
@@ -614,7 +617,7 @@ class ExecutionReconcilerTests {
         }
 
         @Override
-        public LoadReport stopLoad(Map<String, Object> plan) {
+        public LoadReport stopLoad(ExecutionPlan plan) {
             calls.add("stop-load");
             if (stopLoadFailure != null) {
                 throw stopLoadFailure;
@@ -623,7 +626,7 @@ class ExecutionReconcilerTests {
         }
 
         @Override
-        public Map<String, ComponentStatus> status(Map<String, Object> plan) {
+        public RuntimeStatus status(ExecutionPlan plan) {
             if (statusFailure != null) {
                 throw statusFailure;
             }
@@ -632,7 +635,7 @@ class ExecutionReconcilerTests {
 
         // Like Docker, a line printed exactly at since comes back again.
         @Override
-        public List<LogLine> logs(Map<String, Object> plan, Instant since) {
+        public List<LogLine> logs(ExecutionPlan plan, Instant since) {
             if (logsFailure != null) {
                 throw logsFailure;
             }
@@ -640,13 +643,13 @@ class ExecutionReconcilerTests {
         }
 
         @Override
-        public Map<String, ResourceUsage> usage(Map<String, Object> plan) {
+        public Map<UUID, ResourceUsage> usage(ExecutionPlan plan) {
             return Map.of();
         }
 
         @Override
-        public void down(Map<String, Object> plan, Map<String, String> labels) {
-            calls.add("down " + plan.get("name") + " " + labels);
+        public void down(ExecutionPlan plan) {
+            calls.add("down " + plan.project() + " " + plan.labels());
             if (downFailure != null) {
                 throw downFailure;
             }

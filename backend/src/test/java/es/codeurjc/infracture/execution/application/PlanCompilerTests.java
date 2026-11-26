@@ -7,6 +7,7 @@ import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.project.domain.ComponentDraft;
@@ -28,8 +29,8 @@ import tools.jackson.databind.json.JsonMapper;
 class PlanCompilerTests {
 
     private static final UUID ORDERS = UUID.fromString("3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10");
-    private static final String LOAD_IMAGE = "infracture/load-generator:0.1.0";
-    private static final Workload LOAD = new Workload(ORDERS, "CONSTANT_HTTP",
+    static final String LOAD_IMAGE = "infracture/load-generator:0.1.0";
+    static final Workload LOAD = new Workload(ORDERS, "CONSTANT_HTTP",
             Map.of("requestsPerSecond", 10, "virtualUsers", 5, "durationSeconds", 60), 42);
 
     private final PlanCompiler compiler = new PlanCompiler(
@@ -38,7 +39,7 @@ class PlanCompilerTests {
     // Reference file: given this snapshot, exactly this plan.
     @Test
     void compilesAStatelessServiceIntoTheReferencePlan() throws Exception {
-        Map<String, Object> plan = compiler.compile(execution(12L));
+        ExecutionPlan plan = compiler.compile(execution(12L));
 
         JSONAssert.assertEquals(reference("execution/stateless-plan.json"),
                 JsonMapper.builder().build().writeValueAsString(plan), JSONCompareMode.STRICT);
@@ -46,22 +47,11 @@ class PlanCompilerTests {
 
     // The load only reaches the plan as numbers and the target URL; k6 chooses its fixed script (ADR 0012).
     @Test
-    void addsTheLoadAsAK6ServiceThatUpWaitLeavesForLater() throws Exception {
-        Map<String, Object> plan = compiler.compile(execution(12L, LOAD));
+    void addsTheLoadAsAK6ServiceAimedAtItsTarget() throws Exception {
+        ExecutionPlan plan = compiler.compile(execution(12L, LOAD));
 
         JSONAssert.assertEquals(reference("execution/constant-http-plan.json"),
                 JsonMapper.builder().build().writeValueAsString(plan), JSONCompareMode.STRICT);
-    }
-
-    @Test
-    void givesExperimentsNoPortsVolumesPrivilegesOrSecrets() {
-        Map<String, Object> plan = compiler.compile(execution(12L, LOAD));
-        @SuppressWarnings("unchecked")
-        Map<String, Map<String, Object>> services = (Map<String, Map<String, Object>>) plan.get("services");
-
-        assertThat(services).hasSize(2).allSatisfy((name, service) -> assertThat(service)
-                .doesNotContainKeys("ports", "volumes", "privileged", "secrets", "command", "network_mode"));
-        assertThat(plan).doesNotContainKeys("volumes", "secrets");
     }
 
     @Test
@@ -94,11 +84,11 @@ class PlanCompilerTests {
                 .isThrownBy(() -> new PlanCompiler(List.of(driver, driver), "local", LOAD_IMAGE));
     }
 
-    private static Execution execution(Long id) {
+    static Execution execution(Long id) {
         return execution(id, null);
     }
 
-    private static Execution execution(Long id, Workload workload) {
+    static Execution execution(Long id, Workload workload) {
         ComponentTemplate http = new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE,
                 true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)));
         Scenario scenario = new Scenario(new Project(
@@ -111,7 +101,7 @@ class PlanCompilerTests {
         return execution;
     }
 
-    private static String reference(String path) throws IOException {
+    static String reference(String path) throws IOException {
         try (InputStream input = PlanCompilerTests.class.getClassLoader().getResourceAsStream(path)) {
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }

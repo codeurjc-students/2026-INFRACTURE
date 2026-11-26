@@ -68,6 +68,15 @@ UpFails(s) ==
     /\ trouble' = [trouble EXCEPT ![s] = TRUE]
     /\ UNCHANGED <<released, revision, snapRev, backendUp>>
 
+\* A node turns unhealthy or exits, or the load ends badly, while the experiment runs: watch() reads
+\* Docker outside the row lock, so the failure can land after a Stop or the time limit (2954f94).
+NodeFails(s) ==
+    /\ backendUp /\ phase[s] = "RUNNING"
+    /\ desired' = [desired EXCEPT ![s] = "STOPPED"]
+    /\ cause' = [cause EXCEPT ![s] = NewCause(s, "failure")]
+    /\ trouble' = [trouble EXCEPT ![s] = TRUE]
+    /\ UNCHANGED <<phase, resources, released, revision, snapRev, backendUp>>
+
 \* Stop only sets the desired phase; during STARTING the engine then cancels the start (#88).
 UserStop(s) ==
     /\ backendUp /\ phase[s] \in {"RESERVED", "STARTING", "RUNNING"} /\ desired[s] = "RUNNING"
@@ -125,7 +134,7 @@ BackendRestarts ==
 Next ==
     \/ \E s \in Scen :
         \/ UserRun(s) \/ UserSavesGraph(s) \/ PlanCompiled(s) \/ UpSucceeds(s) \/ UpFails(s)
-        \/ UserStop(s) \/ TimeLimitReached(s) \/ StartCancelled(s) \/ CleanupBegins(s) \/ CleanupSucceeds(s)
+        \/ NodeFails(s) \/ UserStop(s) \/ TimeLimitReached(s) \/ StartCancelled(s) \/ CleanupBegins(s) \/ CleanupSucceeds(s)
     \/ BackendCrashes \/ BackendRestarts
 
 Spec == Init /\ [][Next]_vars

@@ -102,7 +102,7 @@ public class Execution {
     private Phase interruptedPhase;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> plan;
+    private ExecutionPlan plan;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -140,7 +140,7 @@ public class Execution {
     }
 
     // The plan names resources after the execution id, so it is attached once the reservation has an id.
-    public void attachPlan(Map<String, Object> plan) {
+    public void attachPlan(ExecutionPlan plan) {
         if (this.plan != null) {
             throw new IllegalStateException("Execution %d already has a plan".formatted(id));
         }
@@ -323,7 +323,7 @@ public class Execution {
         return cleanupError;
     }
 
-    public Map<String, Object> getPlan() {
+    public ExecutionPlan getPlan() {
         return plan;
     }
 

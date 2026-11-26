@@ -1,7 +1,6 @@
 package es.codeurjc.infracture.execution.application;
 
 import es.codeurjc.infracture.execution.application.ExecutionView.Node;
-import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.Execution;
 import es.codeurjc.infracture.execution.domain.ExecutionEvent;
 import es.codeurjc.infracture.execution.domain.ExecutionEvent.Kind;
@@ -109,15 +108,7 @@ public class ExecutionJournal {
     // 1000 per node (the rest are only counted in one LOGS_OMITTED). Lines of the
     // load have no component.
     Instant recordLogs(Execution execution, List<LogLine> lines, Instant since) {
-        // Who printed each line, by Compose service name: a node, or the load,
-        // which has no component.
-        Map<String, UUID> sources = new HashMap<>();
-        sources.put(PlanCompiler.LOAD_SERVICE, null);
-        for (ExecutedComponent component : execution.getComponents()) {
-            sources.put(PlanCompiler.serviceName(component), component.getKey());
-        }
         List<LogLine> fresh = lines.stream()
-                .filter(line -> sources.containsKey(line.service()))
                 .filter(line -> since == null || line.at().isAfter(since))
                 .sorted(Comparator.comparing(LogLine::at))
                 .toList();
@@ -131,7 +122,7 @@ public class ExecutionJournal {
         Map<UUID, Long> stored = new HashMap<>();
         Map<UUID, Integer> omitted = new LinkedHashMap<>();
         for (LogLine line : thisTick) {
-            UUID key = sources.get(line.service());
+            UUID key = line.node();
             long count = stored.computeIfAbsent(key, source -> count(execution.getId(), source));
             if (count < MAX_LINES_PER_SOURCE) {
                 events.save(ExecutionEvent.log(execution.getId(), key, redactor.clean(line.text()), line.at()));

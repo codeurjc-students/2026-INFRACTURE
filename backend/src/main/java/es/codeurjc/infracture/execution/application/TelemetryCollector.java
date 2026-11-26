@@ -2,6 +2,7 @@ package es.codeurjc.infracture.execution.application;
 
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
 import es.codeurjc.infracture.execution.domain.MetricSample;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -45,12 +47,12 @@ public class TelemetryCollector {
         if (target == null) {
             return;
         }
-        Map<String, ResourceUsage> usage = read(target);
+        Map<UUID, ResourceUsage> usage = read(target);
         Instant now = clock.instant();
         transactions.executeWithoutResult(status -> store(target, usage, now));
     }
 
-    private Map<String, ResourceUsage> read(Target target) {
+    private Map<UUID, ResourceUsage> read(Target target) {
         try {
             return engine.usage(target.plan());
         } catch (RuntimeEngineException _) {
@@ -59,14 +61,14 @@ public class TelemetryCollector {
     }
 
     // Checked again on the locked row: a Stop that arrived during the read ends the samples.
-    private void store(Target target, Map<String, ResourceUsage> usage, Instant now) {
+    private void store(Target target, Map<UUID, ResourceUsage> usage, Instant now) {
         boolean sampled = executions.findForUpdateById(target.id()).filter(TelemetryCollector::isSampled).isPresent();
         if (!sampled) {
             return;
         }
         List<MetricSample> rows = new ArrayList<>();
-        target.services().forEach((componentId, service) -> {
-            ResourceUsage reading = usage.getOrDefault(service, new ResourceUsage(null, null));
+        target.nodes().forEach((componentId, key) -> {
+            ResourceUsage reading = usage.getOrDefault(key, new ResourceUsage(null, null));
             rows.add(new MetricSample(componentId, now, reading.cpuPercent(), reading.memoryBytes()));
         });
         samples.saveAll(rows);
@@ -76,15 +78,15 @@ public class TelemetryCollector {
         return execution.getPhase() == Phase.RUNNING && execution.getStopCause() == null;
     }
 
-    // What the read needs after its transaction ends: the plan and each node's id with its service name.
-    private record Target(Long id, Map<String, Object> plan, Map<Long, String> services) {
+    // What the read needs after its transaction ends: the plan and each node's row id with its key.
+    private record Target(Long id, ExecutionPlan plan, Map<Long, UUID> nodes) {
 
         static Target of(Execution execution) {
-            Map<Long, String> services = new LinkedHashMap<>();
+            Map<Long, UUID> nodes = new LinkedHashMap<>();
             for (ExecutedComponent component : execution.getComponents()) {
-                services.put(component.getId(), PlanCompiler.serviceName(component));
+                nodes.put(component.getId(), component.getKey());
             }
-            return new Target(execution.getId(), execution.getPlan(), services);
+            return new Target(execution.getId(), execution.getPlan(), nodes);
         }
     }
 }

@@ -25,7 +25,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 class ExecutionJournalTests {
 
     private static final UUID ORDERS = UUID.fromString("3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10");
-    private static final String SERVICE = "c-" + ORDERS;
     private static final Instant START = Instant.parse("2026-11-21T10:00:00Z");
 
     private final InMemoryExecutionEvents events = new InMemoryExecutionEvents();
@@ -62,8 +61,8 @@ class ExecutionJournalTests {
     void keepsTheLinesPrintedAtTheSameInstantInTheSameTick() {
         List<LogLine> printed = new ArrayList<>(lines(ExecutionJournal.MAX_LINES_PER_TICK));
         Instant last = START.plusMillis(ExecutionJournal.MAX_LINES_PER_TICK - 1);
-        printed.add(new LogLine(SERVICE, last, "same instant"));
-        printed.add(new LogLine(SERVICE, last.plusMillis(1), "later"));
+        printed.add(new LogLine(ORDERS, last, "same instant"));
+        printed.add(new LogLine(ORDERS, last.plusMillis(1), "later"));
 
         Instant firstTick = journal.recordLogs(execution, printed, null);
         Instant secondTick = journal.recordLogs(execution, printed, firstTick);
@@ -75,9 +74,8 @@ class ExecutionJournalTests {
     }
 
     @Test
-    void storesTheLinesOfTheLoadWithoutAComponentAndIgnoresUnknownServices() {
-        journal.recordLogs(execution, List.of(new LogLine(PlanCompiler.LOAD_SERVICE, START, "k6 running"),
-                new LogLine("someone-else", START, "not ours")), null);
+    void storesTheLinesOfTheLoadWithoutAComponent() {
+        journal.recordLogs(execution, List.of(new LogLine(null, START, "k6 running")), null);
 
         assertThat(events.of(12L, Kind.LOG)).singleElement()
                 .satisfies(event -> assertThat(event.getComponentKey()).isNull())
@@ -126,7 +124,7 @@ class ExecutionJournalTests {
     private static List<LogLine> lines(int count) {
         List<LogLine> lines = new ArrayList<>();
         for (int line = 0; line < count; line++) {
-            lines.add(new LogLine(SERVICE, START.plusMillis(line), "line " + line));
+            lines.add(new LogLine(ORDERS, START.plusMillis(line), "line " + line));
         }
         return lines;
     }

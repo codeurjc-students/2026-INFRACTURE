@@ -1,0 +1,106 @@
+{
+  "name": "infracture-local-exec-12",
+  "networks": {
+    "exec": {
+      "labels": {
+        "io.infracture.instance": "local",
+        "io.infracture.execution": "12"
+      }
+    }
+  },
+  "services": {
+    "c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10": {
+      "image": "infracture/demo-app:0.1.0",
+      "environment": {
+        "APP_ROLE": "http",
+        "APP_MODE": "STATELESS",
+        "COMPONENT_NAME": "orders-api",
+        "RESPONSE_DELAY_MS": "50"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:8080/health"
+        ],
+        "interval": "2s",
+        "timeout": "2s",
+        "retries": 15,
+        "start_period": "60s"
+      },
+      "networks": [
+        "exec"
+      ],
+      "labels": {
+        "io.infracture.instance": "local",
+        "io.infracture.execution": "12",
+        "io.infracture.component": "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10"
+      },
+      "read_only": true,
+      "tmpfs": [
+        "/tmp"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "deploy": {
+        "resources": {
+          "limits": {
+            "cpus": "0.5",
+            "memory": "384M",
+            "pids": 200
+          }
+        }
+      }
+    },
+    "workload": {
+      "image": "infracture/load-generator:0.1.0",
+      "environment": {
+        "WORKLOAD_PROFILE": "CONSTANT_HTTP",
+        "TARGET_URL": "http://c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10:8080/",
+        "DURATION_SECONDS": "60",
+        "REQUESTS_PER_SECOND": "10",
+        "VIRTUAL_USERS": "5",
+        "RANDOM_SEED": "42"
+      },
+      "profiles": [
+        "load"
+      ],
+      "depends_on": {
+        "c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10": {
+          "condition": "service_healthy"
+        }
+      },
+      "networks": [
+        "exec"
+      ],
+      "labels": {
+        "io.infracture.instance": "local",
+        "io.infracture.execution": "12"
+      },
+      "read_only": true,
+      "tmpfs": [
+        "/tmp"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "deploy": {
+        "resources": {
+          "limits": {
+            "cpus": "0.5",
+            "memory": "384M",
+            "pids": 200
+          }
+        }
+      }
+    }
+  }
+}

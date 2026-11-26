@@ -39,7 +39,7 @@ Copia inmutable de la revisión, la carga, las versiones de contrato, las imáge
 _Avoid_: Current scenario
 
 **ExecutionPlan**:
-Traducción de un Execution snapshot a los servicios, la red, la salud y las dependencias que se crean en Docker.
+Traducción de un Execution snapshot a los servicios que se ejecutan: nodos por clave con imagen, salud y límites, y la carga. Solo el motor la convierte en un fichero Compose.
 _Avoid_: Docker configuration, compose file escrito por el usuario
 
 **ExecutedComponent**:

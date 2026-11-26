@@ -10,6 +10,10 @@ import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedWorkload;
 import es.codeurjc.infracture.execution.domain.Execution;
 import es.codeurjc.infracture.execution.domain.ExecutionEvent;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
 import es.codeurjc.infracture.execution.domain.MetricSample;
 import es.codeurjc.infracture.execution.domain.Outcome;
@@ -23,6 +27,7 @@ import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.domain.Workload;
 import jakarta.persistence.EntityManager;
+import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -137,8 +142,13 @@ class ExecutionPersistenceIntegrationTests {
     @Test
     void reopensTheFrozenRevisionNodesAndConnections() {
         Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
-        execution.attachPlan(Map.of("name", "infracture-local-exec-" + execution.getId(),
-                "services", Map.of("c-" + orders, Map.of("image", "infracture/demo-app:0.1.0"))));
+        ExecutionPlan plan = new ExecutionPlan("infracture-local-exec-" + execution.getId(),
+                Map.of("io.infracture.instance", "local"), List.of(new Node(orders, "c-" + orders,
+                        "infracture/demo-app:0.1.0", null, Map.of("APP_MODE", "STATELESS"),
+                        new HttpProbe(8080, "/health", 2, 2, 15, 60), URI.create("http://c-" + orders + ":8080/"),
+                        new Limits(0.5, 384L << 20, 200))),
+                null);
+        execution.attachPlan(plan);
         repository.saveAndFlush(execution);
         entityManager.clear();
 
@@ -150,8 +160,7 @@ class ExecutionPersistenceIntegrationTests {
         assertThat(reopened.getComponents().getFirst().getParameters()).containsEntry("responseDelayMs", 50);
         assertThat(reopened.getConnections()).containsExactly(new Connection(orders, "cache", redis));
         assertThat(reopened.getCreatedAt()).isNotNull();
-        assertThat(reopened.getPlan()).containsEntry("name", "infracture-local-exec-" + execution.getId())
-                .containsKey("services");
+        assertThat(reopened.getPlan()).isEqualTo(plan);
         assertThat(repository.findByReleasedAtIsNull()).map(Execution::getId).contains(execution.getId());
     }
 

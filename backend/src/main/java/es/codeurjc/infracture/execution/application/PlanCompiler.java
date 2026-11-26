@@ -4,31 +4,32 @@ import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.ExecutedWorkload;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Load;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// Translates a reserved execution into a Compose-shaped plan. It never touches Docker, so the same
-// plan can be stored as evidence of what ran and tested without Docker. It holds no secrets.
+// Translates a reserved execution into its ExecutionPlan. It never touches Docker, so the same plan can be
+// stored as evidence of what ran and tested without Docker. It holds no secrets and no Compose syntax.
 @Component
 public class PlanCompiler {
 
     public static final String INSTANCE_LABEL = "io.infracture.instance";
     public static final String EXECUTION_LABEL = "io.infracture.execution";
     public static final String COMPONENT_LABEL = "io.infracture.component";
-    public static final String NETWORK = "exec";
-    // The k6 service. Its Compose profile keeps `up --wait` from starting it with
-    // the nodes.
-    public static final String LOAD_SERVICE = "workload";
-    public static final String LOAD_PROFILE = "load";
+    // Every service, node or load, gets the same limits for now (#107 measures them).
+    private static final Limits LIMITS = new Limits(0.5, 384L << 20, 200);
     // Compose accepts lowercase letters, digits, "-" and "_" in project names.
     private static final Pattern INSTANCE_ID = Pattern.compile("[a-z0-9][a-z0-9_-]{0,39}");
 
@@ -67,86 +68,50 @@ public class PlanCompiler {
         return labels;
     }
 
-    public Map<String, Object> compile(Execution execution) {
-        Map<String, String> labels = labels(execution.getId());
-
-        Map<String, Object> services = new LinkedHashMap<>();
+    public ExecutionPlan compile(Execution execution) {
+        List<Node> nodes = new ArrayList<>();
         for (ExecutedComponent component : execution.getComponents()) {
-            services.put(serviceName(component), service(component, labels));
+            nodes.add(node(component));
         }
-        if (execution.getWorkload() != null) {
-            services.put(LOAD_SERVICE, load(execution, labels));
-        }
-
-        Map<String, Object> plan = new LinkedHashMap<>();
-        plan.put("name", projectName(execution.getId()));
-        plan.put("networks", Map.of(NETWORK, Map.of("labels", labels)));
-        plan.put("services", services);
-        return plan;
+        Load load = execution.getWorkload() == null ? null : load(execution);
+        return new ExecutionPlan(projectName(execution.getId()), labels(execution.getId()), nodes, load);
     }
 
-    private Map<String, Object> service(ExecutedComponent component, Map<String, String> executionLabels) {
-        ComponentDriver driver = drivers.get(component.getType());
-        if (driver == null) {
-            throw new IllegalStateException("No driver runs " + component.getType());
-        }
-        Map<String, String> labels = new LinkedHashMap<>(executionLabels);
-        labels.put(COMPONENT_LABEL, component.getKey().toString());
-        return confined(driver.service(component), labels);
+    private Node node(ExecutedComponent component) {
+        ComponentDriver driver = driver(component);
+        ComponentDriver.Service service = driver.service(component);
+        String host = host(component);
+        return new Node(component.getKey(), host, service.image(), service.command(), service.environment(),
+                service.health(),
+                driver.evidence(host), LIMITS);
     }
 
     // k6 with the fixed script of the profile. It only receives the target URL and
     // numbers.
-    private Map<String, Object> load(Execution execution, Map<String, String> labels) {
+    private Load load(Execution execution) {
         ExecutedWorkload workload = execution.getWorkload();
         ExecutedComponent target = execution.getComponents().stream()
                 .filter(component -> component.getKey().equals(workload.getTargetKey())).findFirst().orElseThrow();
         ComponentDriver driver = drivers.get(target.getType());
-        URI url = driver == null ? null : driver.httpUrl(serviceName(target));
+        URI url = driver == null ? null : driver.httpUrl(host(target));
         if (url == null) {
             throw new IllegalStateException(target.getType() + " does not accept HTTP load");
         }
-        Map<String, Object> environment = new LinkedHashMap<>();
+        Map<String, String> environment = new LinkedHashMap<>();
         environment.put("WORKLOAD_PROFILE", workload.getProfile());
         environment.put("TARGET_URL", url.toString());
         new TreeMap<>(workload.getParameters())
                 .forEach((name, value) -> environment.put(environmentName(name), String.valueOf(value)));
         environment.put("RANDOM_SEED", String.valueOf(workload.getSeed()));
-
-        Map<String, Object> service = new LinkedHashMap<>();
-        service.put("image", loadImage);
-        service.put("environment", environment);
-        service.put("profiles", List.of(LOAD_PROFILE));
-        service.put("depends_on", Map.of(serviceName(target), Map.of("condition", "service_healthy")));
-        return confined(service, labels);
+        return new Load(loadImage, null, environment, target.getKey(), LIMITS);
     }
 
-    // What every service shares: the execution network and labels, limits and no
-    // privileges.
-    private static Map<String, Object> confined(Map<String, Object> driverService, Map<String, String> labels) {
-        Map<String, Object> service = new LinkedHashMap<>(driverService);
-        service.put("networks", List.of(NETWORK));
-        service.put("labels", labels);
-        service.put("read_only", true);
-        service.put("tmpfs", List.of("/tmp"));
-        service.put("cap_drop", List.of("ALL"));
-        service.put("security_opt", List.of("no-new-privileges:true"));
-        service.put("deploy",
-                Map.of("resources", Map.of("limits", Map.of("cpus", "0.5", "memory", "384M", "pids", 200))));
-        return service;
-    }
-
-    // The URL of each node whose driver can show a real response.
-    public Map<UUID, URI> evidence(Execution execution) {
-        Map<UUID, URI> uris = new LinkedHashMap<>();
-        for (ExecutedComponent component : execution.getComponents()) {
-            ComponentDriver driver = drivers.get(component.getType());
-            URI uri = driver == null ? null : driver.evidence(serviceName(component));
-            if (uri != null) {
-                uris.put(component.getKey(), uri);
-            }
+    private ComponentDriver driver(ExecutedComponent component) {
+        ComponentDriver driver = drivers.get(component.getType());
+        if (driver == null) {
+            throw new IllegalStateException("No driver runs " + component.getType());
         }
-        return uris;
+        return driver;
     }
 
     // requestsPerSecond -> REQUESTS_PER_SECOND
@@ -154,21 +119,8 @@ public class PlanCompiler {
         return parameter.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toUpperCase(Locale.ROOT);
     }
 
-    // The limits a node ran with, read from its stored plan so the history keeps them if they change later.
-    // CPU is a percentage of one core: 0.5 CPUs is 50%.
-    @SuppressWarnings("unchecked")
-    static ResourceUsage limits(Map<String, Object> plan, ExecutedComponent component) {
-        Map<String, Object> services = (Map<String, Object>) plan.get("services");
-        Map<String, Object> service = (Map<String, Object>) services.get(serviceName(component));
-        Map<String, Object> deploy = (Map<String, Object>) service.get("deploy");
-        Map<String, Object> resources = (Map<String, Object>) deploy.get("resources");
-        Map<String, Object> limits = (Map<String, Object>) resources.get("limits");
-        String memory = (String) limits.get("memory");
-        return new ResourceUsage(Double.parseDouble((String) limits.get("cpus")) * 100,
-                Long.parseLong(memory.substring(0, memory.length() - 1)) << 20);
-    }
-
-    static String serviceName(ExecutedComponent component) {
+    // The name a node answers to on the execution network. The node key keeps it unique and free of user text.
+    private static String host(ExecutedComponent component) {
         return "c-" + component.getKey();
     }
 }
