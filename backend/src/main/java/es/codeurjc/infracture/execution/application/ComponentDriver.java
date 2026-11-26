@@ -6,12 +6,16 @@ import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 // What one ComponentType adds to the plan: its image, its variables and how its health is checked.
 // The plan compiler adds what every service shares (host name, labels and limits).
 public interface ComponentDriver {
 
     ComponentType type();
+
+    // The profiles of the type this driver can run. Run refuses a node whose profile is not here.
+    Set<String> profiles();
 
     Service service(ExecutedComponent component);
 

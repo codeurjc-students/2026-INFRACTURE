@@ -359,6 +359,20 @@ class ExecutionPersistenceIntegrationTests {
                 .hasMessageContaining("ck_execution_events_kind");
     }
 
+    // History keeps whatever type ran; a type added later must not need a migration of the history tables.
+    @Test
+    void keepsAFrozenNodeOfATypeTheHistoryTableDidNotListWhenItWasCreated() {
+        Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
+
+        int inserted = entityManager.createNativeQuery("""
+                INSERT INTO executed_components (execution_id, component_key, name, type, contract_version, profile,
+                    parameters)
+                VALUES (:id, gen_random_uuid(), 'edge', 'LOAD_BALANCER', 1, 'ROUND_ROBIN', '{}')""")
+                .setParameter("id", execution.getId()).executeUpdate();
+
+        assertThat(inserted).isEqualTo(1);
+    }
+
     private static Map<String, ComponentTemplate> catalogue() {
         return Map.of(
                 "http-service", new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE,

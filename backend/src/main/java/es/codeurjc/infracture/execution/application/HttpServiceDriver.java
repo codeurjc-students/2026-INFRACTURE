@@ -6,6 +6,7 @@ import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,11 @@ class HttpServiceDriver implements ComponentDriver {
     @Override
     public ComponentType type() {
         return ComponentType.HTTP_SERVICE;
+    }
+
+    @Override
+    public Set<String> profiles() {
+        return Set.of("STATELESS");
     }
 
     @Override

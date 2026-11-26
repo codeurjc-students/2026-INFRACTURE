@@ -9,6 +9,7 @@ public final class ContractCatalogs {
 
     public static ContractCatalog standard() {
         return new ContractCatalog(List.of(new HttpServiceDefinition(), new WorkerDefinition(),
-                new PostgresqlDefinition(), new RedisDefinition(), new RabbitmqDefinition()));
+                new PostgresqlDefinition(), new RedisDefinition(), new RabbitmqDefinition()),
+                List.of(new ConstantHttpDefinition()));
     }
 }

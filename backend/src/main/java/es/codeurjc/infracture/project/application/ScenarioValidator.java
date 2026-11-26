@@ -2,7 +2,6 @@ package es.codeurjc.infracture.project.application;
 
 import es.codeurjc.infracture.catalog.application.ContractCatalog;
 import es.codeurjc.infracture.catalog.domain.Capability;
-import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.catalog.domain.ContractViolation;
 import es.codeurjc.infracture.catalog.domain.ParameterContract;
 import es.codeurjc.infracture.catalog.domain.PortContract;
@@ -114,24 +113,18 @@ public class ScenarioValidator {
             return;
         }
         String port = connection.port();
-        PortContract portContract = null;
-        for (PortContract candidate : sourceProfile.ports()) {
-            if (candidate.name().equals(port)) {
-                portContract = candidate;
-                break;
-            }
-        }
+        PortContract portContract = port(sourceProfile, port);
         if (portContract == null) {
             issues.add(new ValidationIssue(Severity.ERROR, "UNKNOWN_PORT", "%s has no port %s in profile %s"
                     .formatted(source.getName(), port, sourceProfile.name()), connectionTarget(connection), port));
             return;
         }
-        ProfileContract targetProfile = profile(target);
-        if (targetProfile == null) {
+        List<Capability> offered = offeredCapabilities(target);
+        if (offered == null) {
             return;
         }
         for (Capability capability : portContract.accepts()) {
-            if (targetProfile.capabilities().contains(capability)) {
+            if (offered.contains(capability)) {
                 return;
             }
         }
@@ -172,14 +165,13 @@ public class ScenarioValidator {
         onPath.remove(key);
     }
 
-    // A RabbitMQ that something publishes to but no Worker reads from accumulates
-    // tasks.
-    // shortcut: a Worker is the only consumer type today; if another type consumes,
-    // this check must know it.
-    private static void findUnconsumedBrokers(Scenario scenario, Map<UUID, Component> nodes,
+    // A broker that receives tasks but that no consuming port reads from accumulates them. Whether a
+    // connection consumes is a property of the source port, not of the source type.
+    private void findUnconsumedBrokers(Scenario scenario, Map<UUID, Component> nodes,
             List<ValidationIssue> issues) {
         for (Component broker : scenario.getComponents()) {
-            if (broker.getType() != ComponentType.RABBITMQ) {
+            List<Capability> offered = offeredCapabilities(broker);
+            if (offered == null || !offered.contains(Capability.MESSAGE_BROKER)) {
                 continue;
             }
             boolean published = false;
@@ -188,7 +180,13 @@ public class ScenarioValidator {
                 if (!connection.targetKey().equals(broker.getKey())) {
                     continue;
                 }
-                if (nodes.get(connection.sourceKey()).getType() == ComponentType.WORKER) {
+                ProfileContract sourceProfile = profile(nodes.get(connection.sourceKey()));
+                PortContract port = sourceProfile == null ? null : port(sourceProfile, connection.port());
+                // An unknown source or port already has its own issue.
+                if (port == null) {
+                    continue;
+                }
+                if (port.consumes()) {
                     consumed = true;
                 } else {
                     published = true;
@@ -220,7 +218,7 @@ public class ScenarioValidator {
             issues.add(new ValidationIssue(Severity.ERROR, "MISSING_PROFILE", "The load needs a profile", WORKLOAD,
                     "profile"));
         } else {
-            contract = WorkloadContract.find(workload.profile()).orElse(null);
+            contract = contracts.workload(workload.profile()).orElse(null);
             if (contract == null) {
                 issues.add(new ValidationIssue(Severity.ERROR, "UNKNOWN_PROFILE",
                         "There is no load profile " + workload.profile(), WORKLOAD, "profile"));
@@ -243,16 +241,32 @@ public class ScenarioValidator {
             return;
         }
         Component target = nodes.get(workload.targetKey());
-        ProfileContract targetProfile = profile(target);
+        List<Capability> offered = offeredCapabilities(target);
         // A target without a known profile already has its own issue.
-        if (contract != null && targetProfile != null
-                && !targetProfile.capabilities().containsAll(contract.requires())) {
+        if (contract != null && offered != null && !offered.containsAll(contract.requires())) {
             String needs = String.join(" and ", contract.requires().stream().map(Capability::name).toList());
             issues.add(new ValidationIssue(Severity.ERROR, "CAPABILITY_MISMATCH",
                     "The load %s needs %s, which %s does not offer".formatted(contract.profile(), needs,
                             target.getName()),
                     WORKLOAD, "targetKey"));
         }
+    }
+
+    // What the node offers to the ports and loads that reach it, or null when its profile is unknown. Every
+    // capability check asks here, so a type whose capabilities depend on the graph (the Load Balancer, #144)
+    // changes only this method.
+    private List<Capability> offeredCapabilities(Component component) {
+        ProfileContract profile = profile(component);
+        return profile == null ? null : profile.capabilities();
+    }
+
+    private static PortContract port(ProfileContract profile, String name) {
+        for (PortContract candidate : profile.ports()) {
+            if (candidate.name().equals(name)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     // The profile the node uses, or null when its type or profile is unknown.

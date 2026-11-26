@@ -160,14 +160,13 @@ public class ExecutionService {
                 errors.add(issue);
             }
         }
-        // shortcut: only HTTP Service STATELESS has a driver in #86; move this to the
-        // plan compiler with P07.
+        // A valid node still needs a driver for its profile; the drivers say which ones they run.
         for (Component component : scenario.getComponents()) {
-            if (component.getType() != ComponentType.HTTP_SERVICE
-                    || !"STATELESS".equals(component.getConfiguration().profile())) {
+            String profile = component.getConfiguration().profile();
+            if (!planCompiler.runs(component.getType(), profile)) {
                 errors.add(new ValidationIssue(Severity.ERROR, "UNSUPPORTED_IN_THIS_VERSION",
-                        "%s cannot run yet: this version runs HTTP Service STATELESS only"
-                                .formatted(component.getName()),
+                        "%s cannot run yet: this version has no driver for %s %s"
+                                .formatted(component.getName(), component.getType(), profile),
                         new Target(Kind.COMPONENT, component.getKey().toString()), "profile"));
             }
         }
