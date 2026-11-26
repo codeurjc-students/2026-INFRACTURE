@@ -68,6 +68,12 @@ public class PlanCompiler {
         return labels;
     }
 
+    // Whether a driver declares this profile of the type. Run asks this before reserving.
+    public boolean runs(ComponentType type, String profile) {
+        ComponentDriver driver = drivers.get(type);
+        return driver != null && driver.profiles().contains(profile);
+    }
+
     public ExecutionPlan compile(Execution execution) {
         List<Node> nodes = new ArrayList<>();
         for (ExecutedComponent component : execution.getComponents()) {
@@ -107,11 +113,11 @@ public class PlanCompiler {
     }
 
     private ComponentDriver driver(ExecutedComponent component) {
-        ComponentDriver driver = drivers.get(component.getType());
-        if (driver == null) {
-            throw new IllegalStateException("No driver runs " + component.getType());
+        if (!runs(component.getType(), component.getProfile())) {
+            throw new IllegalStateException("No driver runs %s %s".formatted(component.getType(),
+                    component.getProfile()));
         }
-        return driver;
+        return drivers.get(component.getType());
     }
 
     // requestsPerSecond -> REQUESTS_PER_SECOND

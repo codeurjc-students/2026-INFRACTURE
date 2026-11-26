@@ -10,6 +10,7 @@ import es.codeurjc.infracture.catalog.domain.ContractViolation;
 import es.codeurjc.infracture.catalog.domain.PortContract;
 import es.codeurjc.infracture.catalog.domain.ProfileContract;
 import es.codeurjc.infracture.catalog.domain.TemplateContract;
+import es.codeurjc.infracture.catalog.domain.WorkloadContract;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -57,12 +58,15 @@ class ContractCatalogTests {
     void labelsMessagingPortsWithTheDirectionOfTheMessages() {
         assertThat(port(ComponentType.HTTP_SERVICE, "QUEUE_PRODUCER", "queue").label()).isEqualTo("Publishes to");
         assertThat(port(ComponentType.WORKER, "CONSUMER", "queue").label()).isEqualTo("Consumes from");
+        assertThat(port(ComponentType.HTTP_SERVICE, "QUEUE_PRODUCER", "queue").consumes()).isFalse();
+        assertThat(port(ComponentType.WORKER, "CONSUMER", "queue").consumes()).isTrue();
     }
 
     @Test
     void refusesToStartWhenATypeHasTwoDefinitions() {
         assertThatThrownBy(() -> new ContractCatalog(List.of(new HttpServiceDefinition(), new HttpServiceDefinition(),
-                new WorkerDefinition(), new PostgresqlDefinition(), new RedisDefinition(), new RabbitmqDefinition())))
+                new WorkerDefinition(), new PostgresqlDefinition(), new RedisDefinition(), new RabbitmqDefinition()),
+                List.of(new ConstantHttpDefinition())))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("HTTP_SERVICE has more than one definition");
     }
@@ -70,9 +74,26 @@ class ContractCatalogTests {
     @Test
     void refusesToStartWhenATypeHasNoDefinition() {
         assertThatThrownBy(() -> new ContractCatalog(List.of(new HttpServiceDefinition(), new WorkerDefinition(),
-                new PostgresqlDefinition(), new RedisDefinition())))
+                new PostgresqlDefinition(), new RedisDefinition()), List.of(new ConstantHttpDefinition())))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("RABBITMQ has no definition");
+    }
+
+    @Test
+    void findsTheLoadProfilesRegisteredAsDefinitions() {
+        assertThat(catalog.workloads()).extracting(WorkloadContract::profile).containsExactly("CONSTANT_HTTP");
+        assertThat(catalog.workload("CONSTANT_HTTP")).hasValueSatisfying(
+                contract -> assertThat(contract.requires()).containsExactly(Capability.HTTP));
+        assertThat(catalog.workload("REPEATED_READ")).isEmpty();
+    }
+
+    @Test
+    void refusesToStartWhenALoadProfileHasTwoDefinitions() {
+        assertThatThrownBy(() -> new ContractCatalog(List.of(new HttpServiceDefinition(), new WorkerDefinition(),
+                new PostgresqlDefinition(), new RedisDefinition(), new RabbitmqDefinition()),
+                List.of(new ConstantHttpDefinition(), new ConstantHttpDefinition())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("CONSTANT_HTTP has more than one definition");
     }
 
     @Test

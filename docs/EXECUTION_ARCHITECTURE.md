@@ -100,7 +100,7 @@ El backend organiza y observa el experimento, pero no ejecuta su lógica de nego
 
 | Nivel | Quién lo cambia | Cómo cambia | Dónde vive |
 | --- | --- | --- | --- |
-| `ComponentType` | Desarrollo | Con código y una release. | Enum de Java y `CHECK` de la base de datos. |
+| `ComponentType` | Desarrollo | Con código y una release. | Enum de Java y `CHECK` de las tablas editables (`components`, `component_template`). El historial (`executed_components`) no lo restringe desde V21. |
 | `Template contract` | Desarrollo | Con código, una release y, si es incompatible, una migración. | Código del backend (`ContractCatalog`). |
 | `ComponentTemplate` | Administrador | Desde el panel, dentro de lo que permite el contrato. | Tabla `component_template`. |
 | `Component` | Usuario | Desde el canvas, dentro de lo que permite el contrato. | Tabla `components`. |
@@ -276,7 +276,7 @@ La separación permite guardar un trabajo a medias sin perder nada, y a la vez i
 ### 8.2 Errores y advertencias
 
 - **ERROR.** Impide construir un plan ejecutable y bloquea `Run`. Por ejemplo, `CACHE_ASIDE` sin Redis o un ciclo de dependencias.
-- **WARNING.** Deja ejecutar, pero avisa de un efecto probable. Por ejemplo, un escenario sin `Workload` o un RabbitMQ con productores pero sin Worker: acumular mensajes puede ser justo lo que se quiere estudiar.
+- **WARNING.** Deja ejecutar, pero avisa de un efecto probable. Por ejemplo, un escenario sin `Workload` o un RabbitMQ con productores pero sin ningún puerto que lo consuma (hoy, la cola del Worker): acumular mensajes puede ser justo lo que se quiere estudiar.
 
 ### 8.3 Forma de una incidencia
 
@@ -313,7 +313,7 @@ El motor se divide en cuatro piezas con una responsabilidad cada una ([ADR 0013]
 | Pieza | Responsabilidad | Cómo se prueba |
 | --- | --- | --- |
 | `PlanCompiler` | Traduce un snapshot a un `ExecutionPlan`: nombres, alias, red, variables, salud, dependencias, límites y etiquetas. No toca Docker. | Pruebas unitarias con ficheros de referencia: dado este snapshot, este plan. |
-| `ComponentDriver` | Uno por `ComponentType`. Sabe qué imagen usa ese tipo, qué variables necesita cada perfil, cómo se comprueba su salud y de dónde se leen sus métricas. | Pruebas unitarias por tipo. |
+| `ComponentDriver` | Uno por `ComponentType`. Declara qué perfiles del tipo sabe ejecutar (`Run` rechaza los demás con `UNSUPPORTED_IN_THIS_VERSION`) y sabe qué imagen usa ese tipo, qué variables necesita cada perfil, cómo se comprueba su salud y de dónde se leen sus métricas. | Pruebas unitarias por tipo. |
 | `RuntimeEngine` | Aplica un plan, observa su estado y lo retira. Tiene dos implementaciones: `docker compose` (la principal) y `docker-java` (la alternativa). | Pruebas de integración con Docker real. |
 | `ExecutionReconciler` | Compara la fase deseada de cada ejecución con la real y actúa hasta igualarlas. | Pruebas unitarias con un `RuntimeEngine` simulado; pruebas de extremo a extremo con Docker. |
 
@@ -809,8 +809,8 @@ El backend es un monolito modular ([ADR 0018](adr/0018-monolito-modular-con-spri
 | Guardado del grafo con revisión esperada | `project` | Implementado (#79). |
 | `Connection`, puertos y capacidades | `project`, `catalog` | Implementado (#80). |
 | `ScenarioValidator`, `ValidationIssue` | `project` | Implementado (#81). |
-| `Workload`, `WorkloadContract`, `ExecutedWorkload` | `project`, `catalog`, `execution` | Implementado para `CONSTANT_HTTP` (#87), con su panel en el lienzo y `GET /api/v1/workload-profiles`. Los otros tres perfiles, pendientes. |
-| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86). El resto de tipos, en P07. |
+| `Workload`, `WorkloadContract`, `ExecutedWorkload` | `project`, `catalog`, `execution` | Implementado para `CONSTANT_HTTP` (#87), con su panel en el lienzo y `GET /api/v1/workload-profiles`. Cada perfil es un bean que registra `ContractCatalog`. Los otros tres perfiles, pendientes. |
+| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86). Cada driver declara sus perfiles y `Run` pregunta al compilador. El resto de tipos, en P07. |
 | Eventos, logs y SSE: `ExecutionEvent`, `ExecutionJournal`, `ExecutionEventStream` | `execution` | Implementado (#92). |
 | CPU y memoria: `TelemetryCollector`, `MetricSample`, `ExecutionMetricsService` | `execution` | Implementado (#93). |
 | Contadores de cada tipo e historial | `observation` | Pendiente (P07 y P08). |

@@ -13,7 +13,10 @@ import es.codeurjc.infracture.catalog.application.ContractCatalogs;
 import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
+import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
 import es.codeurjc.infracture.execution.domain.Phase;
 import es.codeurjc.infracture.execution.domain.StopCause;
 import es.codeurjc.infracture.execution.persistence.ExecutionRepository;
@@ -25,6 +28,9 @@ import es.codeurjc.infracture.project.domain.ComponentDraft;
 import es.codeurjc.infracture.project.domain.Project;
 import es.codeurjc.infracture.project.domain.Scenario;
 import es.codeurjc.infracture.project.domain.ValidationIssue;
+import es.codeurjc.infracture.project.domain.ValidationIssue.Kind;
+import es.codeurjc.infracture.project.domain.ValidationIssue.Severity;
+import es.codeurjc.infracture.project.domain.ValidationIssue.Target;
 import es.codeurjc.infracture.shared.ConflictException;
 import es.codeurjc.infracture.shared.NotFoundException;
 import java.time.Clock;
@@ -33,6 +39,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -133,15 +140,39 @@ class ExecutionServiceTests {
     }
 
     @Test
-    void rejectsValidationErrorsAndNodesThisVersionCannotRun() {
+    void rejectsNodesWhoseProfileNoDriverRuns() {
         when(scenarioService.lockOwnScenario(OWNER, 5L, 3L)).thenReturn(scenario(3L, stateless(), redis()));
         when(repository.findByReleasedAtIsNull()).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.run(OWNER, 5L, 3L, 2))
                 .isInstanceOfSatisfying(ScenarioNotRunnableException.class,
-                        exception -> assertThat(exception.getIssues()).extracting(ValidationIssue::code)
-                                .containsExactly("UNSUPPORTED_IN_THIS_VERSION"));
+                        exception -> assertThat(exception.getIssues()).containsExactly(new ValidationIssue(
+                                Severity.ERROR, "UNSUPPORTED_IN_THIS_VERSION",
+                                "cache cannot run yet: this version has no driver for REDIS DEFAULT",
+                                new Target(Kind.COMPONENT, CACHE.toString()), "profile")));
         verify(repository, never()).saveAndFlush(any());
+    }
+
+    // Run asks the drivers, so a type runs as soon as a driver declares its profile.
+    @Test
+    void reservesNodesOfAnyProfileADriverDeclares() {
+        ExecutionService withRedis = new ExecutionService(repository, scenarioService,
+                new ScenarioValidator(contracts), contracts,
+                new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0"), new RedisDriver()),
+                        "local", "infracture/load-generator:0.1.0"),
+                new ExecutionJournal(events.repository, new LogRedactor("", "")), Clock.fixed(NOW, ZoneOffset.UTC));
+        when(scenarioService.lockOwnScenario(OWNER, 5L, 3L)).thenReturn(scenario(3L, stateless(), redis()));
+        when(repository.findByReleasedAtIsNull()).thenReturn(Optional.empty());
+        when(repository.saveAndFlush(any(Execution.class))).thenAnswer(invocation -> {
+            Execution saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 13L);
+            return saved;
+        });
+
+        Execution execution = withRedis.run(OWNER, 5L, 3L, 2).execution();
+
+        assertThat(execution.getPlan().nodes()).extracting(Node::image)
+                .containsExactlyInAnyOrder("infracture/demo-app:0.1.0", "redis:test");
     }
 
     @Test
@@ -230,6 +261,24 @@ class ExecutionServiceTests {
     private static ComponentDraft stateless() {
         return new ComponentDraft(ORDERS, "http-service", "orders-api", 0, 0,
                 new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)));
+    }
+
+    private static final class RedisDriver implements ComponentDriver {
+
+        @Override
+        public ComponentType type() {
+            return ComponentType.REDIS;
+        }
+
+        @Override
+        public Set<String> profiles() {
+            return Set.of("DEFAULT");
+        }
+
+        @Override
+        public Service service(ExecutedComponent component) {
+            return new Service("redis:test", null, Map.of(), new HttpProbe(6379, "/", 2, 2, 15, 60));
+        }
     }
 
     private static ComponentDraft redis() {

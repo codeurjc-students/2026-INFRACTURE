@@ -4,9 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import es.codeurjc.infracture.catalog.application.ContractCatalog;
 import es.codeurjc.infracture.catalog.application.ContractCatalogs;
+import es.codeurjc.infracture.catalog.application.PostgresqlDefinition;
+import es.codeurjc.infracture.catalog.application.RabbitmqDefinition;
+import es.codeurjc.infracture.catalog.application.RedisDefinition;
+import es.codeurjc.infracture.catalog.application.WorkerDefinition;
+import es.codeurjc.infracture.catalog.domain.Capability;
 import es.codeurjc.infracture.catalog.domain.ComponentConfiguration;
 import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
+import es.codeurjc.infracture.catalog.domain.ComponentTypeDefinition;
+import es.codeurjc.infracture.catalog.domain.PortContract;
+import es.codeurjc.infracture.catalog.domain.ProfileContract;
+import es.codeurjc.infracture.catalog.domain.TemplateContract;
 import es.codeurjc.infracture.identity.domain.User;
 import es.codeurjc.infracture.identity.domain.UserRole;
 import es.codeurjc.infracture.project.domain.ComponentDraft;
@@ -224,6 +233,29 @@ class ScenarioValidatorTests {
                         new Target(Kind.COMPONENT, BROKER.toString()), null));
     }
 
+    // A broker is consumed through a port that consumes, whatever the type of the node that reads from it.
+    @Test
+    void decidesWhetherABrokerIsConsumedByThePortThatReadsFromIt() {
+        PortContract publishes = new PortContract("queue", "Publishes to", List.of(Capability.MESSAGE_BROKER), 1, 1);
+        PortContract consumes = new PortContract("queue", "Consumes from", List.of(Capability.MESSAGE_BROKER), 1, 1,
+                true);
+        TemplateContract polling = new TemplateContract(ComponentType.HTTP_SERVICE, 1, List.of(
+                new ProfileContract("QUEUE_PRODUCER", List.of(), List.of(publishes), List.of(Capability.HTTP)),
+                new ProfileContract("POLLER", List.of(), List.of(consumes), List.of(Capability.HTTP))));
+        ContractCatalog catalog = new ContractCatalog(List.of(definition(polling), new WorkerDefinition(),
+                new PostgresqlDefinition(), new RedisDefinition(), new RabbitmqDefinition()), List.of());
+        scenario.replaceGraph(1, List.of(
+                node(PRODUCER, "http-service", "tasks-api", "QUEUE_PRODUCER", Map.of()),
+                node(GATEWAY, "http-service", "poller", "POLLER", Map.of()),
+                node(BROKER, "rabbitmq", "tasks", "DEFAULT", Map.of())),
+                List.of(
+                        new Connection(PRODUCER, "queue", BROKER),
+                        new Connection(GATEWAY, "queue", BROKER)),
+                null, templates);
+
+        assertThat(withoutLoad(new ScenarioValidator(catalog).validate(scenario))).isEmpty();
+    }
+
     @Test
     void reportsATypeWithoutContractInsteadOfFailing() {
         ContractCatalog empty = org.mockito.Mockito.mock(ContractCatalog.class);
@@ -316,6 +348,20 @@ class ScenarioValidatorTests {
     // The graph tests leave the load out; the load tests check its issues.
     private static List<ValidationIssue> withoutLoad(List<ValidationIssue> issues) {
         return issues.stream().filter(issue -> issue.target().kind() != Kind.WORKLOAD).toList();
+    }
+
+    private static ComponentTypeDefinition definition(TemplateContract contract) {
+        return new ComponentTypeDefinition() {
+            @Override
+            public ComponentType type() {
+                return contract.type();
+            }
+
+            @Override
+            public TemplateContract contract() {
+                return contract;
+            }
+        };
     }
 
     private static ComponentDraft stateless(UUID key) {

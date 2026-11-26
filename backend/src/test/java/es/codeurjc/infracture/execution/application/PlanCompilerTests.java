@@ -59,7 +59,14 @@ class PlanCompilerTests {
         PlanCompiler withoutDrivers = new PlanCompiler(List.of(), "local", LOAD_IMAGE);
 
         assertThatIllegalStateException().isThrownBy(() -> withoutDrivers.compile(execution(12L)))
-                .withMessage("No driver runs HTTP_SERVICE");
+                .withMessage("No driver runs HTTP_SERVICE STATELESS");
+    }
+
+    @Test
+    void runsOnlyTheProfilesItsDriversDeclare() {
+        assertThat(compiler.runs(ComponentType.HTTP_SERVICE, "STATELESS")).isTrue();
+        assertThat(compiler.runs(ComponentType.HTTP_SERVICE, "DATABASE_CRUD")).isFalse();
+        assertThat(compiler.runs(ComponentType.POSTGRESQL, "DEFAULT")).isFalse();
     }
 
     @Test
