@@ -63,7 +63,8 @@ class ExecutionReconcilerTests {
                     "infracture/load-generator:0.1.0");
     private final InMemoryExecutionEvents events = new InMemoryExecutionEvents();
     private final ExecutionJournal journal =
-            new ExecutionJournal(events.repository, new LogRedactor("db-password-2026", "admin-password-2026"));
+            new ExecutionJournal(events.repository, new LogRedactor(new ExecutionCredentials(),
+                    "db-password-2026", "admin-password-2026"));
     private final ServiceProbe probe = mock(ServiceProbe.class);
     private static final Instant STARTED = Instant.parse("2026-11-13T10:00:00Z");
     private static final Instant DEADLINE = Instant.parse("2026-11-13T10:30:00Z");

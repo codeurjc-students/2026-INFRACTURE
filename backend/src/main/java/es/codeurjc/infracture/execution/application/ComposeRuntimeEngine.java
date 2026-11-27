@@ -3,10 +3,15 @@ package es.codeurjc.infracture.execution.application;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.CommandProbe;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Container;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Load;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Probe;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.RunAs;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Wiring;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -65,13 +70,13 @@ class ComposeRuntimeEngine implements RuntimeEngine {
             "GiB", 1L << 30, "TiB", 1L << 40);
 
     private final JsonMapper jsonMapper;
-    // The backend's own container in the distribution; empty when it runs on
-    // the host, where it cannot join the execution network.
+    private final ExecutionCredentials credentials;
     private final String backendContainer;
 
-    ComposeRuntimeEngine(JsonMapper jsonMapper,
+    ComposeRuntimeEngine(JsonMapper jsonMapper, ExecutionCredentials credentials,
             @Value("${infracture.execution.backend-container:}") String backendContainer) {
         this.jsonMapper = jsonMapper;
+        this.credentials = credentials;
         this.backendContainer = backendContainer;
     }
 
@@ -174,7 +179,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         List<String> command = new ArrayList<>(List.of("docker", "stats", "--no-stream", "--format", "json"));
         command.addAll(services.keySet());
         Map<UUID, ResourceUsage> usage = new LinkedHashMap<>();
-        for (String line : execute("docker stats", command, null, USAGE_TIMEOUT, NEVER).split("\\R")) {
+        for (String line : execute("docker stats", command, null, Map.of(), USAGE_TIMEOUT, NEVER).split("\\R")) {
             if (line.startsWith("{")) {
                 StatsLine stats = jsonMapper.readValue(line, StatsLine.class);
                 ResourceUsage reading = parseUsage(stats.cpu(), stats.memory());
@@ -223,6 +228,9 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         }
         String text = space < 0 ? "" : rest.substring(space + 1);
         return new ComposeLine(container.substring(0, dash), Instant.parse(time), text);
+    }
+
+    private record Secret(UUID owner) {
     }
 
     // One line of `docker compose logs`, still named by its Compose service.
@@ -278,7 +286,8 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         }
     }
 
-    // -p wins over COMPOSE_PROJECT_NAME, so the plan's name is the project.
+    // -p wins over COMPOSE_PROJECT_NAME, so the plan's name is the project. Every command gets the passwords:
+    // Compose reads the whole file each time and warns about a variable it cannot find.
     // docker compose (up/down) write the command --> execute
     private String compose(ExecutionPlan plan, Duration timeout, List<String> profiles, String verb,
             String... flags) {
@@ -292,8 +301,8 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         command.addAll(profiles);
         command.add(verb);
         command.addAll(List.of(flags));
-        return execute("docker compose " + verb, command, jsonMapper.writeValueAsString(literal(render(plan))), timeout,
-                cancelled);
+        return execute("docker compose " + verb, command, jsonMapper.writeValueAsString(render(plan)),
+                credentials.environment(plan), timeout, cancelled);
     }
 
     // The plan as a Compose file. What every service shares lives here, not in the plan: the execution
@@ -304,11 +313,25 @@ class ComposeRuntimeEngine implements RuntimeEngine {
             Map<String, String> labels = new LinkedHashMap<>(plan.labels());
             labels.put(PlanCompiler.COMPONENT_LABEL, node.key().toString());
             Map<String, Object> service = new LinkedHashMap<>();
-            service.put("image", node.image());
-            command(service, node.command());
-            service.put("environment", node.environment());
+            Container container = node.container();
+            service.put("image", container.image());
+            command(service, container.command());
+            if (container.user() != null) {
+                service.put("user", container.user().uid() + ":" + container.user().gid());
+            }
+            Wiring wiring = node.wiring();
+            Map<String, Object> environment = new LinkedHashMap<>(wiring.environment());
+            wiring.secrets().forEach((name, owner) -> environment.put(name, new Secret(owner)));
+            service.put("environment", environment);
             service.put("healthcheck", healthcheck(node.health()));
-            services.put(node.host(), confined(service, labels, node.limits()));
+            if (!wiring.dependencies().isEmpty()) {
+                Map<String, Object> dependsOn = new LinkedHashMap<>();
+                wiring.dependencies().forEach(
+                        target -> dependsOn.put(plan.node(target).host(), Map.of("condition", "service_healthy")));
+                service.put("depends_on", dependsOn);
+            }
+            services.put(node.host(),
+                    confined(service, labels, node.limits(), tmpfs(container.storage(), container.user())));
         }
         Load load = plan.load();
         if (load != null) {
@@ -319,13 +342,25 @@ class ComposeRuntimeEngine implements RuntimeEngine {
             service.put("profiles", List.of(LOAD_PROFILE));
             service.put("depends_on",
                     Map.of(plan.node(load.target()).host(), Map.of("condition", "service_healthy")));
-            services.put(LOAD_SERVICE, confined(service, plan.labels(), load.limits()));
+            services.put(LOAD_SERVICE, confined(service, plan.labels(), load.limits(), tmpfs(List.of(), null)));
         }
         Map<String, Object> file = new LinkedHashMap<>();
         file.put("name", plan.project());
         file.put("networks", Map.of(NETWORK, Map.of("labels", plan.labels())));
         file.put("services", services);
-        return file;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> literal = (Map<String, Object>) literal(file);
+        return literal;
+    }
+
+    // /tmp for every service, plus the node's own storage owned by the user it runs as. Only that user may
+    // read it.
+    private static List<String> tmpfs(List<String> storage, RunAs user) {
+        List<String> tmpfs = new ArrayList<>(List.of("/tmp"));
+        for (String path : storage) {
+            tmpfs.add("%s:uid=%d,gid=%d,mode=0700".formatted(path, user.uid(), user.gid()));
+        }
+        return tmpfs;
     }
 
     private static void command(Map<String, Object> service, List<String> command) {
@@ -334,10 +369,17 @@ class ComposeRuntimeEngine implements RuntimeEngine {
         }
     }
 
-    // The images run busybox wget; Compose has no HTTP check of its own.
-    private static Map<String, Object> healthcheck(HttpProbe probe) {
+    // An HTTP check runs the image's busybox wget, since Compose has no HTTP check of its own. A command check
+    // runs the image's own tool, such as pg_isready.
+    private static Map<String, Object> healthcheck(Probe probe) {
+        List<String> test = new ArrayList<>(List.of("CMD"));
+        switch (probe) {
+            case HttpProbe http ->
+                test.addAll(List.of("wget", "-qO-", "http://127.0.0.1:" + http.port() + http.path()));
+            case CommandProbe command -> test.addAll(command.command());
+        }
         Map<String, Object> healthcheck = new LinkedHashMap<>();
-        healthcheck.put("test", List.of("CMD", "wget", "-qO-", "http://127.0.0.1:" + probe.port() + probe.path()));
+        healthcheck.put("test", test);
         healthcheck.put("interval", probe.intervalSeconds() + "s");
         healthcheck.put("timeout", probe.timeoutSeconds() + "s");
         healthcheck.put("retries", probe.retries());
@@ -346,11 +388,11 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     }
 
     private static Map<String, Object> confined(Map<String, Object> service, Map<String, String> labels,
-            Limits limits) {
+            Limits limits, List<String> tmpfs) {
         service.put("networks", List.of(NETWORK));
         service.put("labels", labels);
         service.put("read_only", true);
-        service.put("tmpfs", List.of("/tmp"));
+        service.put("tmpfs", tmpfs);
         service.put("cap_drop", List.of("ALL"));
         service.put("security_opt", List.of("no-new-privileges:true"));
         service.put("deploy", Map.of("resources", Map.of("limits", Map.of(
@@ -371,8 +413,10 @@ class ComposeRuntimeEngine implements RuntimeEngine {
 
     // Compose replaces ${NAME} in every value with the backend's own environment, which holds secrets.
     // The plan is literal text, part of it typed by the user, so each $ goes as $$: Compose reads one $.
+    // Only a node's password is a real ${NAME}, which Compose fills from what this process passes it.
     private static Object literal(Object value) {
         return switch (value) {
+            case Secret(UUID owner) -> "${" + ExecutionCredentials.variable(owner) + "}";
             case String text -> text.replace("$", "$$");
             case Map<?, ?> map -> {
                 Map<Object, Object> copy = new LinkedHashMap<>();
@@ -401,7 +445,8 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     private static String docker(List<String> arguments) {
         List<String> command = new ArrayList<>(List.of("docker"));
         command.addAll(arguments);
-        return execute("docker " + arguments.get(0) + " " + arguments.get(1), command, null, STOP_TIMEOUT, NEVER);
+        return execute("docker " + arguments.get(0) + " " + arguments.get(1), command, null, Map.of(), STOP_TIMEOUT,
+                NEVER);
     }
 
     private static List<String> find(String kind, Map<String, String> labels) {
@@ -425,10 +470,12 @@ class ComposeRuntimeEngine implements RuntimeEngine {
 
     // The output is read while the process runs: an unread pipe fills up and
     // blocks the process. A cancelled or late command is ended, not left running.
-    private static String execute(String step, List<String> command, String input, Duration timeout,
-            BooleanSupplier cancelled) {
+    private static String execute(String step, List<String> command, String input, Map<String, String> environment,
+            Duration timeout, BooleanSupplier cancelled) {
         try {
-            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
+            builder.environment().putAll(environment);
+            Process process = builder.start();
             FutureTask<String> output = new FutureTask<>(
                     () -> new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
             Thread.ofVirtual().start(output);

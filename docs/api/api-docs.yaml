@@ -2558,6 +2558,42 @@ components:
           format: int32
       required:
       - revision
+    CommandProbe:
+      allOf:
+      - $ref: "#/components/schemas/Probe"
+      - type: object
+        properties:
+          command:
+            type: array
+            items:
+              type: string
+          intervalSeconds:
+            type: integer
+            format: int32
+          timeoutSeconds:
+            type: integer
+            format: int32
+          retries:
+            type: integer
+            format: int32
+          startPeriodSeconds:
+            type: integer
+            format: int32
+    Container:
+      type: object
+      properties:
+        image:
+          type: string
+        command:
+          type: array
+          items:
+            type: string
+        user:
+          $ref: "#/components/schemas/RunAs"
+        storage:
+          type: array
+          items:
+            type: string
     ExecutedComponentDTO:
       type: object
       properties:
@@ -2695,25 +2731,27 @@ components:
         load:
           $ref: "#/components/schemas/Load"
     HttpProbe:
-      type: object
-      properties:
-        port:
-          type: integer
-          format: int32
-        path:
-          type: string
-        intervalSeconds:
-          type: integer
-          format: int32
-        timeoutSeconds:
-          type: integer
-          format: int32
-        retries:
-          type: integer
-          format: int32
-        startPeriodSeconds:
-          type: integer
-          format: int32
+      allOf:
+      - $ref: "#/components/schemas/Probe"
+      - type: object
+        properties:
+          port:
+            type: integer
+            format: int32
+          path:
+            type: string
+          intervalSeconds:
+            type: integer
+            format: int32
+          timeoutSeconds:
+            type: integer
+            format: int32
+          retries:
+            type: integer
+            format: int32
+          startPeriodSeconds:
+            type: integer
+            format: int32
     Limits:
       type: object
       properties:
@@ -2770,23 +2808,53 @@ components:
           format: uuid
         host:
           type: string
-        image:
-          type: string
-        command:
-          type: array
-          items:
-            type: string
-        environment:
-          type: object
-          additionalProperties:
-            type: string
+        container:
+          $ref: "#/components/schemas/Container"
+        wiring:
+          $ref: "#/components/schemas/Wiring"
         health:
-          $ref: "#/components/schemas/HttpProbe"
+          oneOf:
+          - $ref: "#/components/schemas/CommandProbe"
+          - $ref: "#/components/schemas/HttpProbe"
         evidence:
           type: string
           format: uri
         limits:
           $ref: "#/components/schemas/Limits"
+    Probe:
+      discriminator:
+        propertyName: type
+      properties:
+        type:
+          type: string
+      required:
+      - type
+    RunAs:
+      type: object
+      properties:
+        uid:
+          type: integer
+          format: int32
+        gid:
+          type: integer
+          format: int32
+    Wiring:
+      type: object
+      properties:
+        environment:
+          type: object
+          additionalProperties:
+            type: string
+        secrets:
+          type: object
+          additionalProperties:
+            type: string
+            format: uuid
+        dependencies:
+          type: array
+          items:
+            type: string
+            format: uuid
     AuthResponse:
       type: object
       properties:

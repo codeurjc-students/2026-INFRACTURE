@@ -28,7 +28,8 @@ class ExecutionJournalTests {
     private static final Instant START = Instant.parse("2026-11-21T10:00:00Z");
 
     private final InMemoryExecutionEvents events = new InMemoryExecutionEvents();
-    private final ExecutionJournal journal = new ExecutionJournal(events.repository, new LogRedactor("", ""));
+    private final ExecutionJournal journal =
+            new ExecutionJournal(events.repository, new LogRedactor(new ExecutionCredentials(), "", ""));
     private Execution execution;
 
     @BeforeEach
@@ -42,6 +43,8 @@ class ExecutionJournalTests {
                 Map.of("http-service", http));
         execution = new Execution(scenario, Map.of(ComponentType.HTTP_SERVICE, 1));
         ReflectionTestUtils.setField(execution, "id", 12L);
+        execution.attachPlan(new PlanCompiler(List.of(new HttpServiceDriver("image")), "local", "k6")
+                .compile(execution));
     }
 
     @Test

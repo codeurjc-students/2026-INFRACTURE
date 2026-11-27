@@ -136,7 +136,9 @@ test("runs an HTTP Service from the canvas, watches it and stops it", async ({
     await expect(activity.getByRole("status")).toHaveText("Live");
     const events = activity.getByRole("list", { name: "Events" });
     await expect(events).toContainText("Every component is healthy");
-    await expect(events.getByRole("listitem").filter({ hasText: "orders-api" }).first()).toBeVisible();
+    await expect(
+      events.getByRole("listitem").filter({ hasText: "orders-api" }).first(),
+    ).toBeVisible();
     // The demo app's own Spring Boot log, read from Docker and shown as it was printed.
     await expect(events).toContainText("Started DemoApplication", {
       timeout: 30_000,
@@ -149,7 +151,9 @@ test("runs an HTTP Service from the canvas, watches it and stops it", async ({
     await expect(page.getByRole("button", { name: "Stopping…" })).toBeVisible();
     await expect(status(page)).toHaveText("Completed", { timeout: 120_000 });
     await expect(
-      page.getByRole("region", { name: "Activity" }).getByRole("list", { name: "Events" }),
+      page
+        .getByRole("region", { name: "Activity" })
+        .getByRole("list", { name: "Events" }),
     ).toContainText("Cleanup finished");
     await expect(page.getByRole("button", { name: "Run" })).toBeEnabled();
     await expect(
@@ -157,6 +161,144 @@ test("runs an HTTP Service from the canvas, watches it and stops it", async ({
     ).toBeEnabled();
     expect(experimentResources()).toEqual([]);
     await shot("4-completed");
+  });
+});
+
+test("runs an HTTP DATABASE_CRUD service on its own temporary PostgreSQL and removes it on Stop", async ({
+  page,
+}, testInfo) => {
+  const shot = (name: string) =>
+    page.screenshot({
+      path: testInfo.outputPath(`database-${name}.png`),
+      fullPage: true,
+    });
+  const node = (name: string) =>
+    page.locator(".react-flow__node").filter({ hasText: name });
+  // The running containers of this installation whose image reference starts with this one, such as the
+  // demo-app or postgres. It reads the reference the plan gave Compose, because the postgres image runs by
+  // digest and a local tag with the same name may point at another image.
+  const container = (image: string) =>
+    docker("container", "ls", "-q", "--filter", INSTANCE_LABEL)
+      .split("\n")
+      .filter(Boolean)
+      .filter((id) =>
+        docker(
+          "container",
+          "inspect",
+          "-f",
+          "{{.Config.Image}}",
+          id,
+        ).startsWith(image),
+      );
+
+  await test.step("Save a DATABASE_CRUD service connected to a PostgreSQL", async () => {
+    await register(page, "database");
+    const project = await post(page, "/api/v1/projects", "Database lab");
+    const scenario = await post(
+      page,
+      `/api/v1/projects/${project.id}/scenarios`,
+      "CRUD",
+    );
+    await page.goto(`/projects/${project.id}/scenarios/${scenario.id}`);
+    await page.getByRole("button", { name: "Add HTTP Service" }).click();
+    await inspector(page).getByLabel("Name").fill("orders-api");
+    await inspector(page).getByLabel("Profile").click();
+    await page.getByRole("option", { name: "DATABASE_CRUD" }).click();
+    await page.getByRole("button", { name: "Add PostgreSQL" }).click();
+    const handle = await node("orders-api")
+      .locator('.react-flow__handle[data-handleid="database"]')
+      .boundingBox();
+    const target = await node("PostgreSQL").boundingBox();
+    await page.mouse.move(
+      handle!.x + handle!.width / 2,
+      handle!.y + handle!.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      target!.x + target!.width / 2,
+      target!.y + target!.height / 2,
+      {
+        steps: 10,
+      },
+    );
+    await page.mouse.up();
+    await expect(
+      page.getByLabel("orders-api Database PostgreSQL"),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Saved", exact: true }),
+    ).toBeVisible();
+    await shot("1-saved");
+  });
+
+  await test.step("Run it: PostgreSQL gets healthy and the service answers with the items it read", async () => {
+    await page.getByRole("button", { name: "Run" }).click();
+    await expect(status(page)).toHaveText("Running", { timeout: 180_000 });
+    await expect(node("PostgreSQL").getByText("Healthy")).toBeVisible();
+    await expect(node("orders-api").getByText("Healthy")).toBeVisible();
+    await node("orders-api").getByText("orders-api").click();
+    const response = inspector(page).getByRole("figure", { name: "Response" });
+    await expect(response).toContainText('"mode":"DATABASE_CRUD"', {
+      timeout: 30_000,
+    });
+    await expect(response).toContainText('"items":100');
+    await shot("2-running");
+  });
+
+  await test.step("Read and create items through the service; the data lives only in the experiment", async () => {
+    const [service] = container("infracture/demo-app:0.1.0");
+    const [database] = container("postgres:18.7-alpine");
+    expect(
+      docker("exec", service, "wget", "-qO-", "http://127.0.0.1:8080/items/7"),
+    ).toContain('"name":"item-007"');
+    expect(
+      docker(
+        "exec",
+        service,
+        "wget",
+        "-qO-",
+        "--header",
+        "Content-Type: application/json",
+        "--post-data",
+        '{"name":"browser crate","quantity":3}',
+        "http://127.0.0.1:8080/items",
+      ),
+    ).toContain('"name":"browser crate"');
+    expect(
+      docker(
+        "exec",
+        database,
+        "sh",
+        "-c",
+        'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U app -d app -tAc ' +
+          "\"select quantity from items where name = 'browser crate'\"",
+      ),
+    ).toBe("3");
+    // In memory, not in a volume, and the platform's own database never got the table.
+    expect(
+      docker("container", "inspect", "-f", "{{len .Mounts}}", database),
+    ).toBe("0");
+    expect(
+      docker(
+        "exec",
+        "infracture-e2e-platform-postgres-1",
+        "psql",
+        "-U",
+        "infracture",
+        "-d",
+        "infracture",
+        "-tAc",
+        "select to_regclass('items') is null",
+      ),
+    ).toBe("t");
+  });
+
+  await test.step("Stop it: the service, PostgreSQL and its data are gone", async () => {
+    await page.getByRole("button", { name: "Stop" }).click();
+    await expect(status(page)).toHaveText("Completed", { timeout: 120_000 });
+    expect(experimentResources()).toEqual([]);
+    await shot("3-completed");
   });
 });
 

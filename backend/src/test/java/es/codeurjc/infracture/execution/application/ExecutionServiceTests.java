@@ -15,6 +15,7 @@ import es.codeurjc.infracture.catalog.domain.ComponentTemplate;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.Execution;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Container;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
 import es.codeurjc.infracture.execution.domain.Phase;
@@ -65,7 +66,8 @@ class ExecutionServiceTests {
             new ScenarioValidator(contracts), contracts,
             new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0")), "local",
                     "infracture/load-generator:0.1.0"),
-            new ExecutionJournal(events.repository, new LogRedactor("", "")), Clock.fixed(NOW, ZoneOffset.UTC));
+            new ExecutionJournal(events.repository, new LogRedactor(new ExecutionCredentials(), "", "")),
+            Clock.fixed(NOW, ZoneOffset.UTC));
     private final Project project = new Project(new User("alice", "hash", OWNER, "Alice", UserRole.USER), "Lab", null);
 
     @Test
@@ -160,7 +162,8 @@ class ExecutionServiceTests {
                 new ScenarioValidator(contracts), contracts,
                 new PlanCompiler(List.of(new HttpServiceDriver("infracture/demo-app:0.1.0"), new RedisDriver()),
                         "local", "infracture/load-generator:0.1.0"),
-                new ExecutionJournal(events.repository, new LogRedactor("", "")), Clock.fixed(NOW, ZoneOffset.UTC));
+                new ExecutionJournal(events.repository, new LogRedactor(new ExecutionCredentials(), "", "")),
+                Clock.fixed(NOW, ZoneOffset.UTC));
         when(scenarioService.lockOwnScenario(OWNER, 5L, 3L)).thenReturn(scenario(3L, stateless(), redis()));
         when(repository.findByReleasedAtIsNull()).thenReturn(Optional.empty());
         when(repository.saveAndFlush(any(Execution.class))).thenAnswer(invocation -> {
@@ -171,7 +174,7 @@ class ExecutionServiceTests {
 
         Execution execution = withRedis.run(OWNER, 5L, 3L, 2).execution();
 
-        assertThat(execution.getPlan().nodes()).extracting(Node::image)
+        assertThat(execution.getPlan().nodes()).extracting(node -> node.container().image())
                 .containsExactlyInAnyOrder("infracture/demo-app:0.1.0", "redis:test");
     }
 
@@ -276,8 +279,9 @@ class ExecutionServiceTests {
         }
 
         @Override
-        public Service service(ExecutedComponent component) {
-            return new Service("redis:test", null, Map.of(), new HttpProbe(6379, "/", 2, 2, 15, 60));
+        public Service service(ExecutedComponent component, Map<String, Dependency> dependencies) {
+            return new Service(new Container("redis:test", null, null, List.of()), Map.of(), Map.of(),
+                    new HttpProbe(6379, "/", 2, 2, 15, 60));
         }
     }
 

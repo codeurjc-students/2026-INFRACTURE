@@ -14,6 +14,7 @@ import es.codeurjc.infracture.execution.domain.ExecutionPlan;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Wiring;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
 import es.codeurjc.infracture.execution.domain.MetricSample;
 import es.codeurjc.infracture.execution.domain.Outcome;
@@ -144,8 +145,10 @@ class ExecutionPersistenceIntegrationTests {
         Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
         ExecutionPlan plan = new ExecutionPlan("infracture-local-exec-" + execution.getId(),
                 Map.of("io.infracture.instance", "local"), List.of(new Node(orders, "c-" + orders,
-                        "infracture/demo-app:0.1.0", null, Map.of("APP_MODE", "STATELESS"),
-                        new HttpProbe(8080, "/health", 2, 2, 15, 60), URI.create("http://c-" + orders + ":8080/"),
+                        new ExecutionPlan.Container("infracture/demo-app:0.1.0", null, null, List.of()),
+                        new Wiring(Map.of("APP_MODE", "STATELESS"), Map.of(), List.of()),
+                        new HttpProbe(8080, "/health", 2, 2, 15, 60),
+                        URI.create("http://c-" + orders + ":8080/"),
                         new Limits(0.5, 384L << 20, 200))),
                 null);
         execution.attachPlan(plan);

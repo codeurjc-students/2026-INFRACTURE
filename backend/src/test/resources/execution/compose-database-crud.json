@@ -1,0 +1,181 @@
+{
+  "name": "infracture-local-exec-12",
+  "networks": {
+    "exec": {
+      "labels": {
+        "io.infracture.instance": "local",
+        "io.infracture.execution": "12"
+      }
+    }
+  },
+  "services": {
+    "c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10": {
+      "image": "infracture/demo-app:0.1.0",
+      "environment": {
+        "APP_ROLE": "http",
+        "APP_MODE": "DATABASE_CRUD",
+        "COMPONENT_NAME": "orders-api",
+        "RESPONSE_DELAY_MS": "0",
+        "DATABASE_URL": "postgresql://c-7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a:5432/app",
+        "DATABASE_USER": "app",
+        "DATABASE_PASSWORD": "${INFRACTURE_SECRET_7c2e4a6b8d0f4b1c9e3a5f7b9d1c3e5a}"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:8080/health"
+        ],
+        "interval": "2s",
+        "timeout": "2s",
+        "retries": 15,
+        "start_period": "60s"
+      },
+      "depends_on": {
+        "c-7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a": {
+          "condition": "service_healthy"
+        }
+      },
+      "networks": [
+        "exec"
+      ],
+      "labels": {
+        "io.infracture.instance": "local",
+        "io.infracture.execution": "12",
+        "io.infracture.component": "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10"
+      },
+      "read_only": true,
+      "tmpfs": [
+        "/tmp"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "deploy": {
+        "resources": {
+          "limits": {
+            "cpus": "0.5",
+            "memory": "384M",
+            "pids": 200
+          }
+        }
+      }
+    },
+    "c-5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d": {
+      "image": "infracture/demo-app:0.1.0",
+      "environment": {
+        "APP_ROLE": "http",
+        "APP_MODE": "DATABASE_CRUD",
+        "COMPONENT_NAME": "stock-api",
+        "RESPONSE_DELAY_MS": "5",
+        "DATABASE_URL": "postgresql://c-7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a:5432/app",
+        "DATABASE_USER": "app",
+        "DATABASE_PASSWORD": "${INFRACTURE_SECRET_7c2e4a6b8d0f4b1c9e3a5f7b9d1c3e5a}"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:8080/health"
+        ],
+        "interval": "2s",
+        "timeout": "2s",
+        "retries": 15,
+        "start_period": "60s"
+      },
+      "depends_on": {
+        "c-7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a": {
+          "condition": "service_healthy"
+        }
+      },
+      "networks": [
+        "exec"
+      ],
+      "labels": {
+        "io.infracture.instance": "local",
+        "io.infracture.execution": "12",
+        "io.infracture.component": "5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+      },
+      "read_only": true,
+      "tmpfs": [
+        "/tmp"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "deploy": {
+        "resources": {
+          "limits": {
+            "cpus": "0.5",
+            "memory": "384M",
+            "pids": 200
+          }
+        }
+      }
+    },
+    "c-7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a": {
+      "image": "postgres:18.7-alpine",
+      "user": "70:70",
+      "environment": {
+        "POSTGRES_DB": "app",
+        "POSTGRES_USER": "app",
+        "POSTGRES_PASSWORD": "${INFRACTURE_SECRET_7c2e4a6b8d0f4b1c9e3a5f7b9d1c3e5a}"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-h",
+          "127.0.0.1",
+          "-p",
+          "5432",
+          "-U",
+          "app",
+          "-d",
+          "app"
+        ],
+        "interval": "2s",
+        "timeout": "2s",
+        "retries": 15,
+        "start_period": "60s"
+      },
+      "networks": [
+        "exec"
+      ],
+      "labels": {
+        "io.infracture.instance": "local",
+        "io.infracture.execution": "12",
+        "io.infracture.component": "7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a"
+      },
+      "read_only": true,
+      "tmpfs": [
+        "/tmp",
+        "/var/lib/postgresql:uid=70,gid=70,mode=0700",
+        "/var/run/postgresql:uid=70,gid=70,mode=0700"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "deploy": {
+        "resources": {
+          "limits": {
+            "cpus": "0.5",
+            "memory": "384M",
+            "pids": 200
+          }
+        }
+      }
+    }
+  }
+}
