@@ -55,11 +55,23 @@ class ExecutionPlanMigrationIntegrationTests {
 
         Flyway.configure().dataSource(dataSource).load().migrate();
 
-        assertThat(plan(jdbc, 1)).isEqualTo(json.readValue(reference("execution/constant-http-plan.json"),
-                ExecutionPlan.class));
-        assertThat(plan(jdbc, 2)).isEqualTo(json.readValue(reference("execution/stateless-plan.json"),
-                ExecutionPlan.class));
+        assertThat(plan(jdbc, 1))
+                .isEqualTo(withoutCounters(json.readValue(reference("execution/constant-http-plan.json"),
+                        ExecutionPlan.class)));
+        assertThat(plan(jdbc, 2))
+                .isEqualTo(withoutCounters(json.readValue(reference("execution/stateless-plan.json"),
+                        ExecutionPlan.class)));
         assertThat(jdbc.queryForObject("SELECT plan FROM executions WHERE id = 3", String.class)).isNull();
+    }
+
+    // Stored plans migrated from Compose predate counters, so counters deserializes as null.
+    private static ExecutionPlan withoutCounters(ExecutionPlan plan) {
+        return new ExecutionPlan(plan.project(), plan.labels(),
+                plan.nodes().stream()
+                        .map(node -> new ExecutionPlan.Node(node.key(), node.host(), node.container(), node.wiring(),
+                                node.health(), node.evidence(), null, node.limits()))
+                        .toList(),
+                plan.load());
     }
 
     private ExecutionPlan plan(JdbcTemplate jdbc, long id) {

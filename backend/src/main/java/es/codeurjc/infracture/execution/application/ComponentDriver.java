@@ -3,6 +3,7 @@ package es.codeurjc.infracture.execution.application;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Container;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Counters;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Probe;
 import java.net.URI;
 import java.util.Map;
@@ -22,6 +23,10 @@ public interface ComponentDriver {
     Service service(ExecutedComponent component, Map<String, Dependency> dependencies);
 
     default URI evidence(String host) {
+        return null;
+    }
+
+    default Counters counters(String host, ExecutedComponent component) {
         return null;
     }
 

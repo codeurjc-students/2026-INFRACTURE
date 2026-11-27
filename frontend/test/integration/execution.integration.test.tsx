@@ -212,6 +212,7 @@ describe("execution client against the real API", () => {
           name: "orders-api",
           cpuLimitPercent: 50,
           memoryLimitBytes: 384 * 1024 * 1024,
+          counters: expect.arrayContaining(["requests", "errors"]),
         },
       ],
       samples: [],

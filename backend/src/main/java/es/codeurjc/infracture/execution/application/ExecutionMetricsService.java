@@ -3,6 +3,7 @@ package es.codeurjc.infracture.execution.application;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.Execution;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Counters;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
 import es.codeurjc.infracture.execution.domain.MetricSample;
 import es.codeurjc.infracture.execution.persistence.MetricSampleRepository;
@@ -35,8 +36,8 @@ public class ExecutionMetricsService {
         this.interval = interval;
     }
 
-    // A node as it was frozen for the execution, with the limits it ran with.
-    public record NodeLimits(ExecutedComponent component, ResourceUsage limits) {
+    // A node as it was frozen for the execution, with the limits it ran with and the counters it publishes.
+    public record NodeLimits(ExecutedComponent component, ResourceUsage limits, List<String> counters) {
     }
 
     // capturing: more samples may still come. nextAfter: the cursor of the next read.
@@ -49,6 +50,11 @@ public class ExecutionMetricsService {
     private static ResourceUsage limits(ExecutionPlan plan, ExecutedComponent component) {
         Limits limits = plan.node(component.getKey()).limits();
         return new ResourceUsage(limits.cpus() * 100, limits.memoryBytes());
+    }
+
+    private static List<String> counters(ExecutionPlan plan, ExecutedComponent component) {
+        Counters counters = plan.node(component.getKey()).counters();
+        return counters == null ? List.of() : List.copyOf(counters.series().keySet());
     }
 
     @Transactional(readOnly = true)
@@ -65,7 +71,8 @@ public class ExecutionMetricsService {
         }
         Execution execution = executions.ownExecution(ownerEmail, projectId, scenarioId, executionId, false);
         List<NodeLimits> nodes = execution.getComponents().stream()
-                .map(component -> new NodeLimits(component, limits(execution.getPlan(), component)))
+                .map(component -> new NodeLimits(component, limits(execution.getPlan(), component),
+                        counters(execution.getPlan(), component)))
                 .toList();
         List<Long> ids = execution.getComponents().stream().map(ExecutedComponent::getId).toList();
 

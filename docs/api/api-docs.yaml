@@ -2594,6 +2594,16 @@ components:
           type: array
           items:
             type: string
+    Counters:
+      type: object
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        series:
+          type: object
+          additionalProperties:
+            type: string
     ExecutedComponentDTO:
       type: object
       properties:
@@ -2819,6 +2829,8 @@ components:
         evidence:
           type: string
           format: uri
+        counters:
+          $ref: "#/components/schemas/Counters"
         limits:
           $ref: "#/components/schemas/Limits"
     Probe:
@@ -2993,6 +3005,10 @@ components:
         memoryLimitBytes:
           type: integer
           format: int64
+        counters:
+          type: array
+          items:
+            type: string
     MetricSampleDTO:
       type: object
       properties:
@@ -3011,6 +3027,11 @@ components:
         memoryBytes:
           type: integer
           format: int64
+        counters:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
     SseEmitter:
       type: object
       properties:

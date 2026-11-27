@@ -11,6 +11,7 @@ import es.codeurjc.infracture.execution.domain.ExecutedWorkload;
 import es.codeurjc.infracture.execution.domain.Execution;
 import es.codeurjc.infracture.execution.domain.ExecutionEvent;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Counters;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
@@ -104,19 +105,20 @@ class ExecutionPersistenceIntegrationTests {
         Long otherNode = execution.getComponents().getLast().getId();
         Instant start = Instant.parse("2026-11-23T10:00:00Z");
         samples.saveAllAndFlush(List.of(
-                new MetricSample(node, start, 25.5, 1_000L),
-                new MetricSample(otherNode, start, 1.0, 1L),
-                new MetricSample(node, start.plusSeconds(5), null, null),
-                new MetricSample(node, start.plusSeconds(10), 0.0, 0L)));
+                new MetricSample(node, start, 25.5, 1_000L, Map.of("requests", 10.0, "errors", 0.0)),
+                new MetricSample(otherNode, start, 1.0, 1L, Map.of()),
+                new MetricSample(node, start.plusSeconds(5), null, null, Map.of()),
+                new MetricSample(node, start.plusSeconds(10), 0.0, 0L, Map.of("requests", 20.0))));
         entityManager.clear();
 
         List<MetricSample> series = samples.findByExecutedComponentIdInAndIdGreaterThanAndSampledAtBetweenOrderById(
                 List.of(node, otherNode), 0, start, start.plusSeconds(5), Limit.of(10));
 
         assertThat(series).extracting(MetricSample::getExecutedComponentId, MetricSample::getSampledAt,
-                MetricSample::getCpuPercent, MetricSample::getMemoryBytes)
-                .containsExactly(tuple(node, start, 25.5, 1_000L), tuple(otherNode, start, 1.0, 1L),
-                        tuple(node, start.plusSeconds(5), null, null));
+                MetricSample::getCpuPercent, MetricSample::getMemoryBytes, MetricSample::getCounters)
+                .containsExactly(tuple(node, start, 25.5, 1_000L, Map.of("requests", 10.0, "errors", 0.0)),
+                        tuple(otherNode, start, 1.0, 1L, Map.of()),
+                        tuple(node, start.plusSeconds(5), null, null, Map.of()));
         assertThat(samples.findByExecutedComponentIdInAndIdGreaterThanAndSampledAtBetweenOrderById(
                 List.of(node, otherNode), series.getFirst().getId(), start, start.plusSeconds(10), Limit.of(1)))
                 .extracting(MetricSample::getId).containsExactly(series.get(1).getId());
@@ -129,6 +131,8 @@ class ExecutionPersistenceIntegrationTests {
         entityManager.clear();
 
         assertThat(samples.count()).isZero();
+        assertThat(entityManager.createNativeQuery("SELECT count(*) FROM execution_counter_samples")
+                .getSingleResult()).isEqualTo(0L);
     }
 
     @Test
@@ -136,7 +140,17 @@ class ExecutionPersistenceIntegrationTests {
         Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
         Long node = execution.getComponents().getFirst().getId();
 
-        assertThatThrownBy(() -> samples.saveAndFlush(new MetricSample(node, Instant.now(), -1.0, 0L)))
+        assertThatThrownBy(() -> samples.saveAndFlush(new MetricSample(node, Instant.now(), -1.0, 0L, Map.of())))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void rejectsANegativeCounter() {
+        Execution execution = repository.saveAndFlush(new Execution(cache, CONTRACTS));
+        Long node = execution.getComponents().getFirst().getId();
+
+        assertThatThrownBy(() -> samples.saveAndFlush(
+                new MetricSample(node, Instant.now(), 0.0, 0L, Map.of("requests", -1.0))))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -149,6 +163,8 @@ class ExecutionPersistenceIntegrationTests {
                         new Wiring(Map.of("APP_MODE", "STATELESS"), Map.of(), List.of()),
                         new HttpProbe(8080, "/health", 2, 2, 15, 60),
                         URI.create("http://c-" + orders + ":8080/"),
+                        new Counters(URI.create("http://c-" + orders + ":8080/metrics"),
+                                Map.of("requests", "infracture_requests_total")),
                         new Limits(0.5, 384L << 20, 200))),
                 null);
         execution.attachPlan(plan);

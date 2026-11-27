@@ -12,6 +12,7 @@ import {
 } from "~/components/ui/select";
 import type { ComponentTemplateDTO } from "~/features/component-catalogue/model/ComponentTemplateDTO";
 import { cn } from "cn";
+import { formatCounter, type CounterReading } from "../execution-counters";
 import { toneText, type StatusView } from "../execution-status";
 import type { CanvasAction, ComponentNode } from "../graph-reducer";
 import type { ValidationIssueDTO } from "../model/ValidationIssueDTO";
@@ -42,6 +43,7 @@ export default function NodeInspector({
   connections,
   runtime,
   response,
+  counters = [],
   readOnly,
   dispatch,
   onClose,
@@ -50,9 +52,10 @@ export default function NodeInspector({
   template: ComponentTemplateDTO | undefined;
   issues: ValidationIssueDTO[];
   connections: NodeConnection[];
-  // What Docker says about the node and what it answered, while an experiment runs.
+  // What Docker says about the node, what it answered and the counters it published while running.
   runtime: StatusView | null;
   response: string | null;
+  counters?: CounterReading[];
   // An experiment holds the scenario: the form shows the values but changes nothing.
   readOnly: boolean;
   dispatch: Dispatch<CanvasAction>;
@@ -61,6 +64,7 @@ export default function NodeInspector({
   const nameId = useId();
   const profileId = useId();
   const responseId = useId();
+  const countersId = useId();
   const { data } = node;
   const profiles = template?.contract.profiles ?? [];
   const profile = profiles.find((candidate) => candidate.name === data.profile);
@@ -143,6 +147,30 @@ export default function NodeInspector({
               No response yet. The backend asks the service once it is running,
               and only when the backend itself runs in Docker.
             </p>
+          )}
+          {counters.length > 0 && (
+            <figure
+              aria-labelledby={countersId}
+              className="flex flex-col gap-1"
+            >
+              <figcaption
+                id={countersId}
+                className="type-caption text-muted-foreground"
+              >
+                Counters
+              </figcaption>
+              <dl className="flex flex-col gap-1 rounded-lg bg-background px-2.5 py-2 font-mono text-xs leading-4">
+                {counters.map((counter) => (
+                  <div
+                    key={counter.name}
+                    className="flex justify-between gap-3"
+                  >
+                    <dt className="text-muted-foreground">{counter.label}</dt>
+                    <dd className="tabular-nums">{formatCounter(counter)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </figure>
           )}
         </section>
       )}

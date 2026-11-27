@@ -24,10 +24,10 @@ public record ExecutionMetricsDTO(
         return new ExecutionMetricsDTO("DOCKER_STATS", "PERCENT_OF_ONE_CORE", "BYTES", view.intervalSeconds(),
                 view.capturing(), view.hasMore(), view.nextAfter(),
                 view.nodes().stream().map(node -> new MetricComponentDTO(node.component().getKey(),
-                        node.component().getName(), node.limits().cpuPercent(), node.limits().memoryBytes()))
-                        .toList(),
+                        node.component().getName(), node.limits().cpuPercent(), node.limits().memoryBytes(),
+                        node.counters())).toList(),
                 view.samples().stream().map(sample -> new MetricSampleDTO(sample.getId(),
                         keys.get(sample.getExecutedComponentId()), sample.getSampledAt(), sample.getCpuPercent(),
-                        sample.getMemoryBytes())).toList());
+                        sample.getMemoryBytes(), sample.getCounters())).toList());
     }
 }

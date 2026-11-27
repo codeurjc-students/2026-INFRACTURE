@@ -22,7 +22,7 @@ import type {
   MetricComponentDTO,
   MetricSampleDTO,
 } from "../model/ExecutionMetricsDTO";
-import { useExecutionMetrics } from "../use-execution-metrics";
+import type { ExecutionMetricsSeries } from "../use-execution-metrics";
 import { StatusIcon } from "./status-icon";
 
 const BYTES_PER_MIB = 1024 * 1024;
@@ -284,15 +284,13 @@ function ComponentRow({
 // stays in view while the experiment runs. It folds to its header and, on wide screens, its top edge is
 // dragged to resize it.
 export default function ExecutionMetrics({
-  projectId,
-  scenarioId,
   execution,
+  series,
   open,
   onOpenChange,
 }: Readonly<{
-  projectId: string;
-  scenarioId: string;
   execution: ExecutionDTO;
+  series: ExecutionMetricsSeries;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }>) {
@@ -300,12 +298,7 @@ export default function ExecutionMetrics({
   const bodyId = useId();
   const [height, setHeight] = useState(readPanelHeight);
   const live = execution.phase !== "RELEASED";
-  const { metrics, samples, failed } = useExecutionMetrics(
-    projectId,
-    scenarioId,
-    execution.id,
-    live,
-  );
+  const { metrics, samples, failed } = series;
 
   // The canvas above always keeps room to work.
   function clamp(next: number) {

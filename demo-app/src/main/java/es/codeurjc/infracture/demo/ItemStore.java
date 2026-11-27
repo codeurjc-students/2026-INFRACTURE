@@ -1,5 +1,7 @@
 package es.codeurjc.infracture.demo;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,9 +20,11 @@ public class ItemStore {
     private static final long INITIALIZATION_LOCK = 97;
 
     private final JdbcClient jdbc;
+    private final Counter queries;
 
-    public ItemStore(JdbcClient jdbc) {
+    public ItemStore(JdbcClient jdbc, MeterRegistry registry) {
         this.jdbc = jdbc;
+        this.queries = Counter.builder("infracture.database.queries").register(registry);
     }
 
     // Created ids start after the fixed items, so a new item never takes the id of a fixed one.
@@ -43,15 +47,18 @@ public class ItemStore {
     }
 
     public long count() {
+        queries.increment();
         return jdbc.sql("SELECT count(*) FROM items").query(Long.class).single();
     }
 
     public Optional<Item> find(long id) {
+        queries.increment();
         return jdbc.sql("SELECT id, name, quantity, version, updated_at FROM items WHERE id = ?").param(id)
                 .query(Item.class).optional();
     }
 
     public Item create(String name, int quantity) {
+        queries.increment();
         return jdbc.sql("""
                 INSERT INTO items (name, quantity, version, updated_at) VALUES (?, ?, 1, now())
                 RETURNING id, name, quantity, version, updated_at
@@ -60,6 +67,7 @@ public class ItemStore {
 
     // Each update raises the version, so a read shows how many times the item changed.
     public Optional<Item> update(long id, String name, int quantity) {
+        queries.increment();
         return jdbc.sql("""
                 UPDATE items SET name = ?, quantity = ?, version = version + 1, updated_at = now() WHERE id = ?
                 RETURNING id, name, quantity, version, updated_at

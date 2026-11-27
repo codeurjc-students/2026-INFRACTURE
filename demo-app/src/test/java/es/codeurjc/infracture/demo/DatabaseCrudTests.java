@@ -1,6 +1,7 @@
 package es.codeurjc.infracture.demo;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -16,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
@@ -31,6 +33,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @SpringBootTest(properties = {
         "APP_ROLE=http", "APP_MODE=DATABASE_CRUD", "COMPONENT_NAME=orders-api", "RESPONSE_DELAY_MS=0" })
 @AutoConfigureMockMvc
+@AutoConfigureMetrics
 @Testcontainers
 class DatabaseCrudTests {
 
@@ -149,5 +152,35 @@ class DatabaseCrudTests {
         assertThat(jdbc.sql("SELECT count(*) FROM items WHERE id <= 100").query(Long.class).single())
                 .isEqualTo(ItemStore.INITIAL_ITEMS);
         assertThat(store.find(5)).hasValueSatisfying(item -> assertThat(item.name()).isEqualTo("renamed"));
+    }
+
+    @Test
+    void exposesRequestErrorAndDatabaseQueryCountersWithoutCountingInitializeOrHealth() throws Exception {
+        String before = scrape();
+        double requestsBefore = PrometheusText.counter(before, "infracture_requests_total").orElseThrow();
+        double errorsBefore = PrometheusText.counter(before, "infracture_request_errors_total").orElseThrow();
+        double queriesBefore = PrometheusText.counter(before, "infracture_database_queries_total").orElseThrow();
+
+        store.initialize();
+        mvc.perform(get("/")).andExpect(status().isOk());
+        mvc.perform(get("/items/1")).andExpect(status().isOk());
+        mvc.perform(post("/items").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"counted\",\"quantity\":5}")).andExpect(status().isCreated());
+        mvc.perform(put("/items/1").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"item-001\",\"quantity\":11}")).andExpect(status().isOk());
+        mvc.perform(get("/items/999999")).andExpect(status().isNotFound());
+        mvc.perform(post("/items").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"\",\"quantity\":1}")).andExpect(status().isBadRequest());
+        mvc.perform(delete("/items/1")).andExpect(status().isMethodNotAllowed());
+        mvc.perform(get("/health")).andExpect(status().isOk());
+
+        String after = scrape();
+        assertThat(PrometheusText.counter(after, "infracture_requests_total")).hasValue(requestsBefore + 7.0);
+        assertThat(PrometheusText.counter(after, "infracture_request_errors_total")).hasValue(errorsBefore + 3.0);
+        assertThat(PrometheusText.counter(after, "infracture_database_queries_total")).hasValue(queriesBefore + 5.0);
+    }
+
+    private String scrape() throws Exception {
+        return mvc.perform(get("/metrics")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
     }
 }

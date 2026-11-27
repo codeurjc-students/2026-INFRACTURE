@@ -40,6 +40,14 @@
         "startPeriodSeconds": 60
       },
       "evidence": "http://c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10:8080/",
+      "counters": {
+        "endpoint": "http://c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10:8080/metrics",
+        "series": {
+          "requests": "infracture_requests_total",
+          "errors": "infracture_request_errors_total",
+          "database_queries": "infracture_database_queries_total"
+        }
+      },
       "limits": {
         "cpus": 0.5,
         "memoryBytes": 402653184,
@@ -81,6 +89,14 @@
         "startPeriodSeconds": 60
       },
       "evidence": "http://c-5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d:8080/",
+      "counters": {
+        "endpoint": "http://c-5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d:8080/metrics",
+        "series": {
+          "requests": "infracture_requests_total",
+          "errors": "infracture_request_errors_total",
+          "database_queries": "infracture_database_queries_total"
+        }
+      },
       "limits": {
         "cpus": 0.5,
         "memoryBytes": 402653184,
@@ -131,6 +147,7 @@
         "startPeriodSeconds": 60
       },
       "evidence": null,
+      "counters": null,
       "limits": {
         "cpus": 0.5,
         "memoryBytes": 402653184,

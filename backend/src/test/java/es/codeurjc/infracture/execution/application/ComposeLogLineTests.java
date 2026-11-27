@@ -44,7 +44,7 @@ class ComposeLogLineTests {
     void namesEachLineByItsNodeTheLoadByNoneAndDropsServicesThePlanDoesNotHave() {
         UUID orders = UUID.fromString("3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10");
         Node node = new Node(orders, "c-" + orders, new Container("image", null, null, List.of()),
-                new Wiring(Map.of(), Map.of(), List.of()), new HttpProbe(8080, "/health", 2, 2, 15, 60), null,
+                new Wiring(Map.of(), Map.of(), List.of()), new HttpProbe(8080, "/health", 2, 2, 15, 60), null, null,
                 new Limits(0.5, 384L << 20, 200));
         ExecutionPlan plan = new ExecutionPlan("project", Map.of(), List.of(node), null);
 

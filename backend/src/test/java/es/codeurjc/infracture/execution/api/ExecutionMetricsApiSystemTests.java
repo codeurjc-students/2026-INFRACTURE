@@ -6,7 +6,9 @@ import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.ORDER
 import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.run;
 import static es.codeurjc.infracture.execution.api.ExecutionApiSystemTests.statelessScenario;
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -15,6 +17,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import es.codeurjc.infracture.execution.application.CounterScraper;
 import es.codeurjc.infracture.execution.application.ExecutionReconciler;
 import es.codeurjc.infracture.execution.application.ResourceUsage;
 import es.codeurjc.infracture.execution.application.RuntimeEngine;
@@ -76,6 +79,9 @@ class ExecutionMetricsApiSystemTests {
     @MockitoBean
     private ServiceProbe probe;
 
+    @MockitoBean
+    private CounterScraper scraper;
+
     private ApiSession alice;
     private String scenario;
     private long execution;
@@ -86,6 +92,7 @@ class ExecutionMetricsApiSystemTests {
         scenarios.deleteAllInBatch();
         projects.deleteAllInBatch();
         when(engine.status(any())).thenReturn(ORDERS_HEALTHY);
+        when(scraper.scrape(any())).thenReturn(Map.of());
         alice = ApiSession.signUp(port);
         scenario = statelessScenario(alice);
         execution = alice.write().body(run(2)).post(scenario + "/executions").then().statusCode(202)
@@ -97,6 +104,7 @@ class ExecutionMetricsApiSystemTests {
     @Test
     void showsRealSamplesWithUnitsAndLimitsWhileRunningAndAfterStop() {
         when(engine.usage(any())).thenReturn(Map.of(ORDERS_KEY, new ResourceUsage(25.5, 1_048_576L)));
+        when(scraper.scrape(any())).thenReturn(Map.of(ORDERS_KEY, Map.of("requests", 150.0, "errors", 0.0)));
         telemetry.collect();
 
         alice.read().get(metrics()).then().statusCode(200)
@@ -111,12 +119,15 @@ class ExecutionMetricsApiSystemTests {
                 .body("components[0].name", equalTo("orders-api"))
                 .body("components[0].cpuLimitPercent", equalTo(50.0f))
                 .body("components[0].memoryLimitBytes", equalTo(402_653_184))
+                .body("components[0].counters", containsInAnyOrder("requests", "errors"))
                 .body("samples", hasSize(1))
                 .body("samples[0].id", notNullValue())
                 .body("samples[0].componentKey", equalTo(ORDERS))
                 .body("samples[0].at", notNullValue())
                 .body("samples[0].cpuPercent", equalTo(25.5f))
-                .body("samples[0].memoryBytes", equalTo(1_048_576));
+                .body("samples[0].memoryBytes", equalTo(1_048_576))
+                .body("samples[0].counters.requests", equalTo(150.0f))
+                .body("samples[0].counters.errors", equalTo(0.0f));
 
         alice.write().post(scenario + "/executions/" + execution + "/stop").then().statusCode(202);
         alice.read().get(metrics()).then().body("capturing", equalTo(false));
@@ -130,16 +141,21 @@ class ExecutionMetricsApiSystemTests {
     @Test
     void tellsAMissingReadingApartFromARealZero() {
         when(engine.usage(any())).thenReturn(Map.of(ORDERS_KEY, new ResourceUsage(0.0, 0L)));
+        when(scraper.scrape(any())).thenReturn(Map.of(ORDERS_KEY, Map.of("requests", 0.0)));
         telemetry.collect();
         when(engine.usage(any())).thenThrow(new RuntimeEngineException("docker stats did not finish"));
+        when(scraper.scrape(any())).thenReturn(Map.of());
         telemetry.collect();
 
         alice.read().get(metrics()).then().statusCode(200)
                 .body("samples", hasSize(2))
                 .body("samples[0].cpuPercent", equalTo(0.0f))
                 .body("samples[0].memoryBytes", equalTo(0))
+                .body("samples[0].counters.requests", equalTo(0.0f))
+                .body("samples[0].counters.errors", nullValue())
                 .body("samples[1].cpuPercent", nullValue())
-                .body("samples[1].memoryBytes", nullValue());
+                .body("samples[1].memoryBytes", nullValue())
+                .body("samples[1].counters", anEmptyMap());
     }
 
     @Test

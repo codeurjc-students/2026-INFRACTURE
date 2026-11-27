@@ -7,15 +7,21 @@ import type {
 
 const FIRST_INTERVAL_MS = 5_000;
 
-// The CPU and memory series of every node of an execution (#93). It reads every stored page, then asks
+export interface ExecutionMetricsSeries {
+  metrics: ExecutionMetricsDTO | null;
+  samples: MetricSampleDTO[];
+  failed: boolean;
+}
+
+// The CPU, memory and counter series of every node of an execution. It reads every stored page, then asks
 // for what is new at the pace the server samples while the execution is live and the tab is visible. The
 // read that starts after the execution ends is the last one, so the final samples are not missed.
 export function useExecutionMetrics(
   projectId: string,
   scenarioId: string,
-  executionId: number,
+  executionId: number | null,
   live: boolean,
-) {
+): ExecutionMetricsSeries {
   const [metrics, setMetrics] = useState<ExecutionMetricsDTO | null>(null);
   const [samples, setSamples] = useState<MetricSampleDTO[]>([]);
   const [failed, setFailed] = useState(false);
@@ -23,6 +29,11 @@ export function useExecutionMetrics(
   const isLive = useEffectEvent(() => live);
 
   useEffect(() => {
+    setMetrics(null);
+    setSamples([]);
+    setFailed(false);
+    if (executionId === null) return;
+    const id = executionId;
     let cancelled = false;
     let reading = false;
     let cursor = 0;
@@ -30,9 +41,6 @@ export function useExecutionMetrics(
     let timer: ReturnType<typeof setTimeout> | undefined;
     // A read fell due while the tab was hidden.
     let due = false;
-    setMetrics(null);
-    setSamples([]);
-    setFailed(false);
 
     async function read() {
       if (reading || cancelled) return;
@@ -42,12 +50,7 @@ export function useExecutionMetrics(
       try {
         let page: ExecutionMetricsDTO;
         do {
-          page = await getExecutionMetrics(
-            projectId,
-            scenarioId,
-            executionId,
-            cursor,
-          );
+          page = await getExecutionMetrics(projectId, scenarioId, id, cursor);
           if (cancelled) return;
           const received = page.samples;
           cursor = page.nextAfter;

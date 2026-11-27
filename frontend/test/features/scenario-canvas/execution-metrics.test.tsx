@@ -32,6 +32,7 @@ function sample(
   cpuPercent: number | null,
   memoryBytes: number | null,
   componentKey = ORDERS,
+  counters: Record<string, number> = {},
 ) {
   return {
     id,
@@ -39,12 +40,25 @@ function sample(
     at: new Date(Date.UTC(2026, 10, 23, 10, 0, id * 5)).toISOString(),
     cpuPercent,
     memoryBytes,
+    counters,
   } satisfies MetricSampleDTO;
 }
 
 const COMPONENTS = [
-  { key: ORDERS, name: "orders-api", cpuLimitPercent: 50, memoryLimitBytes: 384 * MIB },
-  { key: USERS, name: "users-api", cpuLimitPercent: 50, memoryLimitBytes: 384 * MIB },
+  {
+    key: ORDERS,
+    name: "orders-api",
+    cpuLimitPercent: 50,
+    memoryLimitBytes: 384 * MIB,
+    counters: ["requests", "errors"],
+  },
+  {
+    key: USERS,
+    name: "users-api",
+    cpuLimitPercent: 50,
+    memoryLimitBytes: 384 * MIB,
+    counters: ["requests", "errors"],
+  },
 ];
 
 function page(
@@ -82,11 +96,11 @@ function Panel({
   open = true,
   onOpenChange = () => {},
 }: Readonly<{ run?: ExecutionDTO; open?: boolean; onOpenChange?: (open: boolean) => void }>) {
+  const series = useExecutionMetrics("7", "3", run.id, run.phase !== "RELEASED");
   return (
     <ExecutionMetrics
-      projectId="7"
-      scenarioId="3"
       execution={run}
+      series={series}
       open={open}
       onOpenChange={onOpenChange}
     />
@@ -188,6 +202,14 @@ describe("execution metrics", () => {
     await flush();
     expect(fetchMock).toHaveBeenCalledTimes(before + 1);
     visibility.mockRestore();
+  });
+
+  it("asks nothing when there is no execution yet", async () => {
+    const { result } = renderHook(() => useExecutionMetrics("7", "3", null, false));
+    await flush();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.current).toEqual({ metrics: null, samples: [], failed: false });
   });
 
   it("starts again from the beginning for another execution", async () => {
