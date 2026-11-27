@@ -73,7 +73,7 @@ class ComposeRenderTests {
         environment.put("COMPONENT_NAME", "${HOME} costs $5");
         Node typed = new Node(orders.key(), orders.host(), orders.container(),
                 new Wiring(environment, orders.wiring().secrets(), orders.wiring().dependencies()), orders.health(),
-                orders.evidence(), orders.limits());
+                orders.evidence(), orders.counters(), orders.limits());
         ExecutionPlan withDollars = new ExecutionPlan(plan.project(), plan.labels(),
                 List.of(typed, plan.nodes().get(1), plan.nodes().get(2)), null);
 

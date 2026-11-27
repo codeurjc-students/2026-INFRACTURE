@@ -28,14 +28,16 @@ public class TelemetryCollector {
     private final ExecutionRepository executions;
     private final MetricSampleRepository samples;
     private final RuntimeEngine engine;
+    private final CounterScraper scraper;
     private final Clock clock;
     private final TransactionTemplate transactions;
 
     public TelemetryCollector(ExecutionRepository executions, MetricSampleRepository samples, RuntimeEngine engine,
-            Clock clock, PlatformTransactionManager transactionManager) {
+            CounterScraper scraper, Clock clock, PlatformTransactionManager transactionManager) {
         this.executions = executions;
         this.samples = samples;
         this.engine = engine;
+        this.scraper = scraper;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactionManager);
     }
@@ -48,8 +50,9 @@ public class TelemetryCollector {
             return;
         }
         Map<UUID, ResourceUsage> usage = read(target);
+        Map<UUID, Map<String, Double>> counters = scraper.scrape(target.plan());
         Instant now = clock.instant();
-        transactions.executeWithoutResult(status -> store(target, usage, now));
+        transactions.executeWithoutResult(status -> store(target, usage, counters, now));
     }
 
     private Map<UUID, ResourceUsage> read(Target target) {
@@ -61,7 +64,8 @@ public class TelemetryCollector {
     }
 
     // Checked again on the locked row: a Stop that arrived during the read ends the samples.
-    private void store(Target target, Map<UUID, ResourceUsage> usage, Instant now) {
+    private void store(Target target, Map<UUID, ResourceUsage> usage, Map<UUID, Map<String, Double>> counters,
+            Instant now) {
         boolean sampled = executions.findForUpdateById(target.id()).filter(TelemetryCollector::isSampled).isPresent();
         if (!sampled) {
             return;
@@ -69,7 +73,8 @@ public class TelemetryCollector {
         List<MetricSample> rows = new ArrayList<>();
         target.nodes().forEach((componentId, key) -> {
             ResourceUsage reading = usage.getOrDefault(key, new ResourceUsage(null, null));
-            rows.add(new MetricSample(componentId, now, reading.cpuPercent(), reading.memoryBytes()));
+            rows.add(new MetricSample(componentId, now, reading.cpuPercent(), reading.memoryBytes(),
+                    counters.getOrDefault(key, Map.of())));
         });
         samples.saveAll(rows);
     }

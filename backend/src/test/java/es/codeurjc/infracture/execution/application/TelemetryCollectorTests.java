@@ -48,8 +48,9 @@ class TelemetryCollectorTests {
     private final ExecutionRepository executions = mock(ExecutionRepository.class);
     private final MetricSampleRepository samples = mock(MetricSampleRepository.class);
     private final RuntimeEngine engine = mock(RuntimeEngine.class);
+    private final CounterScraper scraper = mock(CounterScraper.class);
     private final List<MetricSample> stored = new ArrayList<>();
-    private final TelemetryCollector collector = new TelemetryCollector(executions, samples, engine,
+    private final TelemetryCollector collector = new TelemetryCollector(executions, samples, engine, scraper,
             Clock.fixed(NOW, ZoneOffset.UTC), mock(PlatformTransactionManager.class));
     private Execution execution;
 
@@ -64,6 +65,7 @@ class TelemetryCollectorTests {
         execution.attachPlan(new ExecutionPlan("infracture-local-exec-12", Map.of(), List.of(), null));
         execution.startStarting();
         execution.markRunning(NOW, Duration.ofMinutes(30));
+        when(scraper.scrape(any())).thenReturn(Map.of());
         when(executions.findByReleasedAtIsNull())
                 .thenAnswer(invocation -> execution.isActive() ? Optional.of(execution) : Optional.empty());
         when(executions.findForUpdateById(12L)).thenReturn(Optional.of(execution));
@@ -84,6 +86,21 @@ class TelemetryCollectorTests {
         assertThat(stored).extracting(MetricSample::getExecutedComponentId, MetricSample::getSampledAt,
                 MetricSample::getCpuPercent, MetricSample::getMemoryBytes)
                 .containsExactly(tuple(100L, NOW, 25.5, 1_000L), tuple(101L, NOW, 0.0, 2_000L));
+    }
+
+    @Test
+    void storesScrapedCountersAlongsideCpuAndMemoryAndLeavesUnreachedNodesEmpty() {
+        when(engine.usage(any())).thenReturn(Map.of(
+                ORDERS, new ResourceUsage(25.5, 1_000L),
+                USERS, new ResourceUsage(1.0, 2_000L)));
+        when(scraper.scrape(any())).thenReturn(Map.of(ORDERS, Map.of("requests", 120.0, "errors", 0.0)));
+
+        collector.collect();
+
+        assertThat(stored).extracting(MetricSample::getExecutedComponentId, MetricSample::getCounters)
+                .containsExactly(
+                        tuple(100L, Map.of("requests", 120.0, "errors", 0.0)),
+                        tuple(101L, Map.of()));
     }
 
     @Test
@@ -138,6 +155,7 @@ class TelemetryCollectorTests {
         collector.collect();
 
         verify(engine, never()).usage(any());
+        verify(scraper, never()).scrape(any());
     }
 
     @Test

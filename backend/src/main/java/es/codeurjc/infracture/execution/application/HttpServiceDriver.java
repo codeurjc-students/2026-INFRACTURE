@@ -3,6 +3,7 @@ package es.codeurjc.infracture.execution.application;
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Container;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Counters;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -57,6 +58,17 @@ class HttpServiceDriver implements ComponentDriver {
     @Override
     public URI evidence(String host) {
         return httpUrl(host);
+    }
+
+    @Override
+    public Counters counters(String host, ExecutedComponent component) {
+        Map<String, String> series = new LinkedHashMap<>();
+        series.put("requests", "infracture_requests_total");
+        series.put("errors", "infracture_request_errors_total");
+        if ("DATABASE_CRUD".equals(component.getProfile())) {
+            series.put("database_queries", "infracture_database_queries_total");
+        }
+        return new Counters(URI.create("http://" + host + ":" + PORT + "/metrics"), series);
     }
 
     @Override

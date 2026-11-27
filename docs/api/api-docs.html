@@ -1098,6 +1098,12 @@ font-style: italic;
         "command" : [ "command", "command" ]
       },
       "evidence" : "https://openapi-generator.tech",
+      "counters" : {
+        "endpoint" : "https://openapi-generator.tech",
+        "series" : {
+          "key" : "series"
+        }
+      },
       "host" : "host",
       "health" : {
         "retries" : 7,
@@ -1133,6 +1139,12 @@ font-style: italic;
         "command" : [ "command", "command" ]
       },
       "evidence" : "https://openapi-generator.tech",
+      "counters" : {
+        "endpoint" : "https://openapi-generator.tech",
+        "series" : {
+          "key" : "series"
+        }
+      },
       "host" : "host",
       "health" : {
         "retries" : 7,
@@ -1348,6 +1360,12 @@ font-style: italic;
         "command" : [ "command", "command" ]
       },
       "evidence" : "https://openapi-generator.tech",
+      "counters" : {
+        "endpoint" : "https://openapi-generator.tech",
+        "series" : {
+          "key" : "series"
+        }
+      },
       "host" : "host",
       "health" : {
         "retries" : 7,
@@ -1383,6 +1401,12 @@ font-style: italic;
         "command" : [ "command", "command" ]
       },
       "evidence" : "https://openapi-generator.tech",
+      "counters" : {
+        "endpoint" : "https://openapi-generator.tech",
+        "series" : {
+          "key" : "series"
+        }
+      },
       "host" : "host",
       "health" : {
         "retries" : 7,
@@ -1588,6 +1612,12 @@ font-style: italic;
         "command" : [ "command", "command" ]
       },
       "evidence" : "https://openapi-generator.tech",
+      "counters" : {
+        "endpoint" : "https://openapi-generator.tech",
+        "series" : {
+          "key" : "series"
+        }
+      },
       "host" : "host",
       "health" : {
         "retries" : 7,
@@ -1623,6 +1653,12 @@ font-style: italic;
         "command" : [ "command", "command" ]
       },
       "evidence" : "https://openapi-generator.tech",
+      "counters" : {
+        "endpoint" : "https://openapi-generator.tech",
+        "series" : {
+          "key" : "series"
+        }
+      },
       "host" : "host",
       "health" : {
         "retries" : 7,
@@ -1785,11 +1821,13 @@ font-style: italic;
     <div class="example-data-content-type">Content-Type: */*</div>
     <pre class="example"><code>{
   "components" : [ {
+    "counters" : [ "counters", "counters" ],
     "name" : "name",
     "memoryLimitBytes" : 5,
     "cpuLimitPercent" : 1.4658129805029452,
     "key" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
   }, {
+    "counters" : [ "counters", "counters" ],
     "name" : "name",
     "memoryLimitBytes" : 5,
     "cpuLimitPercent" : 1.4658129805029452,
@@ -1804,12 +1842,18 @@ font-style: italic;
   "samples" : [ {
     "memoryBytes" : 7,
     "at" : "2000-01-23T04:56:07.000+00:00",
+    "counters" : {
+      "key" : 9.301444243932576
+    },
     "id" : 5,
     "cpuPercent" : 2.3021358869347655,
     "componentKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
   }, {
     "memoryBytes" : 7,
     "at" : "2000-01-23T04:56:07.000+00:00",
+    "counters" : {
+      "key" : 9.301444243932576
+    },
     "id" : 5,
     "cpuPercent" : 2.3021358869347655,
     "componentKey" : "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
@@ -4159,6 +4203,7 @@ font-style: italic;
     <li><a href="#ComponentTemplateDTO"><code>ComponentTemplateDTO</code> - </a></li>
     <li><a href="#ConnectionDTO"><code>ConnectionDTO</code> - </a></li>
     <li><a href="#Container"><code>Container</code> - </a></li>
+    <li><a href="#Counters"><code>Counters</code> - </a></li>
     <li><a href="#ExecutedComponentDTO"><code>ExecutedComponentDTO</code> - </a></li>
     <li><a href="#ExecutedWorkloadDTO"><code>ExecutedWorkloadDTO</code> - </a></li>
     <li><a href="#ExecutionDTO"><code>ExecutionDTO</code> - </a></li>
@@ -4296,6 +4341,14 @@ font-style: italic;
 <div class="param">command (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">array[String]</a></span>  </div>
 <div class="param">user (optional)</div><div class="param-desc"><span class="param-type"><a href="#RunAs">RunAs</a></span>  </div>
 <div class="param">storage (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">array[String]</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="Counters"><code>Counters</code> - </a> <a class="up" href="#__Models">Up</a></h3>
+    <div class='model-description'></div>
+    <div class="field-items">
+      <div class="param">endpoint (optional)</div><div class="param-desc"><span class="param-type"><a href="#URI">URI</a></span>  format: uri</div>
+<div class="param">series (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">map[String, String]</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -4444,6 +4497,7 @@ font-style: italic;
 <div class="param">name (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">String</a></span>  </div>
 <div class="param">cpuLimitPercent (optional)</div><div class="param-desc"><span class="param-type"><a href="#double">Double</a></span>  format: double</div>
 <div class="param">memoryLimitBytes (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">counters (optional)</div><div class="param-desc"><span class="param-type"><a href="#string">array[String]</a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -4455,6 +4509,7 @@ font-style: italic;
 <div class="param">at (optional)</div><div class="param-desc"><span class="param-type"><a href="#DateTime">Date</a></span>  format: date-time</div>
 <div class="param">cpuPercent (optional)</div><div class="param-desc"><span class="param-type"><a href="#double">Double</a></span>  format: double</div>
 <div class="param">memoryBytes (optional)</div><div class="param-desc"><span class="param-type"><a href="#long">Long</a></span>  format: int64</div>
+<div class="param">counters (optional)</div><div class="param-desc"><span class="param-type"><a href="#double">map[String, Double]</a></span>  format: double</div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -4467,6 +4522,7 @@ font-style: italic;
 <div class="param">wiring (optional)</div><div class="param-desc"><span class="param-type"><a href="#Wiring">Wiring</a></span>  </div>
 <div class="param">health (optional)</div><div class="param-desc"><span class="param-type"><a href="#Node_health">Node_health</a></span>  </div>
 <div class="param">evidence (optional)</div><div class="param-desc"><span class="param-type"><a href="#URI">URI</a></span>  format: uri</div>
+<div class="param">counters (optional)</div><div class="param-desc"><span class="param-type"><a href="#Counters">Counters</a></span>  </div>
 <div class="param">limits (optional)</div><div class="param-desc"><span class="param-type"><a href="#Limits">Limits</a></span>  </div>
     </div>  <!-- field-items -->
   </div>

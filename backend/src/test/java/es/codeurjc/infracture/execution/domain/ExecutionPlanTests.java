@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.CommandProbe;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Container;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Counters;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
@@ -12,6 +13,7 @@ import es.codeurjc.infracture.execution.domain.ExecutionPlan.RunAs;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Wiring;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,7 +41,9 @@ class ExecutionPlanTests {
     void keepsACommandProbeThroughStorage() {
         Node node = new Node(ORDERS, "c-1", new Container("postgres", null, new RunAs(70, 70),
                 List.of("/var/lib/postgresql")), new Wiring(Map.of(), Map.of("POSTGRES_PASSWORD", ORDERS), List.of()),
-                new CommandProbe(List.of("pg_isready"), 2, 2, 15, 60), null, LIMITS);
+                new CommandProbe(List.of("pg_isready"), 2, 2, 15, 60), null,
+                new Counters(URI.create("http://c-1:8080/metrics"), Map.of("requests", "infracture_requests_total")),
+                LIMITS);
         ExecutionPlan plan = new ExecutionPlan("p", Map.of(), List.of(node), null);
 
         assertThat(json.readValue(json.writeValueAsString(plan), ExecutionPlan.class)).isEqualTo(plan);

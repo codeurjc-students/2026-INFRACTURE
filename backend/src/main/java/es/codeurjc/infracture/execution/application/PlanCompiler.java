@@ -97,7 +97,7 @@ public class PlanCompiler {
         List<UUID> targets = dependencies.values().stream().map(Dependency::key).distinct().toList();
         return new Node(component.getKey(), host, service.container(),
                 new Wiring(service.environment(), service.secrets(), targets), service.health(), driver.evidence(host),
-                LIMITS);
+                driver.counters(host, component), LIMITS);
     }
 
     // The validator already checked that every connection reaches a node that offers what the port needs.

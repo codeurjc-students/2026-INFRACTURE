@@ -1,5 +1,6 @@
 package es.codeurjc.infracture.demo;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -8,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
@@ -15,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest(properties = {
         "APP_ROLE=http", "APP_MODE=STATELESS", "COMPONENT_NAME=orders-api", "RESPONSE_DELAY_MS=10" })
 @AutoConfigureMockMvc
+@AutoConfigureMetrics
 class DemoApplicationTests {
 
     @Autowired
@@ -38,6 +41,26 @@ class DemoApplicationTests {
     @Test
     void reportsItsHealthAtTheRootPath() throws Exception {
         mvc.perform(get("/health")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    @Test
+    void exposesRequestAndErrorCountersAtMetricsWithoutCountingHealth() throws Exception {
+        String before = scrape();
+        double requestsBefore = PrometheusText.counter(before, "infracture_requests_total").orElseThrow();
+        double errorsBefore = PrometheusText.counter(before, "infracture_request_errors_total").orElseThrow();
+
+        mvc.perform(get("/")).andExpect(status().isOk());
+        mvc.perform(get("/items/1")).andExpect(status().isNotFound());
+        mvc.perform(get("/health")).andExpect(status().isOk());
+
+        String after = scrape();
+        assertThat(PrometheusText.counter(after, "infracture_requests_total")).hasValue(requestsBefore + 2.0);
+        assertThat(PrometheusText.counter(after, "infracture_request_errors_total")).hasValue(errorsBefore + 1.0);
+        assertThat(PrometheusText.counter(after, "infracture_database_queries_total")).isEmpty();
+    }
+
+    private String scrape() throws Exception {
+        return mvc.perform(get("/metrics")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
     }
 
     @Test

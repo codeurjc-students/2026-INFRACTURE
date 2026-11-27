@@ -43,11 +43,22 @@ public record ExecutionPlan(
             Probe health,
             // Where the backend asks the running node for its real response, or null when there is nothing to ask.
             URI evidence,
+            // Where the backend scrapes Prometheus counters for this node, or null when it publishes none.
+            Counters counters,
             Limits limits) {
 
         public Node {
             Objects.requireNonNull(container, "container");
             Objects.requireNonNull(wiring, "wiring");
+        }
+    }
+
+    // Where a node exposes its Prometheus counters and which series map to each Infracture counter name.
+    public record Counters(URI endpoint, Map<String, String> series) {
+
+        public Counters {
+            Objects.requireNonNull(endpoint, "endpoint");
+            series = ordered(series);
         }
     }
 

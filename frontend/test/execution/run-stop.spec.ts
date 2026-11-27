@@ -294,6 +294,22 @@ test("runs an HTTP DATABASE_CRUD service on its own temporary PostgreSQL and rem
     ).toBe("t");
   });
 
+  await test.step("See the service's Prometheus counters in the inspector", async () => {
+    const counters = inspector(page).getByRole("figure", { name: "Counters" });
+    const value = (label: string) =>
+      counters.locator("div", { hasText: label }).locator("dd");
+    await expect(value("Requests")).toHaveText(
+      /^[1-9][\d,]*(\.\d+)?( · .+\/s)?$/,
+      { timeout: 30_000 },
+    );
+    await expect(value("Database queries")).toHaveText(
+      /^[1-9][\d,]*(\.\d+)?( · .+\/s)?$/,
+      { timeout: 30_000 },
+    );
+    await expect(value("Errors")).toHaveText(/^0( · 0\/s)?$/);
+    await shot("2b-counters");
+  });
+
   await test.step("Stop it: the service, PostgreSQL and its data are gone", async () => {
     await page.getByRole("button", { name: "Stop" }).click();
     await expect(status(page)).toHaveText("Completed", { timeout: 120_000 });

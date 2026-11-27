@@ -183,7 +183,7 @@ class ComposeRuntimeEngineIntegrationTests {
         Node orders = compiled.nodes().getFirst();
         Node consumer = new Node(orders.key(), orders.host(),
                 new Container("busybox:1.37", List.of("sh", "-c", SERVE), null, List.of()), orders.wiring(),
-                new HttpProbe(8080, "/health", 1, 2, 1, 10), null, LIMITS);
+                new HttpProbe(8080, "/health", 1, 2, 1, 10), null, null, LIMITS);
         return new ExecutionPlan(plan().project(), labels, List.of(consumer, compiled.nodes().getLast()), null);
     }
 
@@ -311,7 +311,7 @@ class ComposeRuntimeEngineIntegrationTests {
     private ExecutionPlan plan(String script, Map<String, String> environment, HttpProbe health) {
         Node probe =
                 new Node(PROBE, "probe", new Container("busybox:1.37", List.of("sh", "-c", script), null, List.of()),
-                        new Wiring(environment, Map.of(), List.of()), health, null, LIMITS);
+                        new Wiring(environment, Map.of(), List.of()), health, null, null, LIMITS);
         return new ExecutionPlan("infracture-" + instance + "-exec-1", labels, List.of(probe), null);
     }
 

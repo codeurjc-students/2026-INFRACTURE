@@ -51,12 +51,14 @@ import type { ScenarioDTO } from "~/features/projects/model/ScenarioDTO";
 import { HttpError } from "~/shared/api/api-fetch";
 import { getGraph, saveGraph } from "../api/graph-service";
 import type { ExecutionDTO } from "../model/ExecutionDTO";
+import { counterReadings } from "../execution-counters";
 import {
   isSendingTraffic,
   nodeView,
   type StatusView,
 } from "../execution-status";
 import { useExecution } from "../use-execution";
+import { useExecutionMetrics } from "../use-execution-metrics";
 import ExecutionActivity from "./execution-activity";
 import ExecutionMetrics, {
   readPanelOpen,
@@ -506,6 +508,12 @@ function Editor({
   }
 
   const experiment = useExecution(projectId, scenarioId, initialExecution);
+  const metricsSeries = useExecutionMetrics(
+    projectId,
+    scenarioId,
+    experiment.execution?.id ?? null,
+    experiment.active,
+  );
   // An experiment holds the scenario from the reservation until its cleanup ends (#86).
   const readOnly = experiment.active;
   const runtime: Runtime = useMemo(() => {
@@ -590,6 +598,19 @@ function Editor({
 
   // The side panel shows the selected node, the scenario details, the issues or the load.
   const selected = state.nodes.find((node) => node.selected);
+  const selectedId = selected?.id ?? null;
+  const selectedCounters = useMemo(
+    () =>
+      selectedId
+        ? counterReadings(
+            metricsSeries.metrics?.components.find(
+              (component) => component.key === selectedId,
+            ),
+            metricsSeries.samples,
+          )
+        : [],
+    [selectedId, metricsSeries.metrics, metricsSeries.samples],
+  );
   const panelOpen = Boolean(selected) || panel !== null;
   const errorCount = state.issues.filter(
     (issue) => issue.severity === "ERROR",
@@ -1283,9 +1304,8 @@ function Editor({
         {experiment.execution && (
           <div className="min-w-0 lg:col-start-2 lg:row-start-2">
             <ExecutionMetrics
-              projectId={projectId}
-              scenarioId={scenarioId}
               execution={experiment.execution}
+              series={metricsSeries}
               open={metricsOpen}
               onOpenChange={showMetrics}
             />
@@ -1317,6 +1337,7 @@ function Editor({
                 )}
                 runtime={runtime.get(selected.id)?.view ?? null}
                 response={runtime.get(selected.id)?.response ?? null}
+                counters={selectedCounters}
                 readOnly={readOnly}
                 dispatch={dispatch}
                 onClose={() => select(null)}

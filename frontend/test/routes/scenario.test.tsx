@@ -31,6 +31,7 @@ import {
 } from "~/features/scenario-canvas/api/graph-service";
 import {
   getCurrentExecution,
+  getExecutionMetrics,
   runScenario,
   stopExecution,
 } from "~/features/scenario-canvas/api/execution-service";
@@ -61,6 +62,7 @@ vi.mock("~/features/scenario-canvas/api/graph-service");
 vi.mock("~/features/scenario-canvas/api/execution-service", async (original) => ({
   ...(await original()),
   getCurrentExecution: vi.fn(),
+  getExecutionMetrics: vi.fn(),
   runScenario: vi.fn(),
   stopExecution: vi.fn(),
 }));
@@ -244,6 +246,17 @@ function renderScenario(id = "3", userId?: number) {
 beforeEach(() => {
   vi.mocked(getGraph).mockResolvedValue(emptyGraph);
   vi.mocked(getCurrentExecution).mockResolvedValue(null);
+  vi.mocked(getExecutionMetrics).mockResolvedValue({
+    source: "DOCKER_STATS",
+    cpuUnit: "PERCENT_OF_ONE_CORE",
+    memoryUnit: "BYTES",
+    intervalSeconds: 5,
+    capturing: false,
+    hasMore: false,
+    nextAfter: 0,
+    components: [],
+    samples: [],
+  });
   vi.mocked(getComponentTemplates).mockResolvedValue({
     content: [httpService, redis],
     page: { size: 100, number: 0, totalElements: 2, totalPages: 1 },
@@ -1732,5 +1745,72 @@ describe("running the scenario", () => {
     fireEvent.click(within(alert).getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
+  });
+
+  it("shows the counters the selected service published, with their rate and missing readings", async () => {
+    vi.mocked(getGraph).mockResolvedValue(runnableGraph);
+    const key = runnableGraph.components[0].key;
+    vi.mocked(getCurrentExecution).mockResolvedValue(
+      execution({
+        phase: "RUNNING",
+        components: [
+          {
+            key,
+            name: "Orders API",
+            type: "HTTP_SERVICE",
+            status: "HEALTHY",
+            response: '{"component":"orders-api"}',
+          },
+        ],
+      }),
+    );
+    vi.mocked(getExecutionMetrics).mockResolvedValue({
+      source: "DOCKER_STATS",
+      cpuUnit: "PERCENT_OF_ONE_CORE",
+      memoryUnit: "BYTES",
+      intervalSeconds: 5,
+      capturing: true,
+      hasMore: false,
+      nextAfter: 2,
+      components: [
+        {
+          key,
+          name: "Orders API",
+          cpuLimitPercent: 50,
+          memoryLimitBytes: 384 * 1024 * 1024,
+          counters: ["requests", "errors", "database_queries"],
+        },
+      ],
+      samples: [
+        {
+          id: 1,
+          componentKey: key,
+          at: "2026-11-07T10:00:00Z",
+          cpuPercent: 5,
+          memoryBytes: 1024,
+          counters: { requests: 100, errors: 0 },
+        },
+        {
+          id: 2,
+          componentKey: key,
+          at: "2026-11-07T10:00:05Z",
+          cpuPercent: 6,
+          memoryBytes: 1024,
+          counters: { requests: 150, errors: 0 },
+        },
+      ],
+    });
+    renderScenario();
+
+    const node = await screen.findByRole("group", { name: /Orders API/ });
+    fireEvent.click(within(node).getByText("Orders API"));
+    const inspector = screen.getByRole("complementary", { name: "Inspector" });
+    const counters = await within(inspector).findByRole("figure", {
+      name: "Counters",
+    });
+
+    expect(counters).toHaveTextContent("Requests150 · 10/s");
+    expect(counters).toHaveTextContent("Errors0 · 0/s");
+    expect(counters).toHaveTextContent("Database queriesNo reading");
   });
 });
