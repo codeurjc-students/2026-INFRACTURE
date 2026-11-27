@@ -8,15 +8,24 @@
     {
       "key": "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10",
       "host": "c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10",
-      "image": "infracture/demo-app:0.1.0",
-      "command": null,
-      "environment": {
-        "APP_ROLE": "http",
-        "APP_MODE": "STATELESS",
-        "COMPONENT_NAME": "orders-api",
-        "RESPONSE_DELAY_MS": "50"
+      "container": {
+        "image": "infracture/demo-app:0.1.0",
+        "command": null,
+        "user": null,
+        "storage": []
+      },
+      "wiring": {
+        "environment": {
+          "APP_ROLE": "http",
+          "APP_MODE": "STATELESS",
+          "COMPONENT_NAME": "orders-api",
+          "RESPONSE_DELAY_MS": "50"
+        },
+        "secrets": {},
+        "dependencies": []
       },
       "health": {
+        "type": "http",
         "port": 8080,
         "path": "/health",
         "intervalSeconds": 2,

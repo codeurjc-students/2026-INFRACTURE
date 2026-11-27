@@ -1,0 +1,142 @@
+{
+  "project": "infracture-local-exec-12",
+  "labels": {
+    "io.infracture.instance": "local",
+    "io.infracture.execution": "12"
+  },
+  "nodes": [
+    {
+      "key": "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10",
+      "host": "c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10",
+      "container": {
+        "image": "infracture/demo-app:0.1.0",
+        "command": null,
+        "user": null,
+        "storage": []
+      },
+      "wiring": {
+        "environment": {
+          "APP_ROLE": "http",
+          "APP_MODE": "DATABASE_CRUD",
+          "COMPONENT_NAME": "orders-api",
+          "RESPONSE_DELAY_MS": "0",
+          "DATABASE_URL": "postgresql://c-7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a:5432/app",
+          "DATABASE_USER": "app"
+        },
+        "secrets": {
+          "DATABASE_PASSWORD": "7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a"
+        },
+        "dependencies": [
+          "7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a"
+        ]
+      },
+      "health": {
+        "type": "http",
+        "port": 8080,
+        "path": "/health",
+        "intervalSeconds": 2,
+        "timeoutSeconds": 2,
+        "retries": 15,
+        "startPeriodSeconds": 60
+      },
+      "evidence": "http://c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10:8080/",
+      "limits": {
+        "cpus": 0.5,
+        "memoryBytes": 402653184,
+        "pids": 200
+      }
+    },
+    {
+      "key": "5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+      "host": "c-5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+      "container": {
+        "image": "infracture/demo-app:0.1.0",
+        "command": null,
+        "user": null,
+        "storage": []
+      },
+      "wiring": {
+        "environment": {
+          "APP_ROLE": "http",
+          "APP_MODE": "DATABASE_CRUD",
+          "COMPONENT_NAME": "stock-api",
+          "RESPONSE_DELAY_MS": "5",
+          "DATABASE_URL": "postgresql://c-7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a:5432/app",
+          "DATABASE_USER": "app"
+        },
+        "secrets": {
+          "DATABASE_PASSWORD": "7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a"
+        },
+        "dependencies": [
+          "7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a"
+        ]
+      },
+      "health": {
+        "type": "http",
+        "port": 8080,
+        "path": "/health",
+        "intervalSeconds": 2,
+        "timeoutSeconds": 2,
+        "retries": 15,
+        "startPeriodSeconds": 60
+      },
+      "evidence": "http://c-5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d:8080/",
+      "limits": {
+        "cpus": 0.5,
+        "memoryBytes": 402653184,
+        "pids": 200
+      }
+    },
+    {
+      "key": "7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a",
+      "host": "c-7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a",
+      "container": {
+        "image": "postgres:18.7-alpine",
+        "command": null,
+        "user": {
+          "uid": 70,
+          "gid": 70
+        },
+        "storage": [
+          "/var/lib/postgresql",
+          "/var/run/postgresql"
+        ]
+      },
+      "wiring": {
+        "environment": {
+          "POSTGRES_DB": "app",
+          "POSTGRES_USER": "app"
+        },
+        "secrets": {
+          "POSTGRES_PASSWORD": "7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a"
+        },
+        "dependencies": []
+      },
+      "health": {
+        "type": "command",
+        "command": [
+          "pg_isready",
+          "-h",
+          "127.0.0.1",
+          "-p",
+          "5432",
+          "-U",
+          "app",
+          "-d",
+          "app"
+        ],
+        "intervalSeconds": 2,
+        "timeoutSeconds": 2,
+        "retries": 15,
+        "startPeriodSeconds": 60
+      },
+      "evidence": null,
+      "limits": {
+        "cpus": 0.5,
+        "memoryBytes": 402653184,
+        "pids": 200
+      }
+    }
+  ],
+  "load": null
+}

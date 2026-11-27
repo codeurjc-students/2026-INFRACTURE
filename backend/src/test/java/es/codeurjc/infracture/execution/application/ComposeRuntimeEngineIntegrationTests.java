@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import es.codeurjc.infracture.execution.domain.ExecutionPlan;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Container;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Limits;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Load;
 import es.codeurjc.infracture.execution.domain.ExecutionPlan.Node;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Wiring;
 import es.codeurjc.infracture.execution.domain.LoadSummary;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -30,7 +32,8 @@ class ComposeRuntimeEngineIntegrationTests {
     private final String instance = "test-" + UUID.randomUUID().toString().replace("-", "");
     private final Map<String, String> labels =
             Map.of(PlanCompiler.INSTANCE_LABEL, instance, PlanCompiler.EXECUTION_LABEL, "1");
-    private final ComposeRuntimeEngine engine = new ComposeRuntimeEngine(JsonMapper.builder().build(), "");
+    private final ComposeRuntimeEngine engine = new ComposeRuntimeEngine(JsonMapper.builder().build(),
+            new ExecutionCredentials(), "");
     private static final UUID PROBE = UUID.fromString("0b6c1f4e-8a2d-4e7b-9c3f-5d1a2b3c4d5e");
     private static final Limits LIMITS = new Limits(0.5, 384L << 20, 200);
     private static final LoadSummary SUMMARY = new LoadSummary(3L, 0L, 0L, 1.5, 2.0);
@@ -115,7 +118,8 @@ class ComposeRuntimeEngineIntegrationTests {
         docker("network", "create", platform);
         docker("container", "run", "-d", "--quiet", "--name", backend, "--network", platform, "busybox:1.37",
                 "sleep", "300");
-        ComposeRuntimeEngine inContainer = new ComposeRuntimeEngine(JsonMapper.builder().build(), backend);
+        ComposeRuntimeEngine inContainer = new ComposeRuntimeEngine(JsonMapper.builder().build(),
+                new ExecutionCredentials(), backend);
         try {
             String defaultRoute = defaultRoute(backend);
             inContainer.up(plan(), NEVER);
@@ -138,6 +142,49 @@ class ComposeRuntimeEngineIntegrationTests {
     private static String defaultRoute(String container) {
         return docker("exec", container, "ip", "route").stream()
                 .filter(route -> route.startsWith("default")).findFirst().orElseThrow();
+    }
+
+    @Test
+    void runsATemporaryPostgresqlInMemoryThatItsConsumerReachesWithTheSamePassword() {
+        ExecutionPlan plan = databasePlan();
+
+        engine.up(plan, NEVER);
+
+        String database = "infracture-" + instance + "-exec-1-c-" + PlanCompilerTests.DATABASE + "-1";
+        String consumer = "infracture-" + instance + "-exec-1-c-" + plan.nodes().getFirst().key() + "-1";
+        String password = environment(consumer, "DATABASE_PASSWORD");
+        assertThat(password).matches("[A-Za-z0-9_-]{43}");
+        assertThat(environment(database, "POSTGRES_PASSWORD")).isEqualTo(password);
+        assertThat(docker("exec", "-e", "PGPASSWORD=" + password, database, "psql", "-h", "127.0.0.1", "-U", "app",
+                "-d", "app", "-tAc", "select current_user")).containsExactly("app");
+        assertThat(docker("container", "inspect", "-f", "{{.Config.User}} {{len .Mounts}}", database))
+                .containsExactly("70:70 0");
+        assertThat(JsonMapper.builder().build().writeValueAsString(plan)).doesNotContain(password);
+        assertThat(engine.status(plan).nodes()).containsOnly(
+                Map.entry(PlanCompilerTests.DATABASE, ComponentStatus.HEALTHY),
+                Map.entry(plan.nodes().getFirst().key(), ComponentStatus.HEALTHY));
+
+        engine.down(plan);
+
+        assertThat(labelled()).isEmpty();
+    }
+
+    private static String environment(String container, String name) {
+        return docker("container", "inspect", "-f", "{{range .Config.Env}}{{println .}}{{end}}", container).stream()
+                .filter(variable -> variable.startsWith(name + "=")).map(variable -> variable.substring(
+                        name.length() + 1))
+                .findFirst().orElseThrow();
+    }
+
+    private ExecutionPlan databasePlan() {
+        ExecutionPlan compiled = new PlanCompiler(List.of(new HttpServiceDriver("unused"),
+                new PostgresqlDriver("postgres:18.7-alpine")), instance, "unused")
+                .compile(PlanCompilerTests.databaseExecution(1L));
+        Node orders = compiled.nodes().getFirst();
+        Node consumer = new Node(orders.key(), orders.host(),
+                new Container("busybox:1.37", List.of("sh", "-c", SERVE), null, List.of()), orders.wiring(),
+                new HttpProbe(8080, "/health", 1, 2, 1, 10), null, LIMITS);
+        return new ExecutionPlan(plan().project(), labels, List.of(consumer, compiled.nodes().getLast()), null);
     }
 
     @Test
@@ -262,8 +309,9 @@ class ComposeRuntimeEngineIntegrationTests {
     }
 
     private ExecutionPlan plan(String script, Map<String, String> environment, HttpProbe health) {
-        Node probe = new Node(PROBE, "probe", "busybox:1.37", List.of("sh", "-c", script), environment, health,
-                null, LIMITS);
+        Node probe =
+                new Node(PROBE, "probe", new Container("busybox:1.37", List.of("sh", "-c", script), null, List.of()),
+                        new Wiring(environment, Map.of(), List.of()), health, null, LIMITS);
         return new ExecutionPlan("infracture-" + instance + "-exec-1", labels, List.of(probe), null);
     }
 

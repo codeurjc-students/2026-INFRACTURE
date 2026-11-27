@@ -125,7 +125,8 @@ public class ExecutionJournal {
             UUID key = line.node();
             long count = stored.computeIfAbsent(key, source -> count(execution.getId(), source));
             if (count < MAX_LINES_PER_SOURCE) {
-                events.save(ExecutionEvent.log(execution.getId(), key, redactor.clean(line.text()), line.at()));
+                events.save(ExecutionEvent.log(execution.getId(), key, redactor.clean(line.text(), execution.getPlan()),
+                        line.at()));
                 stored.put(key, count + 1);
             } else {
                 omitted.merge(key, 1, Integer::sum);

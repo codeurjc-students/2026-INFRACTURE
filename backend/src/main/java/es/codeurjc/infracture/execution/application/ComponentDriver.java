@@ -2,14 +2,15 @@ package es.codeurjc.infracture.execution.application;
 
 import es.codeurjc.infracture.catalog.domain.ComponentType;
 import es.codeurjc.infracture.execution.domain.ExecutedComponent;
-import es.codeurjc.infracture.execution.domain.ExecutionPlan.HttpProbe;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Container;
+import es.codeurjc.infracture.execution.domain.ExecutionPlan.Probe;
 import java.net.URI;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 // What one ComponentType adds to the plan: its image, its variables and how its health is checked.
-// The plan compiler adds what every service shares (host name, labels and limits).
+// The plan compiler adds what every service shares (host name, labels, limits and the start order).
 public interface ComponentDriver {
 
     ComponentType type();
@@ -17,10 +18,9 @@ public interface ComponentDriver {
     // The profiles of the type this driver can run. Run refuses a node whose profile is not here.
     Set<String> profiles();
 
-    Service service(ExecutedComponent component);
+    // dependencies is keyed by port name.
+    Service service(ExecutedComponent component, Map<String, Dependency> dependencies);
 
-    // Where the backend asks the running node for its real response, or null
-    // when the type has nothing to ask.
     default URI evidence(String host) {
         return null;
     }
@@ -30,7 +30,16 @@ public interface ComponentDriver {
         return null;
     }
 
-    // command is fixed by the driver, or null to run the image's own.
-    record Service(String image, List<String> command, Map<String, String> environment, HttpProbe health) {
+    default Address address(String host) {
+        return null;
+    }
+
+    record Service(Container container, Map<String, String> environment, Map<String, UUID> secrets, Probe health) {
+    }
+
+    record Address(URI url, String user) {
+    }
+
+    record Dependency(UUID key, Address address) {
     }
 }

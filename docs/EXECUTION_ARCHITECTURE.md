@@ -335,7 +335,7 @@ Se llama *reconciler* y no *controller* porque en el repositorio el sufijo `Cont
 
 ### 9.3 El ExecutionPlan
 
-El plan describe el experimento con conceptos propios, no con los de Compose: un servicio por nodo, identificado por su clave, con su imagen, sus variables, su sonda de salud, la dirección donde el backend pide su respuesta real y sus límites, y la carga con su nodo objetivo. `PlanCompiler` lo construye y se guarda tal cual en `executions.plan`, como evidencia de lo que se ejecutó. Así queda un HTTP Service `STATELESS` con carga `CONSTANT_HTTP` (recortado):
+El plan describe el experimento con conceptos propios, no con los de Compose: un servicio por nodo, identificado por su clave, con su `container` (imagen, comando y usuario fijos, directorios de datos en memoria), su `wiring` (variables, contraseñas que necesita, solo por referencia, y nodos de los que depende), su sonda de salud, la dirección donde el backend pide su respuesta real y sus límites, y la carga con su nodo objetivo. `PlanCompiler` lo construye y se guarda tal cual en `executions.plan`, como evidencia de lo que se ejecutó. Así queda un HTTP Service `STATELESS` con carga `CONSTANT_HTTP` (recortado):
 
 ```json
 {
@@ -344,10 +344,13 @@ El plan describe el experimento con conceptos propios, no con los de Compose: un
   "nodes": [{
     "key": "3f0c8a1e-…",
     "host": "c-3f0c8a1e-…",
-    "image": "infracture/demo-app:0.1.0",
-    "command": null,
-    "environment": { "APP_ROLE": "http", "APP_MODE": "STATELESS", "COMPONENT_NAME": "orders-api" },
-    "health": { "port": 8080, "path": "/health", "intervalSeconds": 2, "timeoutSeconds": 2, "retries": 15, "startPeriodSeconds": 60 },
+    "container": { "image": "infracture/demo-app:0.1.0", "command": null, "user": null, "storage": [] },
+    "wiring": {
+      "environment": { "APP_ROLE": "http", "APP_MODE": "STATELESS", "COMPONENT_NAME": "orders-api" },
+      "secrets": {},
+      "dependencies": []
+    },
+    "health": { "type": "http", "port": 8080, "path": "/health", "intervalSeconds": 2, "timeoutSeconds": 2, "retries": 15, "startPeriodSeconds": 60 },
     "evidence": "http://c-3f0c8a1e-…:8080/",
     "limits": { "cpus": 0.5, "memoryBytes": 402653184, "pids": 200 }
   }],
@@ -360,45 +363,46 @@ El plan describe el experimento con conceptos propios, no con los de Compose: un
 }
 ```
 
-Solo `ComposeRuntimeEngine` convierte el plan en un fichero Compose, al aplicarlo. Cada nodo pasa a ser un servicio llamado como su `host`, la sonda se escribe como `healthcheck` con `wget`, y la carga es el servicio `workload` con el perfil `load` y `depends_on` de su objetivo. El motor añade además lo que comparten todos los contenedores: la red de la ejecución, las etiquetas, `read_only` con `tmpfs` y sin privilegios ([ADR 0030](adr/0030-contenedores-sin-privilegios.md)). El reconciler, el diario de eventos y el colector de métricas nombran los nodos por su clave y no conocen nombres de servicio de Compose. Con los tipos de P07, el fichero Compose de un `CACHE_ASIDE` quedará así (extracto simplificado):
+Solo `ComposeRuntimeEngine` convierte el plan en un fichero Compose, al aplicarlo. Cada nodo pasa a ser un servicio llamado como su `host`, la sonda se escribe como `healthcheck` (con `wget` si es HTTP, o con el comando de la imagen, como `pg_isready`), cada dependencia es un `depends_on` con `service_healthy`, y la carga es el servicio `workload` con el perfil `load` y `depends_on` de su objetivo. El motor añade además lo que comparten todos los contenedores: la red de la ejecución, las etiquetas, `read_only` con `tmpfs` y sin privilegios ([ADR 0030](adr/0030-contenedores-sin-privilegios.md)). El reconciler, el diario de eventos y el colector de métricas nombran los nodos por su clave y no conocen nombres de servicio de Compose. Así queda un HTTP Service `DATABASE_CRUD` conectado a un PostgreSQL (#97, extracto):
 
 ```yaml
-name: infracture-exec-12
+name: infracture-local-exec-12
 networks:
   exec:
-    labels: { io.infracture.execution: "12" }
+    labels: { io.infracture.instance: local, io.infracture.execution: "12" }
 services:
-  orders-db:
-    image: postgres:18@sha256:…
-    environment:
-      POSTGRES_PASSWORD_FILE: /run/secrets/orders-db   # referencia, no el valor
-    healthcheck: { test: ["CMD", "pg_isready"], interval: 2s, retries: 30 }
-    labels: { io.infracture.execution: "12", io.infracture.component: "orders-db" }
-    deploy: { resources: { limits: { cpus: "0.5", memory: 256M } } }
-  cache:
-    image: redis:8@sha256:…
-    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 2s, retries: 30 }
-    labels: { io.infracture.execution: "12", io.infracture.component: "cache" }
-  orders-api:
-    image: infracture/demo-app:0.1.0@sha256:…
+  c-3f0c8a1e-…:                       # orders-api
+    image: infracture/demo-app:0.1.0
     environment:
       APP_ROLE: http
-      APP_MODE: CACHE_ASIDE
-      CACHE_URL: redis://cache:6379
-      DATABASE_URL: postgresql://orders-db:5432/app
-      RESPONSE_DELAY_MS: "0"
+      APP_MODE: DATABASE_CRUD
+      COMPONENT_NAME: orders-api
+      DATABASE_URL: postgresql://c-7c2e4a6b-…:5432/app
+      DATABASE_USER: app
+      DATABASE_PASSWORD: ${INFRACTURE_SECRET_7c2e4a6b…}   # referencia, no el valor
     depends_on:
-      orders-db: { condition: service_healthy }
-      cache: { condition: service_healthy }
-    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"] }
-    labels: { io.infracture.execution: "12", io.infracture.component: "orders-api" }
+      c-7c2e4a6b-…: { condition: service_healthy }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"] }
+    read_only: true
+    tmpfs: ["/tmp"]
+  c-7c2e4a6b-…:                       # orders-db
+    image: postgres:18.7-alpine@sha256:…
+    user: "70:70"
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${INFRACTURE_SECRET_7c2e4a6b…}
+    healthcheck: { test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-p", "5432", "-U", "app", "-d", "app"] }
+    read_only: true
+    tmpfs: ["/tmp", "/var/lib/postgresql:uid=70,gid=70,mode=0700", "/var/run/postgresql:uid=70,gid=70,mode=0700"]
 ```
 
 - **Todo lo genera Infracture.** El usuario no escribe imágenes, puertos, comandos, montajes ni variables. Un driver puede fijar el comando de su imagen, siempre el mismo ([ADR 0030](adr/0030-contenedores-sin-privilegios.md)). Nombres de contenedor, alias de red, credenciales temporales, comprobaciones de salud y etiquetas salen del contrato y del driver de cada tipo.
 - **Direcciones por variable.** Cada servicio recibe la dirección de sus dependencias por variable de entorno, como `CACHE_URL`. En el futuro se podrá interponer un proxy de fallos sin tocar las imágenes ([sección 15](#15-evolución-fuera-de-la-fase-3)).
 - **Una imagen para servicio y Worker.** `infracture/demo-app` es un único programa. `APP_ROLE=http|worker` elige el papel y `APP_MODE` el perfil. Hay un solo build y un solo digest por release.
-- **Imágenes fijadas por digest.** Cada imagen se referencia por su digest, y el snapshot lo guarda. Así se sabe exactamente qué se ejecutó.
-- **Secretos fuera del plan guardado.** El plan que se guarda solo contiene referencias. Las contraseñas temporales se generan al aplicarlo y nunca se guardan ni se muestran.
+- **Imágenes fijadas por digest.** Las imágenes oficiales se referencian por su digest (`infracture.execution.postgresql-image`), y el plan guardado lo conserva. Así se sabe exactamente qué se ejecutó.
+- **Secretos fuera del plan guardado.** El plan guarda, para cada variable con contraseña, la clave del nodo dueño de esa contraseña (`secrets`). `ExecutionCredentials` deriva el valor con HMAC-SHA256 a partir de una clave aleatoria que solo vive en la memoria del backend, el proyecto de la ejecución y la clave del nodo. El motor lo pasa en el entorno del proceso `docker compose`, que lo sustituye en `${INFRACTURE_SECRET_…}`. No se usan los `secrets` de Compose porque Compose los copia con la API `archive`, que docker-proxy prohíbe. La contraseña nunca se guarda, y `LogRedactor` la borra de los logs. Un reinicio del backend crea otra clave, pero también interrumpe la ejecución abierta, y limpiar no necesita contraseñas.
+- **Datos en memoria, sin volúmenes.** Un driver puede fijar el usuario de su imagen y unos directorios de datos, que el motor monta como `tmpfs` de ese usuario. Ocupan memoria del contenedor, dentro de su límite, y desaparecen con él, así que el plan nunca lleva `volumes` ([ADR 0030](adr/0030-contenedores-sin-privilegios.md)).
 - **El texto del plan es literal.** Compose sustituye `${NOMBRE}` por variables de entorno de quien lo lanza, y el backend tiene ahí sus contraseñas. El plan incluye texto del usuario, como el nombre de un nodo, así que el motor escribe cada `$` como `$$` al pasarlo a Compose: un nodo llamado `${POSTGRES_PASSWORD}` recibe ese texto, no el valor. Las demás restricciones de cada contenedor están en el [ADR 0030](adr/0030-contenedores-sin-privilegios.md).
 
 ### 9.4 Arranque ordenado por salud
@@ -675,7 +679,7 @@ Así lo hace hoy el motor (#86):
 
 - **Estado de cada nodo.** Mientras la ejecución está en `RUNNING`, cada vuelta del `ExecutionReconciler` lee `docker compose ps` y guarda para cada nodo `STARTING`, `HEALTHY`, `UNHEALTHY` o `EXITED`. La API lo devuelve en `components[]`.
 - **Arrancar no es funcionar.** Si un nodo pasa a `UNHEALTHY` o desaparece estando en marcha, se registra `FAILURE` con su nombre (`orders-api is unhealthy`) y se limpia como cualquier otro fallo.
-- **Respuesta real.** Al llegar a `RUNNING`, el backend se une a la red `exec` y pide `GET /` a cada HTTP Service. Guarda la respuesta como evidencia. Solo funciona con el backend en contenedor; arrancado desde la máquina, la respuesta queda vacía.
+- **Respuesta real.** Al llegar a `RUNNING`, el backend se une a la red `exec` y pide `GET /` a cada HTTP Service. Guarda la respuesta como evidencia. Un `DATABASE_CRUD` responde además con el número de ítems que lee de su PostgreSQL, y su `/health` incluye la conexión: si la base de datos cae, el servicio pasa a `UNHEALTHY` aunque su proceso siga vivo. Solo funciona con el backend en contenedor; arrancado desde la máquina, la respuesta queda vacía.
 - **Tiempo límite.** A los 30 minutos desde `RUNNING`, la ejecución termina con la causa `TIME_LIMIT` ([sección 10.4](#104-tiempo-límite-y-esperas)).
 - **Guardado como eventos.** Desde #92, estado y respuesta se guardan como `ExecutionEvent` ([sección 11.3](#113-muestras-eventos-y-sse)). Sobreviven a un reinicio del backend y cualquier proceso del backend los puede servir.
 
@@ -688,7 +692,7 @@ Cada `ComponentDriver` declarará sus métricas y de dónde se leen, y un único
 | Todos | — | CPU (% de un núcleo) y memoria (bytes) | `docker stats --no-stream`, cada 5 s con la ejecución en `RUNNING`. |
 | HTTP Service | `GET /health` | Peticiones, errores, latencia, `cache_hits`, `cache_misses`, `database_queries`, tareas publicadas | Endpoint `/metrics` (formato Prometheus) de la imagen de demostración. |
 | Worker | Señal de salud de la imagen | Tareas procesadas, fallidas y reintentadas; tiempo de proceso | `/metrics` de la imagen de demostración. |
-| PostgreSQL | `pg_isready` | Conexiones activas | Docker y consulta de estado. |
+| PostgreSQL | `pg_isready` por TCP (#97) | Las cuenta el servicio que la usa (`database_queries`) | `/metrics` del HTTP Service que la usa. |
 | Redis | `redis-cli ping` | Memoria y claves | Comando `INFO`. |
 | RabbitMQ | Diagnóstico del broker | Mensajes preparados, sin confirmar, publicados y consumidos | API de gestión de RabbitMQ. |
 | Workload (k6) | Progreso de k6 | Peticiones, errores, latencia media y p95, rendimiento | Resultados agregados de k6. Hoy, solo el resumen final ([sección 7.3](#73-cómo-se-genera)); por intervalos en P08. |
@@ -810,7 +814,7 @@ El backend es un monolito modular ([ADR 0018](adr/0018-monolito-modular-con-spri
 | `Connection`, puertos y capacidades | `project`, `catalog` | Implementado (#80). |
 | `ScenarioValidator`, `ValidationIssue` | `project` | Implementado (#81). |
 | `Workload`, `WorkloadContract`, `ExecutedWorkload` | `project`, `catalog`, `execution` | Implementado para `CONSTANT_HTTP` (#87), con su panel en el lienzo y `GET /api/v1/workload-profiles`. Cada perfil es un bean que registra `ContractCatalog`. Los otros tres perfiles, pendientes. |
-| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86). Cada driver declara sus perfiles y `Run` pregunta al compilador. El resto de tipos, en P07. |
+| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86) y `DATABASE_CRUD` con PostgreSQL temporal (#97). Cada driver declara sus perfiles y `Run` pregunta al compilador. El resto de tipos, en P07. |
 | Eventos, logs y SSE: `ExecutionEvent`, `ExecutionJournal`, `ExecutionEventStream` | `execution` | Implementado (#92). |
 | CPU y memoria: `TelemetryCollector`, `MetricSample`, `ExecutionMetricsService` | `execution` | Implementado (#93). |
 | Contadores de cada tipo e historial | `observation` | Pendiente (P07 y P08). |

@@ -1,22 +1,22 @@
 package es.codeurjc.infracture.execution.domain;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.net.URI;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 // What one execution runs, in Infracture's own terms: a service per node and, optionally, the load. The plan
 // compiler builds it from the snapshot and the runtime engine is the only place that turns it into Compose.
 // It is stored as evidence of what ran, so it never holds secrets.
 public record ExecutionPlan(
-        // Names every runtime resource of the execution, so two instances sharing one Docker stay apart.
         String project,
-        // Every resource of the execution carries them; cleanup removes what carries all of them.
         Map<String, String> labels,
         List<Node> nodes,
-        // Null when the scenario has no load.
         Load load) {
 
     public ExecutionPlan {
@@ -24,7 +24,6 @@ public record ExecutionPlan(
         nodes = List.copyOf(nodes);
     }
 
-    // Keeps the order the compiler wrote, so the same snapshot always renders the same text.
     private static Map<String, String> ordered(Map<String, String> map) {
         return Collections.unmodifiableMap(new LinkedHashMap<>(map));
     }
@@ -39,31 +38,79 @@ public record ExecutionPlan(
             UUID key,
             // The name the node answers to on the execution network.
             String host,
-            String image,
-            // Fixed by the driver, never typed by the user (ADR 0030); null runs the image's own command.
-            List<String> command,
-            Map<String, String> environment,
-            HttpProbe health,
+            Container container,
+            Wiring wiring,
+            Probe health,
             // Where the backend asks the running node for its real response, or null when there is nothing to ask.
             URI evidence,
             Limits limits) {
 
         public Node {
-            command = command == null ? null : List.copyOf(command);
-            environment = ordered(environment);
+            Objects.requireNonNull(container, "container");
+            Objects.requireNonNull(wiring, "wiring");
         }
+    }
+
+    public record Container(
+            String image,
+            List<String> command,
+            RunAs user,
+            List<String> storage) {
+
+        public Container {
+            command = command == null ? null : List.copyOf(command);
+            storage = List.copyOf(storage);
+            if (!storage.isEmpty() && user == null) {
+                throw new IllegalArgumentException("Storage needs a fixed user to own it");
+            }
+        }
+    }
+
+    public record Wiring(
+            Map<String, String> environment,
+            Map<String, UUID> secrets,
+            List<UUID> dependencies) {
+
+        public Wiring {
+            environment = ordered(environment);
+            secrets = Collections.unmodifiableMap(new LinkedHashMap<>(secrets));
+            dependencies = List.copyOf(dependencies);
+        }
+    }
+
+    public record RunAs(int uid, int gid) {
+    }
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+    @JsonSubTypes({ @JsonSubTypes.Type(value = HttpProbe.class, name = "http"),
+            @JsonSubTypes.Type(value = CommandProbe.class, name = "command") })
+    public sealed interface Probe permits HttpProbe, CommandProbe {
+
+        int intervalSeconds();
+
+        int timeoutSeconds();
+
+        int retries();
+
+        int startPeriodSeconds();
     }
 
     // The service is healthy once GET http://127.0.0.1:port path answers inside its own container.
     public record HttpProbe(int port, String path, int intervalSeconds, int timeoutSeconds, int retries,
-            int startPeriodSeconds) {
+            int startPeriodSeconds) implements Probe {
     }
 
-    // What one service may consume. CPU in cores, so 0.5 is half a core.
+    public record CommandProbe(List<String> command, int intervalSeconds, int timeoutSeconds, int retries,
+            int startPeriodSeconds) implements Probe {
+
+        public CommandProbe {
+            command = List.copyOf(command);
+        }
+    }
+
     public record Limits(double cpus, long memoryBytes, int pids) {
     }
 
-    // The load generator. It starts only once every node is healthy, and only after its target.
     public record Load(String image, List<String> command, Map<String, String> environment, UUID target,
             Limits limits) {
 

@@ -3,8 +3,11 @@ package es.codeurjc.infracture.execution.api;
 import static es.codeurjc.infracture.shared.api.ProblemResponses.problem;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
@@ -77,6 +80,7 @@ class ExecutionApiSystemTests {
     static final UUID ORDERS_KEY = UUID.fromString(ORDERS);
     static final RuntimeStatus ORDERS_HEALTHY = new RuntimeStatus(Map.of(ORDERS_KEY, ComponentStatus.HEALTHY), null);
     private static final String CACHE = "0b9c8d7e-6f5a-4b3c-8d2e-1f0a9b8c7d6e";
+    private static final String DATABASE = "7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a";
     static final String ANOTHER_RUNNING = "Another experiment is running. Run this scenario when it ends.";
 
     @Container
@@ -125,8 +129,8 @@ class ExecutionApiSystemTests {
                 .body("stopCause", nullValue())
                 .body("outcome", nullValue())
                 .body("plan.nodes[0].key", equalTo(ORDERS))
-                .body("plan.nodes[0].image", equalTo("infracture/demo-app:0.1.0"))
-                .body("plan.nodes[0].environment.COMPONENT_NAME", equalTo("orders-api"))
+                .body("plan.nodes[0].container.image", equalTo("infracture/demo-app:0.1.0"))
+                .body("plan.nodes[0].wiring.environment.COMPONENT_NAME", equalTo("orders-api"))
                 .extract().jsonPath().getLong("id");
 
         alice.read().get(scenario + "/executions/current").then().statusCode(200)
@@ -461,6 +465,31 @@ class ExecutionApiSystemTests {
     }
 
     @Test
+    void runsADatabaseCrudServiceOnlyWithItsTemporaryPostgresql() {
+        ApiSession alice = ApiSession.signUp(port);
+        String alone = createScenario(alice);
+        alice.write().body(graph(1, http(ORDERS, "DATABASE_CRUD"), "")).put(alone + "/graph").then()
+                .statusCode(200);
+        String withDatabase = createScenario(alice);
+        alice.write().body(graph(1, http(ORDERS, "DATABASE_CRUD") + "," + postgresql(DATABASE),
+                connection(ORDERS, "database", DATABASE))).put(withDatabase + "/graph").then().statusCode(200);
+
+        alice.write().body(run(2)).post(alone + "/executions").then().statusCode(422)
+                .body("issues[0].code", equalTo("MISSING_CONNECTION"))
+                .body("issues[0].field", equalTo("database"));
+        alice.write().body(run(2)).post(withDatabase + "/executions").then().statusCode(202)
+                .body("plan.nodes.key", contains(ORDERS, DATABASE))
+                .body("plan.nodes[0].wiring.dependencies", contains(DATABASE))
+                .body("plan.nodes[0].wiring.environment.DATABASE_URL",
+                        equalTo("postgresql://c-" + DATABASE + ":5432/app"))
+                .body("plan.nodes[0].wiring.secrets.DATABASE_PASSWORD", equalTo(DATABASE))
+                .body("plan.nodes[1].container.image", startsWith("postgres:18.7-alpine@sha256:"))
+                .body("plan.nodes[1].container.storage", contains("/var/lib/postgresql", "/var/run/postgresql"))
+                .body("plan.nodes[1].wiring.secrets.POSTGRES_PASSWORD", equalTo(DATABASE))
+                .body("plan.nodes[1].wiring.environment", not(hasKey("POSTGRES_PASSWORD")));
+    }
+
+    @Test
     void reservesOnlyOneOfSimultaneousRunsFromDifferentUsers() throws Exception {
         int users = 4;
         List<RequestSpecification> requests = new ArrayList<>();
@@ -567,14 +596,34 @@ class ExecutionApiSystemTests {
     }
 
     private static String graph(int revision, String component) {
-        return "{\"revision\":" + revision + ",\"components\":[" + component + "],\"connections\":[]}";
+        return graph(revision, component, "");
+    }
+
+    private static String graph(int revision, String components, String connections) {
+        return "{\"revision\":" + revision + ",\"components\":[" + components + "],\"connections\":[" + connections
+                + "]}";
     }
 
     private static String http(String key) {
+        return http(key, "STATELESS");
+    }
+
+    private static String http(String key, String profile) {
         return """
                 {"key":"%s","templateKey":"http-service","name":"orders-api","position":{"x":0,"y":0},
-                 "profile":"STATELESS","parameters":{"responseDelayMs":0}}
+                 "profile":"%s","parameters":{"responseDelayMs":0}}
+                """.formatted(key, profile);
+    }
+
+    private static String postgresql(String key) {
+        return """
+                {"key":"%s","templateKey":"postgresql","name":"orders-db","position":{"x":0,"y":0},
+                 "profile":"DEFAULT","parameters":{}}
                 """.formatted(key);
+    }
+
+    private static String connection(String source, String port, String target) {
+        return "{\"sourceKey\":\"%s\",\"port\":\"%s\",\"targetKey\":\"%s\"}".formatted(source, port, target);
     }
 
     private static String redis(String key) {

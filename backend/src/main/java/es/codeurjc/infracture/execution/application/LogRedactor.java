@@ -1,14 +1,15 @@
 package es.codeurjc.infracture.execution.application;
 
+import es.codeurjc.infracture.execution.domain.ExecutionPlan;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// Cleans a log line before it is stored or shown (#92). The backend's own secrets are replaced wherever they
-// appear, and so are the values that usually follow a secret's name, bearer tokens and JWTs. Then the line is
-// cut to a bounded length.
+// Cleans a log line before it is stored or shown. The backend's own secrets and the temporary passwords
+// of the execution's nodes are replaced wherever they appear, and so are the values that usually follow a
+// secret's name, bearer tokens and JWTs. Then the line is cut to a bounded length.
 @Component
 class LogRedactor {
 
@@ -22,9 +23,11 @@ class LogRedactor {
     private static final Pattern JWT = Pattern.compile("\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+");
 
     private final List<String> secrets = new ArrayList<>();
+    private final ExecutionCredentials credentials;
 
-    LogRedactor(@Value("${spring.datasource.password:}") String databasePassword,
+    LogRedactor(ExecutionCredentials credentials, @Value("${spring.datasource.password:}") String databasePassword,
             @Value("${infracture.admin.password:}") String adminPassword) {
+        this.credentials = credentials;
         for (String secret : List.of(databasePassword, adminPassword)) {
             if (secret.length() >= MIN_SECRET_LENGTH) {
                 secrets.add(secret);
@@ -32,10 +35,13 @@ class LogRedactor {
         }
     }
 
-    String clean(String line) {
+    String clean(String line, ExecutionPlan plan) {
         String clean = line;
         for (String secret : secrets) {
             clean = clean.replace(secret, REDACTED);
+        }
+        for (String password : credentials.environment(plan).values()) {
+            clean = clean.replace(password, REDACTED);
         }
         clean = NAMED_SECRET.matcher(clean).replaceAll("$1$2" + REDACTED);
         clean = BEARER.matcher(clean).replaceAll("$1" + REDACTED);
