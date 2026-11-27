@@ -20,12 +20,12 @@ class PostgresqlDriver implements ComponentDriver {
     private static final int PORT = 5432;
     private static final String DATABASE = "app";
     private static final RunAs POSTGRES = new RunAs(70, 70);
-    private static final String IMAGE =
+    private static final String DEFAULT_IMAGE =
             "postgres:18.7-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71";
 
     private final String image;
 
-    PostgresqlDriver(@Value("${infracture.execution.postgresql-image:" + IMAGE + "}") String image) {
+    PostgresqlDriver(@Value("${infracture.execution.postgresql-image:" + DEFAULT_IMAGE + "}") String image) {
         this.image = image;
     }
 

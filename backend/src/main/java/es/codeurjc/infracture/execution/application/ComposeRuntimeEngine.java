@@ -416,7 +416,7 @@ class ComposeRuntimeEngine implements RuntimeEngine {
     // Only a node's password is a real ${NAME}, which Compose fills from what this process passes it.
     private static Object literal(Object value) {
         return switch (value) {
-            case Secret secret -> "${" + ExecutionCredentials.variable(secret.owner()) + "}";
+            case Secret(UUID owner) -> "${" + ExecutionCredentials.variable(owner) + "}";
             case String text -> text.replace("$", "$$");
             case Map<?, ?> map -> {
                 Map<Object, Object> copy = new LinkedHashMap<>();

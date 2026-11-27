@@ -84,7 +84,8 @@ public class PlanCompiler {
         for (ExecutedComponent component : execution.getComponents()) {
             nodes.add(node(execution, component));
         }
-        Load load = execution.getWorkload() == null ? null : load(execution);
+        ExecutedWorkload workload = execution.getWorkload();
+        Load load = workload == null ? null : load(execution, workload);
         return new ExecutionPlan(projectName(execution.getId()), labels(execution.getId()), nodes, load);
     }
 
@@ -116,8 +117,7 @@ public class PlanCompiler {
     }
 
     // k6 with the fixed script of the profile
-    private Load load(Execution execution) {
-        ExecutedWorkload workload = execution.getWorkload();
+    private Load load(Execution execution, ExecutedWorkload workload) {
         ExecutedComponent target = component(execution, workload.getTargetKey());
         ComponentDriver driver = drivers.get(target.getType());
         URI url = driver == null ? null : driver.httpUrl(host(target));
