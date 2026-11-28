@@ -19,7 +19,7 @@ Las herramientas se cerraron al terminar la Fase 1 (entrada AI-2026-08-07-009 de
 | Integración de persistencia (`*IntegrationTests`, `*RepositoryTests`) | Spring Boot Test, Flyway, Testcontainers | PostgreSQL real y desechable, con las migraciones reales. |
 | Sistema de API (`*SystemTests`) | Spring Boot en un puerto aleatorio, REST Assured, Testcontainers | Peticiones HTTP reales con cookies y CSRF. |
 | Unitarias y de rutas del cliente | Vitest, Testing Library, jsdom | Solo se simula `fetch`. Las rutas se montan con su `clientLoader` en un router en memoria. |
-| Integración cliente-servidor | Vitest contra el backend real ([`test-client-server-integration.sh`](../../scripts/test-client-server-integration.sh)) | Nada: el cliente HTTP real habla con Spring y con PostgreSQL de Testcontainers. |
+| Integración cliente-servidor | Vitest contra el backend real ([`test-client-server-integration.sh`](../../scripts/test-client-server-integration.sh)) | El cliente HTTP real habla con Spring y con PostgreSQL de Testcontainers; Docker se sustituye por un `RuntimeEngine` que espera a `Stop`. |
 | Sistema en navegador | Playwright con Chromium | La SPA real contra el backend real. Para los experimentos, toda la plataforma en contenedores con Docker real ([`test-execution-stack.sh`](../../scripts/test-execution-stack.sh)). |
 
 - **Cobertura por separado.** JaCoCo exige el 70 % de líneas al backend en `./mvnw verify`, y Vitest exige el 70 % al frontend en `npm run test:coverage`. Uno no compensa al otro.

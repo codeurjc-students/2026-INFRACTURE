@@ -15,8 +15,8 @@ import { clientAction as registerAction } from "~/routes/register";
 import { clientLoader as scenarioLoader } from "~/routes/scenario";
 import { HttpError } from "~/shared/api/api-fetch";
 
-// The real backend runs the experiment with the real Docker engine, so the test always ends with
-// a released execution: the instance admits one execution at a time and the containers must go.
+// The integration-test profile uses a RuntimeEngine that waits for Stop instead of starting Docker,
+// so the test still ends with a released execution: the instance admits one execution at a time.
 const nodeFetch = globalThis.fetch;
 const cookies = new Map<string, string>();
 const suffix = Date.now().toString(36);
@@ -197,7 +197,7 @@ describe("execution client against the real API", () => {
     expect(edit).toBeInstanceOf(HttpError);
     expect(edit).toMatchObject({ status: 409 });
 
-    // This job has no demo image, so no node reaches RUNNING: the series is real but empty.
+    // The test engine waits for Stop and never starts nodes, so the series is real but empty.
     await expect(
       getExecutionMetrics(projectId, scenarioId, current.id),
     ).resolves.toMatchObject({
