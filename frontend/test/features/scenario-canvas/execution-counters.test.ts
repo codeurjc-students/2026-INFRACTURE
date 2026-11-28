@@ -87,6 +87,57 @@ describe("execution counters", () => {
     expect(counterReadings(component([]), [sample(1, 0, { requests: 1 })])).toEqual([]);
   });
 
+  it("orders and labels downstream HTTP counters", () => {
+    const readings = counterReadings(
+      component([
+        "downstream_timeouts",
+        "errors",
+        "downstream_calls",
+        "requests",
+        "downstream_failures",
+      ]),
+      [
+        sample(1, 0, {
+          requests: 10,
+          errors: 2,
+          downstream_calls: 10,
+          downstream_failures: 1,
+          downstream_timeouts: 1,
+        }),
+        sample(2, 5, {
+          requests: 20,
+          errors: 3,
+          downstream_calls: 20,
+          downstream_failures: 2,
+          downstream_timeouts: 1,
+        }),
+      ],
+    );
+
+    expect(readings).toEqual([
+      { name: "requests", label: "Requests", total: 20, ratePerSecond: 2 },
+      { name: "errors", label: "Errors", total: 3, ratePerSecond: 0.2 },
+      {
+        name: "downstream_calls",
+        label: "Downstream calls",
+        total: 20,
+        ratePerSecond: 2,
+      },
+      {
+        name: "downstream_failures",
+        label: "Downstream failures",
+        total: 2,
+        ratePerSecond: 0.2,
+      },
+      {
+        name: "downstream_timeouts",
+        label: "Downstream timeouts",
+        total: 1,
+        ratePerSecond: 0,
+      },
+    ]);
+  });
+
   it("humanizes future counter names", () => {
     expect(counterLabel("cache_hits")).toBe("Cache hits");
   });

@@ -81,6 +81,7 @@ class ExecutionApiSystemTests {
     static final RuntimeStatus ORDERS_HEALTHY = new RuntimeStatus(Map.of(ORDERS_KEY, ComponentStatus.HEALTHY), null);
     private static final String CACHE = "0b9c8d7e-6f5a-4b3c-8d2e-1f0a9b8c7d6e";
     private static final String DATABASE = "7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a";
+    private static final String GATEWAY = "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
     static final String ANOTHER_RUNNING = "Another experiment is running. Run this scenario when it ends.";
 
     @Container
@@ -490,6 +491,72 @@ class ExecutionApiSystemTests {
     }
 
     @Test
+    void runsADownstreamHttpChainAndRejectsCyclesSelfCallsAndExternalTargets() {
+        ApiSession alice = ApiSession.signUp(port);
+        String chain = createScenario(alice);
+        alice.write().body("""
+                {"revision":1,"components":[%s,%s],
+                 "connections":[%s],
+                 "workload":{"targetKey":"%s","profile":"CONSTANT_HTTP",
+                  "parameters":{"requestsPerSecond":5,"virtualUsers":2,"durationSeconds":30},"seed":7}}
+                """.formatted(http(GATEWAY, "gateway-api", "DOWNSTREAM_HTTP"), http(ORDERS, "orders-api", "STATELESS"),
+                connection(GATEWAY, "downstream", ORDERS), GATEWAY))
+                .put(chain + "/graph").then().statusCode(200);
+
+        // External reference (target not in scenario) is rejected on save.
+        alice.write().body(graph(2, http(GATEWAY, "gateway-api", "DOWNSTREAM_HTTP"),
+                connection(GATEWAY, "downstream", CACHE)))
+                .put(chain + "/graph").then().statusCode(400);
+
+        // Cycle saves as a coherent draft with a located DEPENDENCY_CYCLE issue and blocks Run.
+        String cycle = createScenario(alice);
+        alice.write().body(graph(1,
+                http(GATEWAY, "gateway-api", "DOWNSTREAM_HTTP") + "," + http(ORDERS, "orders-api", "DOWNSTREAM_HTTP"),
+                connection(GATEWAY, "downstream", ORDERS) + "," + connection(ORDERS, "downstream", GATEWAY)))
+                .put(cycle + "/graph").then().statusCode(200)
+                .body("issues[0].code", equalTo("DEPENDENCY_CYCLE"));
+        alice.write().body(run(2)).post(cycle + "/executions").then().statusCode(422)
+                .body("issues[0].code", equalTo("DEPENDENCY_CYCLE"));
+
+        // Self-call also blocks Run without creating an execution.
+        String selfCall = createScenario(alice);
+        alice.write().body(graph(1, http(GATEWAY, "gateway-api", "DOWNSTREAM_HTTP"),
+                connection(GATEWAY, "downstream", GATEWAY)))
+                .put(selfCall + "/graph").then().statusCode(200);
+        alice.write().body(run(2)).post(selfCall + "/executions").then().statusCode(422)
+                .body("issues[0].code", equalTo("DEPENDENCY_CYCLE"));
+        assertThat(executions.count()).isZero();
+
+        // Valid chain runs with DOWNSTREAM_URL/NAME/KEY, downstream counters and load aimed at the head.
+        long id = alice.write().body(run(2)).post(chain + "/executions").then().statusCode(202)
+                .body("plan.nodes.key", contains(GATEWAY, ORDERS))
+                .body("plan.nodes[0].wiring.dependencies", contains(ORDERS))
+                .body("plan.nodes[0].wiring.environment.DOWNSTREAM_URL",
+                        equalTo("http://c-" + ORDERS + ":8080/"))
+                .body("plan.nodes[0].wiring.environment.DOWNSTREAM_NAME", equalTo("orders-api"))
+                .body("plan.nodes[0].wiring.environment.DOWNSTREAM_KEY", equalTo(ORDERS))
+                .body("plan.nodes[0].counters.series.downstream_calls", equalTo("infracture_downstream_calls_total"))
+                .body("plan.nodes[0].counters.series.downstream_failures",
+                        equalTo("infracture_downstream_failures_total"))
+                .body("plan.nodes[0].counters.series.downstream_timeouts",
+                        equalTo("infracture_downstream_timeouts_total"))
+                .body("plan.load.target", equalTo(GATEWAY))
+                .extract().jsonPath().getLong("id");
+
+        // Stop, release and rename the target in the canvas: the snapshot preserves original names and wiring.
+        when(engine.stopLoad(any())).thenReturn(new LoadReport(null, null));
+        alice.write().post(chain + "/executions/" + id + "/stop").then().statusCode(202);
+        reconciler.reconcile();
+        alice.write().body(graph(2,
+                http(GATEWAY, "gateway-v2", "DOWNSTREAM_HTTP") + "," + http(ORDERS, "orders-v2", "STATELESS"),
+                connection(GATEWAY, "downstream", ORDERS)))
+                .put(chain + "/graph").then().statusCode(200);
+        alice.read().get(chain + "/executions/current").then().statusCode(200)
+                .body("components.name", contains("gateway-api", "orders-api"))
+                .body("plan.nodes[0].wiring.environment.DOWNSTREAM_NAME", equalTo("orders-api"));
+    }
+
+    @Test
     void reservesOnlyOneOfSimultaneousRunsFromDifferentUsers() throws Exception {
         int users = 4;
         List<RequestSpecification> requests = new ArrayList<>();
@@ -609,10 +676,14 @@ class ExecutionApiSystemTests {
     }
 
     private static String http(String key, String profile) {
+        return http(key, "orders-api", profile);
+    }
+
+    private static String http(String key, String name, String profile) {
         return """
-                {"key":"%s","templateKey":"http-service","name":"orders-api","position":{"x":0,"y":0},
+                {"key":"%s","templateKey":"http-service","name":"%s","position":{"x":0,"y":0},
                  "profile":"%s","parameters":{"responseDelayMs":0}}
-                """.formatted(key, profile);
+                """.formatted(key, name, profile);
     }
 
     private static String postgresql(String key) {

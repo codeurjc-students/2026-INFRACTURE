@@ -7,9 +7,19 @@ const LABELS: Record<string, string> = {
   requests: "Requests",
   errors: "Errors",
   database_queries: "Database queries",
+  downstream_calls: "Downstream calls",
+  downstream_failures: "Downstream failures",
+  downstream_timeouts: "Downstream timeouts",
 };
 
-const ORDER = ["requests", "errors", "database_queries"];
+const ORDER = [
+  "requests",
+  "errors",
+  "database_queries",
+  "downstream_calls",
+  "downstream_failures",
+  "downstream_timeouts",
+];
 
 const totalFormat = new Intl.NumberFormat("en", { maximumFractionDigits: 2 });
 const rateFormat = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });

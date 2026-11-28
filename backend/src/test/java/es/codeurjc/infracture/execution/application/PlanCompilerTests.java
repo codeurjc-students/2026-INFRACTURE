@@ -32,6 +32,8 @@ class PlanCompilerTests {
     private static final UUID ORDERS = UUID.fromString("3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10");
     static final UUID STOCK = UUID.fromString("5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d");
     static final UUID DATABASE = UUID.fromString("7c2e4a6b-8d0f-4b1c-9e3a-5f7b9d1c3e5a");
+    static final UUID GATEWAY = UUID.fromString("1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d");
+    static final UUID EDGE = UUID.fromString("2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e");
     static final String POSTGRESQL_IMAGE = "postgres:18.7-alpine";
     static final String LOAD_IMAGE = "infracture/load-generator:0.1.0";
     static final Workload LOAD = new Workload(ORDERS, "CONSTANT_HTTP",
@@ -67,6 +69,14 @@ class PlanCompilerTests {
     }
 
     @Test
+    void compilesDownstreamHttpServicesSharingATargetIntoTheReferencePlan() throws Exception {
+        ExecutionPlan plan = compiler.compile(downstreamExecution(12L));
+
+        JSONAssert.assertEquals(reference("execution/downstream-http-plan.json"),
+                JsonMapper.builder().build().writeValueAsString(plan), JSONCompareMode.STRICT);
+    }
+
+    @Test
     void refusesANodeTypeWithoutADriver() {
         PlanCompiler withoutDrivers = new PlanCompiler(List.of(), "local", LOAD_IMAGE);
 
@@ -78,6 +88,7 @@ class PlanCompilerTests {
     void runsOnlyTheProfilesItsDriversDeclare() {
         assertThat(compiler.runs(ComponentType.HTTP_SERVICE, "STATELESS")).isTrue();
         assertThat(compiler.runs(ComponentType.HTTP_SERVICE, "DATABASE_CRUD")).isTrue();
+        assertThat(compiler.runs(ComponentType.HTTP_SERVICE, "DOWNSTREAM_HTTP")).isTrue();
         assertThat(compiler.runs(ComponentType.POSTGRESQL, "DEFAULT")).isTrue();
         assertThat(compiler.runs(ComponentType.HTTP_SERVICE, "CACHE_ASIDE")).isFalse();
         assertThat(compiler.runs(ComponentType.REDIS, "DEFAULT")).isFalse();
@@ -142,6 +153,26 @@ class PlanCompilerTests {
                 null, templates);
         Execution execution = new Execution(scenario,
                 Map.of(ComponentType.HTTP_SERVICE, 1, ComponentType.POSTGRESQL, 1));
+        ReflectionTestUtils.setField(execution, "id", id);
+        return execution;
+    }
+
+    // gateway-api and edge-api, both DOWNSTREAM_HTTP, sharing one orders-api target without duplicating it.
+    static Execution downstreamExecution(Long id) {
+        ComponentTemplate http = new ComponentTemplate("http-service", "HTTP Service", ComponentType.HTTP_SERVICE,
+                true, new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)));
+        Scenario scenario = new Scenario(new Project(
+                new User("alice", "hash", "alice@example.com", "Alice", UserRole.USER), "Lab", null), "Run", null);
+        scenario.replaceGraph(1, List.of(
+                new ComponentDraft(GATEWAY, "http-service", "gateway-api", 0, 0,
+                        new ComponentConfiguration("DOWNSTREAM_HTTP", Map.of("responseDelayMs", 10))),
+                new ComponentDraft(EDGE, "http-service", "edge-api", 0, 0,
+                        new ComponentConfiguration("DOWNSTREAM_HTTP", Map.of("responseDelayMs", 0))),
+                new ComponentDraft(ORDERS, "http-service", "orders-api", 0, 0,
+                        new ComponentConfiguration("STATELESS", Map.of("responseDelayMs", 0)))),
+                List.of(new Connection(GATEWAY, "downstream", ORDERS), new Connection(EDGE, "downstream", ORDERS)),
+                null, Map.of("http-service", http));
+        Execution execution = new Execution(scenario, Map.of(ComponentType.HTTP_SERVICE, 1));
         ReflectionTestUtils.setField(execution, "id", id);
         return execution;
     }

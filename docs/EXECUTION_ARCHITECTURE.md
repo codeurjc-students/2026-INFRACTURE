@@ -685,12 +685,12 @@ Así lo hace hoy el motor (#86):
 
 ### 11.2 Qué mide cada tipo
 
-Cada `ComponentDriver` declara su endpoint Prometheus y las series que lee (`ExecutionPlan.Counters`), y un único `TelemetryCollector` las recoge con el mismo bucle cada 5 s junto a la CPU y la memoria (#93, #97). El HTTP Service publica `requests`, `errors` y, en `DATABASE_CRUD`, `database_queries` en `/metrics`; PostgreSQL no tiene endpoint propio y su evidencia es `database_queries` contado por el servicio que lo usa. El resto de tipos añadirán sus fuentes con sus issues.
+Cada `ComponentDriver` declara su endpoint Prometheus y las series que lee (`ExecutionPlan.Counters`), y un único `TelemetryCollector` las recoge con el mismo bucle cada 5 s junto a la CPU y la memoria (#93, #97). El HTTP Service publica `requests`, `errors`, `database_queries` en `DATABASE_CRUD`, y `downstream_calls`, `downstream_failures` y `downstream_timeouts` en `DOWNSTREAM_HTTP` (#106) en `/metrics`; PostgreSQL no tiene endpoint propio y su evidencia es `database_queries` contado por el servicio que lo usa. El resto de tipos añadirán sus fuentes con sus issues.
 
 | Tipo | Salud | Métricas propias | Fuente |
 | --- | --- | --- | --- |
 | Todos | — | CPU (% de un núcleo) y memoria (bytes) | `docker stats --no-stream`, cada 5 s con la ejecución en `RUNNING`. |
-| HTTP Service | `GET /health` | `requests`, `errors` y, en `DATABASE_CRUD`, `database_queries` (#97); latencia, caché y tareas llegarán con sus perfiles | Endpoint `/metrics` (formato Prometheus) de la imagen de demostración. |
+| HTTP Service | `GET /health` | `requests`, `errors`, `database_queries` (#97), `downstream_calls`, `downstream_failures`, `downstream_timeouts` (#106); caché y tareas llegarán con sus perfiles | Endpoint `/metrics` (formato Prometheus) de la imagen de demostración. |
 | Worker | Señal de salud de la imagen | Tareas procesadas, fallidas y reintentadas; tiempo de proceso | `/metrics` de la imagen de demostración. |
 | PostgreSQL | `pg_isready` por TCP (#97) | Las cuenta el servicio que la usa (`database_queries`) | `/metrics` del HTTP Service que la usa. |
 | Redis | `redis-cli ping` | Memoria y claves | Comando `INFO`. |
@@ -814,9 +814,9 @@ El backend es un monolito modular ([ADR 0018](adr/0018-monolito-modular-con-spri
 | `Connection`, puertos y capacidades | `project`, `catalog` | Implementado (#80). |
 | `ScenarioValidator`, `ValidationIssue` | `project` | Implementado (#81). |
 | `Workload`, `WorkloadContract`, `ExecutedWorkload` | `project`, `catalog`, `execution` | Implementado para `CONSTANT_HTTP` (#87), con su panel en el lienzo y `GET /api/v1/workload-profiles`. Cada perfil es un bean que registra `ContractCatalog`. Los otros tres perfiles, pendientes. |
-| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86) y `DATABASE_CRUD` con PostgreSQL temporal (#97). Cada driver declara sus perfiles y `Run` pregunta al compilador. El resto de tipos, en P07. |
+| Motor: `PlanCompiler`, drivers, `RuntimeEngine`, `ExecutionReconciler` | `execution` | Implementado para HTTP Service `STATELESS` (#86), `DATABASE_CRUD` con PostgreSQL temporal (#97) y cadenas acíclicas `DOWNSTREAM_HTTP` (#106). Cada driver declara sus perfiles y `Run` pregunta al compilador. El resto de tipos, en P07. |
 | Eventos, logs y SSE: `ExecutionEvent`, `ExecutionJournal`, `ExecutionEventStream` | `execution` | Implementado (#92). |
-| CPU, memoria y contadores: `TelemetryCollector`, `CounterScraper`, `MetricSample`, `ExecutionMetricsService` | `execution` | Implementado (#93, #97): CPU y memoria de todos los nodos, y contadores Prometheus del HTTP Service (`requests`, `errors`, `database_queries`). |
+| CPU, memoria y contadores: `TelemetryCollector`, `CounterScraper`, `MetricSample`, `ExecutionMetricsService` | `execution` | Implementado (#93, #97, #106): CPU y memoria de todos los nodos, y contadores Prometheus del HTTP Service (`requests`, `errors`, `database_queries`, `downstream_calls`, `downstream_failures`, `downstream_timeouts`). |
 | Resto de contadores por tipo e historial | `observation` | Pendiente (P07 y P08). |
 | Load Balancer | `catalog`, `execution` | Pendiente (P07). |
 

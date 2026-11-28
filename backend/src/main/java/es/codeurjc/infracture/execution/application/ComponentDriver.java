@@ -45,6 +45,6 @@ public interface ComponentDriver {
     record Address(URI url, String user) {
     }
 
-    record Dependency(UUID key, Address address) {
+    record Dependency(UUID key, String name, Address address) {
     }
 }

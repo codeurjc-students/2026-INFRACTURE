@@ -110,7 +110,7 @@ public class PlanCompiler {
                 if (address == null) {
                     throw new IllegalStateException(target.getType() + " cannot be connected to");
                 }
-                dependencies.put(connection.port(), new Dependency(target.getKey(), address));
+                dependencies.put(connection.port(), new Dependency(target.getKey(), target.getName(), address));
             }
         }
         return dependencies;

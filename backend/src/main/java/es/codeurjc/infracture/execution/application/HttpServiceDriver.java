@@ -20,6 +20,7 @@ class HttpServiceDriver implements ComponentDriver {
 
     private static final int PORT = 8080;
     private static final String DATABASE_PORT = "database";
+    private static final String DOWNSTREAM_PORT = "downstream";
 
     private final String image;
 
@@ -34,7 +35,7 @@ class HttpServiceDriver implements ComponentDriver {
 
     @Override
     public Set<String> profiles() {
-        return Set.of("STATELESS", "DATABASE_CRUD");
+        return Set.of("STATELESS", "DATABASE_CRUD", "DOWNSTREAM_HTTP");
     }
 
     @Override
@@ -50,6 +51,12 @@ class HttpServiceDriver implements ComponentDriver {
             environment.put("DATABASE_URL", database.address().url().toString());
             environment.put("DATABASE_USER", database.address().user());
             secrets.put("DATABASE_PASSWORD", database.key());
+        }
+        Dependency downstream = dependencies.get(DOWNSTREAM_PORT);
+        if (downstream != null) {
+            environment.put("DOWNSTREAM_URL", downstream.address().url().toString());
+            environment.put("DOWNSTREAM_NAME", downstream.name());
+            environment.put("DOWNSTREAM_KEY", downstream.key().toString());
         }
         return new Service(new Container(image, null, null, List.of()), environment, secrets,
                 new HttpProbe(PORT, "/health", 2, 2, 15, 60));
@@ -67,6 +74,10 @@ class HttpServiceDriver implements ComponentDriver {
         series.put("errors", "infracture_request_errors_total");
         if ("DATABASE_CRUD".equals(component.getProfile())) {
             series.put("database_queries", "infracture_database_queries_total");
+        } else if ("DOWNSTREAM_HTTP".equals(component.getProfile())) {
+            series.put("downstream_calls", "infracture_downstream_calls_total");
+            series.put("downstream_failures", "infracture_downstream_failures_total");
+            series.put("downstream_timeouts", "infracture_downstream_timeouts_total");
         }
         return new Counters(URI.create("http://" + host + ":" + PORT + "/metrics"), series);
     }
@@ -74,5 +85,10 @@ class HttpServiceDriver implements ComponentDriver {
     @Override
     public URI httpUrl(String host) {
         return URI.create("http://" + host + ":" + PORT + "/");
+    }
+
+    @Override
+    public Address address(String host) {
+        return new Address(httpUrl(host), null);
     }
 }
