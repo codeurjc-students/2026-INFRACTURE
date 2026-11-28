@@ -4,6 +4,7 @@ import static es.codeurjc.infracture.execution.application.PlanCompilerTests.LOA
 import static es.codeurjc.infracture.execution.application.PlanCompilerTests.LOAD_IMAGE;
 import static es.codeurjc.infracture.execution.application.PlanCompilerTests.POSTGRESQL_IMAGE;
 import static es.codeurjc.infracture.execution.application.PlanCompilerTests.databaseExecution;
+import static es.codeurjc.infracture.execution.application.PlanCompilerTests.downstreamExecution;
 import static es.codeurjc.infracture.execution.application.PlanCompilerTests.execution;
 import static es.codeurjc.infracture.execution.application.PlanCompilerTests.reference;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,7 +55,8 @@ class ComposeRenderTests {
     @Test
     void givesExperimentsNoPortsVolumesPrivilegesOrSecrets() {
         for (ExecutionPlan plan : List.of(compiler.compile(execution(12L, LOAD)),
-                compiler.compile(databaseExecution(12L)))) {
+                compiler.compile(databaseExecution(12L)),
+                compiler.compile(downstreamExecution(12L)))) {
             Map<String, Object> file = ComposeRuntimeEngine.render(plan);
             @SuppressWarnings("unchecked")
             Map<String, Map<String, Object>> services = (Map<String, Map<String, Object>>) file.get("services");
@@ -63,6 +65,35 @@ class ComposeRenderTests {
                     .doesNotContainKeys("ports", "volumes", "privileged", "secrets", "command", "network_mode"));
             assertThat(file).doesNotContainKeys("volumes", "secrets");
         }
+    }
+
+    @Test
+    void rendersDownstreamServicesWaitingForTheirSharedTargetHealthAndEscapesNames() {
+        ExecutionPlan plan = compiler.compile(downstreamExecution(12L));
+        Node gateway = plan.nodes().getFirst();
+        Map<String, String> environment = new LinkedHashMap<>(gateway.wiring().environment());
+        environment.put("DOWNSTREAM_NAME", "orders-$api");
+        Node withDollar = new Node(gateway.key(), gateway.host(), gateway.container(),
+                new Wiring(environment, gateway.wiring().secrets(), gateway.wiring().dependencies()), gateway.health(),
+                gateway.evidence(), gateway.counters(), gateway.limits());
+        ExecutionPlan modified = new ExecutionPlan(plan.project(), plan.labels(),
+                List.of(withDollar, plan.nodes().get(1), plan.nodes().get(2)), null);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Map<String, Object>> services =
+                (Map<String, Map<String, Object>>) ComposeRuntimeEngine.render(modified).get("services");
+        String targetHost = plan.nodes().get(2).host();
+
+        assertThat(services).hasSize(3);
+        assertThat(services.get(gateway.host()).get("depends_on"))
+                .isEqualTo(Map.of(targetHost, Map.of("condition", "service_healthy")));
+        assertThat(services.get(plan.nodes().get(1).host()).get("depends_on"))
+                .isEqualTo(Map.of(targetHost, Map.of("condition", "service_healthy")));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> gatewayEnv = (Map<String, Object>) services.get(gateway.host()).get("environment");
+        assertThat(gatewayEnv)
+                .containsEntry("DOWNSTREAM_URL", "http://" + targetHost + ":8080/")
+                .containsEntry("DOWNSTREAM_NAME", "orders-$$api");
     }
 
     @Test

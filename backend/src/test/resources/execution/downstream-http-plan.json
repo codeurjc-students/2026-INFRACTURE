@@ -1,0 +1,152 @@
+{
+  "project": "infracture-local-exec-12",
+  "labels": {
+    "io.infracture.instance": "local",
+    "io.infracture.execution": "12"
+  },
+  "nodes": [
+    {
+      "key": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+      "host": "c-1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+      "container": {
+        "image": "infracture/demo-app:0.1.0",
+        "command": null,
+        "user": null,
+        "storage": []
+      },
+      "wiring": {
+        "environment": {
+          "APP_ROLE": "http",
+          "APP_MODE": "DOWNSTREAM_HTTP",
+          "COMPONENT_NAME": "gateway-api",
+          "RESPONSE_DELAY_MS": "10",
+          "DOWNSTREAM_URL": "http://c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10:8080/",
+          "DOWNSTREAM_NAME": "orders-api",
+          "DOWNSTREAM_KEY": "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10"
+        },
+        "secrets": {},
+        "dependencies": [
+          "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10"
+        ]
+      },
+      "health": {
+        "type": "http",
+        "port": 8080,
+        "path": "/health",
+        "intervalSeconds": 2,
+        "timeoutSeconds": 2,
+        "retries": 15,
+        "startPeriodSeconds": 60
+      },
+      "evidence": "http://c-1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d:8080/",
+      "counters": {
+        "endpoint": "http://c-1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d:8080/metrics",
+        "series": {
+          "requests": "infracture_requests_total",
+          "errors": "infracture_request_errors_total",
+          "downstream_calls": "infracture_downstream_calls_total",
+          "downstream_failures": "infracture_downstream_failures_total",
+          "downstream_timeouts": "infracture_downstream_timeouts_total"
+        }
+      },
+      "limits": {
+        "cpus": 0.5,
+        "memoryBytes": 402653184,
+        "pids": 200
+      }
+    },
+    {
+      "key": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+      "host": "c-2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+      "container": {
+        "image": "infracture/demo-app:0.1.0",
+        "command": null,
+        "user": null,
+        "storage": []
+      },
+      "wiring": {
+        "environment": {
+          "APP_ROLE": "http",
+          "APP_MODE": "DOWNSTREAM_HTTP",
+          "COMPONENT_NAME": "edge-api",
+          "RESPONSE_DELAY_MS": "0",
+          "DOWNSTREAM_URL": "http://c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10:8080/",
+          "DOWNSTREAM_NAME": "orders-api",
+          "DOWNSTREAM_KEY": "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10"
+        },
+        "secrets": {},
+        "dependencies": [
+          "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10"
+        ]
+      },
+      "health": {
+        "type": "http",
+        "port": 8080,
+        "path": "/health",
+        "intervalSeconds": 2,
+        "timeoutSeconds": 2,
+        "retries": 15,
+        "startPeriodSeconds": 60
+      },
+      "evidence": "http://c-2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e:8080/",
+      "counters": {
+        "endpoint": "http://c-2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e:8080/metrics",
+        "series": {
+          "requests": "infracture_requests_total",
+          "errors": "infracture_request_errors_total",
+          "downstream_calls": "infracture_downstream_calls_total",
+          "downstream_failures": "infracture_downstream_failures_total",
+          "downstream_timeouts": "infracture_downstream_timeouts_total"
+        }
+      },
+      "limits": {
+        "cpus": 0.5,
+        "memoryBytes": 402653184,
+        "pids": 200
+      }
+    },
+    {
+      "key": "3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10",
+      "host": "c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10",
+      "container": {
+        "image": "infracture/demo-app:0.1.0",
+        "command": null,
+        "user": null,
+        "storage": []
+      },
+      "wiring": {
+        "environment": {
+          "APP_ROLE": "http",
+          "APP_MODE": "STATELESS",
+          "COMPONENT_NAME": "orders-api",
+          "RESPONSE_DELAY_MS": "0"
+        },
+        "secrets": {},
+        "dependencies": []
+      },
+      "health": {
+        "type": "http",
+        "port": 8080,
+        "path": "/health",
+        "intervalSeconds": 2,
+        "timeoutSeconds": 2,
+        "retries": 15,
+        "startPeriodSeconds": 60
+      },
+      "evidence": "http://c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10:8080/",
+      "counters": {
+        "endpoint": "http://c-3f0c8a1e-5b7d-4c2a-9f1e-2d6b8a4c7e10:8080/metrics",
+        "series": {
+          "requests": "infracture_requests_total",
+          "errors": "infracture_request_errors_total"
+        }
+      },
+      "limits": {
+        "cpus": 0.5,
+        "memoryBytes": 402653184,
+        "pids": 200
+      }
+    }
+  ],
+  "load": null
+}
